@@ -1,0 +1,254 @@
+global(VERSION_sipka.jvm.constexpr) = "0.8.0"
+
+static(VERSION_saker.build) = nest.dependency.resolve(
+	saker.build,
+	Filters: nest.dependency.filter.kind([]),
+)[Bundles][0][BundleIdentifier][VersionNumber]
+
+static(VERSION_sipka.cmdline) = "0.8.3"
+
+compile(
+	out mainjavac
+	out annotationsjavac
+	out tooljavac
+) {
+	$annotationsjavac = saker.java.compile(
+		annotations/src/,
+		Identifier: annotations
+	)
+	$tooljavac = saker.java.compile(
+		tool/src/,
+		Identifier: tool
+	)
+	$mainjavac = saker.java.compile(
+		main/src/,
+		AnnotationProcessors: {
+			Processor: saker.java.processor.bundle(
+				Bundle: "sipka.cmdline-processor-v{ static(VERSION_sipka.cmdline) }",
+				Class: sipka.cmdline.processor.CommandLineProcessor,
+				Aggregating: false,				
+			),
+			SuppressWarnings: [ 
+				LastRoundGeneration,
+			],
+		},
+		ClassPath: [
+			$annotationsjavac,
+			$tooljavac,
+			saker.java.classpath.bundle("sipka.cmdline-api-v{ static(VERSION_sipka.cmdline) }"),
+		],
+		Identifier: main
+	)
+}
+
+export(
+	in compile = compile(),
+	out compile,
+	
+	out annotationsjar
+	out tooljar
+	out mainjar
+	out sourcejar
+	out fatjar
+	
+	out bundlepaths = [
+		$annotationsjar[Path]
+		$tooljar[Path]
+		$mainjar[Path]
+		$sourcejar[Path]
+	]
+){
+	$annotationsjar = saker.jar.create(
+		Output: sipka.jvm.constexpr-annotations.jar,
+		Resources: [
+			{
+				Directory: $compile[annotationsjavac][ClassDirectory]
+				Resources: **
+			}
+			{
+				Files: LICENSE,
+				TargetDirectory: META-INF,
+			}
+			{
+				Directory: annotations/resources/,
+				Resources: **,
+			}
+		],
+		Manifest: {
+			MainAttributes: {
+				Nest-Bundle-Format-Version: 1,
+				Nest-Bundle-Identifier: "sipka.jvm.constexpr-annotations-v{ global(VERSION_sipka.jvm.constexpr) }",
+				Nest-Bundle-Source: "sipka.jvm.constexpr-sources-v{ global(VERSION_sipka.jvm.constexpr) }"
+			}
+		}
+	)
+	$tooljar = saker.jar.create(
+		Output: sipka.jvm.constexpr-tool.jar,
+		Resources: [
+			{
+				Directory: $compile[tooljavac][ClassDirectory]
+				Resources: **
+			}
+			{
+				Files: LICENSE,
+				TargetDirectory: META-INF,
+			}
+			{
+				Directory: tool/resources/,
+				Resources: **,
+			}
+		],
+		Manifest: {
+			MainAttributes: {
+				Nest-Bundle-Format-Version: 1,
+				Nest-Bundle-Identifier: "sipka.jvm.constexpr-tool-v{ global(VERSION_sipka.jvm.constexpr) }",
+				Nest-Bundle-Source: "sipka.jvm.constexpr-sources-v{ global(VERSION_sipka.jvm.constexpr) }"
+			}
+		}
+	)
+	$mainjar = saker.jar.create(
+		Output: sipka.jvm.constexpr.jar,
+		Resources: [
+			{
+				Directory: $compile[mainjavac][ClassDirectory]
+				Resources: **
+			}
+			{
+				Files: LICENSE,
+				TargetDirectory: META-INF,
+			}
+			{
+				Directory: main/resources/,
+				Resources: **,
+			}
+		],
+		Includes: [
+			{
+				Archive: nest.bundle.download("sipka.cmdline-runtime-v{ static(VERSION_sipka.cmdline) }")[BundlePaths][0],
+				Resources: sipka/cmdline/runtime/**/*.class,
+			},
+		],
+		Manifest: {
+			MainAttributes: {
+				Main-Class: sipka.jvm.constexpr.main.CliMain,
+				Nest-Bundle-Format-Version: 1,
+				Nest-Bundle-Identifier: "sipka.jvm.constexpr-v{ global(VERSION_sipka.jvm.constexpr) }",
+				Nest-Bundle-Source: "sipka.jvm.constexpr-sources-v{ global(VERSION_sipka.jvm.constexpr) }"
+			}
+		}
+	)
+	#create a fat jar that contains all of the classes from the separate JARs,
+	#so it can be invoked simply using java -jar
+	#instead of having to do java -cp A.jar;B.jar the.main.Class
+	$fatjar = saker.jar.create(
+		Output: sipka.jvm.constexpr-fat.jar,
+		Includes: [
+			{
+				# include all classes from the JARs
+				Archive: [
+					$annotationsjar[Path]
+					$tooljar[Path]
+					$mainjar[Path]
+				],
+				Resources: **/*.class,
+			},
+			{
+				# the META-INF is taken from the main bundle
+				Archive: [
+					$mainjar[Path]
+				],
+				Resources: META-INF/**/*,
+			},
+		],
+		Manifest: {
+			MainAttributes: {
+				#overwrite the bundle identifier
+				Nest-Bundle-Identifier: "sipka.jvm.constexpr-fat-v{ global(VERSION_sipka.jvm.constexpr) }",
+			}
+		}
+	)
+	$sourcejar = saker.jar.create(
+		Output: sipka.jvm.constexpr-sources.jar,
+		Resources: [
+			{
+				Directory: [
+					annotations/src/
+					tool/src/
+					main/src/
+					$compile[annotationsjavac][SourceGenDirectory]
+					$compile[tooljavac][SourceGenDirectory]
+					$compile[mainjavac][SourceGenDirectory]
+				],
+				Resources: **/*.java,
+			},
+			{
+				Files: LICENSE,
+				TargetDirectory: META-INF,
+			}
+		],
+		Manifest: {
+			MainAttributes: {
+				Nest-Bundle-Format-Version: 1,
+				Nest-Bundle-Identifier: "sipka.jvm.constexpr-sources-v{ global(VERSION_sipka.jvm.constexpr) }",
+			},
+		},
+	)
+}
+install() {
+	$export = export()
+	nest.local.install(Bundle: $export[bundlepaths])
+}
+test_on_jdk(
+	in java_version = std.param.exec(test.java.version, Default: 8)
+	in jdk_version = std.param.exec(test.jdk.version, Default: $java_version)
+){
+	$export = export()
+	$compile = $export[compile]
+	$testcp = [
+		$compile[mainjavac],
+		saker.java.classpath.bundle([
+			"saker.build-v{ static(VERSION_saker.build) }",
+			"saker.build-test-utils-v{ static(VERSION_saker.build) }",
+		]),
+	]
+	$testrunnercp = [
+		saker.java.classpath.bundle("saker.build-test-runner-v{ static(VERSION_saker.build) }"),
+	]
+	$testcompile = saker.java.compile(
+		SourceDirectories: test/src/,
+		ClassPath: $testcp + $testrunnercp,
+		Identifier: "tests-java{$java_version}-jdk{$jdk_version}",
+		SourceVersion: $java_version,
+		TargetVersion: $java_version,
+		SDKs: {
+			Java: saker.java.sdk($jdk_version)
+		}
+	)
+	
+	saker.java.test(
+		TestRunnerClassPath: $testrunnercp,
+		ClassPath: $testcp,
+		TestInvokerClass: testing.saker.SakerJavaTestingInvoker,
+		TestClassPath: $testcompile[ClassDirectory],
+		TestClasses: [
+			testing.sipka.**.*Test
+		],
+		#ProcessJVMParameters: [ "-agentlib:jdwp=transport=dt_socket,address=localhost:5432,server=y,suspend=y,quiet=y" ],
+		NonDeterministicTests: **,
+		TestInvokerParameters: {
+			TimeoutMillis: 60000,
+		},
+		MaxJVMCount: 1,
+		FailFast: true,
+		AbortOnFail: true,
+		Verbose: true,
+		JavaSDK: $testcompile[JavaSDK]
+	)
+}
+
+test_jdk8() {
+	test_on_jdk(java_version: 8)
+}
+test_jdk9() {
+	test_on_jdk(java_version: 9)
+}
