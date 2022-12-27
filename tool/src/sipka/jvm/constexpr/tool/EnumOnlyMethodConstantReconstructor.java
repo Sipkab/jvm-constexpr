@@ -8,7 +8,7 @@ import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.AbstractInsnNo
 /**
  * {@link ConstantReconstructor} that checks if the value is an {@link Enum}, and calls the given method on it if so.
  */
-public class EnumOnlyMethodConstantReconstructor implements ConstantReconstructor {
+class EnumOnlyMethodConstantReconstructor implements ConstantReconstructor {
 	public static final EnumOnlyMethodConstantReconstructor NAME_INSTANCE;
 	public static final EnumOnlyMethodConstantReconstructor ORDINAL_INSTANCE;
 	public static final EnumOnlyMethodConstantReconstructor GETDECLARINGCLASS_INSTANCE;

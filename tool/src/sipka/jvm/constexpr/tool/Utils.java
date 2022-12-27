@@ -652,4 +652,8 @@ public class Utils {
 		}
 	}
 
+	public static void addToInternalNameMap(Map<String, Class<?>> map, Class<?> type) {
+		map.put(Type.getInternalName(type), type);
+	}
+
 }
