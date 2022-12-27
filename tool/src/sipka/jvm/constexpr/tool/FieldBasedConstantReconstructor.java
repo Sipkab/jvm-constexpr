@@ -27,7 +27,7 @@ class FieldBasedConstantReconstructor implements ConstantReconstructor {
 		}
 		//get from an instance
 		AsmStackReconstructedValue instanceval = context.getInliner()
-				.reconstructStackValue(context.withReceiverType(field.getType()), ins.getPrevious());
+				.reconstructStackValue(context.withReceiverType(field.getDeclaringClass()), ins.getPrevious());
 		if (instanceval == null) {
 			return null;
 		}

@@ -214,6 +214,7 @@ public class TestUtils {
 				cname = Type.getObjectType(cn.name).getClassName();
 				bytes = ByteArrayRegion.wrap(toClassBytes(cn));
 			}
+			SakerTestCase.assertNonNull(bytes, cname);
 			clresources.put(cname.replace('.', '/') + ".class", bytes);
 		}
 		return new MultiDataClassLoader(parentcl, new MemoryClassLoaderDataFinder(clresources));

@@ -1169,7 +1169,15 @@ public class ConstantExpressionInliner {
 				break;
 			}
 			case Opcodes.GETFIELD: {
-				//TODO
+				//getting field of an object
+				//the field is not marked as constant, otherwise a constant reconstructor would be set for it
+				FieldInsnNode fieldins = (FieldInsnNode) ins;
+				if (constantTypes.containsKey(fieldins.owner)) {
+					//getting field of a constant type
+					//allow it
+					return new DynamicInstanceFieldBasedConstantReconstructor(fieldins.owner, fieldins.name)
+							.reconstructValue(context, ins);
+				}
 				break;
 			}
 			default:
@@ -1177,22 +1185,34 @@ public class ConstantExpressionInliner {
 		}
 		if (context.isForceReconstruct()) {
 			try {
-				Class<?> type = Class.forName(Type.getObjectType(memberkey.getOwner()).getClassName(), false,
-						context.getClassLoader());
-				if (opcode == Opcodes.GETFIELD || opcode == Opcodes.GETSTATIC) {
-					return new FieldBasedConstantReconstructor(type.getField(memberkey.getMemberName()))
-							.reconstructValue(context, ins);
-				}
-				MethodKey methodkey = (MethodKey) memberkey;
-				String methodname = memberkey.getMemberName();
-				if (Utils.CONSTRUCTOR_METHOD_NAME.equals(methodname)) {
-					return new ConstructorBasedConstantReconstructor(
-							Utils.getConstructorForMethodDescriptor(type, methodkey.getMethodDescriptor()))
-									.reconstructValue(context, ins);
-				}
-				return new MethodBasedConstantReconstructor(
-						Utils.getMethodForMethodDescriptor(type, methodkey.getMethodDescriptor(), methodname))
+				switch (opcode) {
+					case Opcodes.GETFIELD: {
+						FieldInsnNode fieldins = (FieldInsnNode) ins;
+						return new DynamicInstanceFieldBasedConstantReconstructor(fieldins.owner, fieldins.name)
 								.reconstructValue(context, ins);
+					}
+					case Opcodes.GETSTATIC: {
+						Class<?> type = Class.forName(Type.getObjectType(memberkey.getOwner()).getClassName(), false,
+								context.getClassLoader());
+						return new FieldBasedConstantReconstructor(type.getField(memberkey.getMemberName()))
+								.reconstructValue(context, ins);
+					}
+					default: {
+						Class<?> type = Class.forName(Type.getObjectType(memberkey.getOwner()).getClassName(), false,
+								context.getClassLoader());
+
+						MethodKey methodkey = (MethodKey) memberkey;
+						String methodname = memberkey.getMemberName();
+						if (Utils.CONSTRUCTOR_METHOD_NAME.equals(methodname)) {
+							return new ConstructorBasedConstantReconstructor(
+									Utils.getConstructorForMethodDescriptor(type, methodkey.getMethodDescriptor()))
+											.reconstructValue(context, ins);
+						}
+						return new MethodBasedConstantReconstructor(
+								Utils.getMethodForMethodDescriptor(type, methodkey.getMethodDescriptor(), methodname))
+										.reconstructValue(context, ins);
+					}
+				}
 			} catch (Exception e) {
 				// TODO log
 				e.printStackTrace();
