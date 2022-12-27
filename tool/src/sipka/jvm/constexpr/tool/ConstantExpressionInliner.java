@@ -1193,8 +1193,9 @@ public class ConstantExpressionInliner {
 					case Opcodes.GETSTATIC: {
 						Class<?> type = Class.forName(Type.getObjectType(memberkey.getOwner()).getClassName(), false,
 								context.getClassLoader());
-						return new FieldBasedConstantReconstructor(type.getField(memberkey.getMemberName()))
-								.reconstructValue(context, ins);
+						Field field = type.getDeclaredField(memberkey.getMemberName());
+						field.setAccessible(true);
+						return new FieldBasedConstantReconstructor(field).reconstructValue(context, ins);
 					}
 					default: {
 						MethodInsnNode methodins = (MethodInsnNode) ins;

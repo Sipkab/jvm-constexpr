@@ -22,15 +22,19 @@ public class LimitedVisibilityInlineTest extends SakerTestCase {
 		opts.setConstantTypes(Arrays.asList(MyConstantClass.class, MySubClass.class));
 
 		opts.setConstantReconstructors(Arrays.asList(MyConstantClass.class.getDeclaredMethod("create", String.class),
-				MySubClass.class.getDeclaredMethod("create", String.class)));
+				MySubClass.class.getDeclaredMethod("create", String.class),
+				MySubClass.class.getDeclaredField("STATICVAL")));
+
+		opts.setConstantFields(Arrays.asList(Constants.class.getDeclaredField("PACK_VIS_CONST2")));
 
 		NavigableMap<String, ClassNode> outputs = TestUtils.performInliningClassNodes(opts);
 		assertEquals(outputs.size(), 1); // testing a single class
 
 		ClassNode classnode = outputs.firstEntry().getValue();
 		Class<?> loadedclass = Class.forName(Constants.class.getName(), false,
-				TestUtils.createClassLoader(classnode, MyConstantClass.class));
+				TestUtils.createClassLoader(classnode, MyConstantClass.class, MySubClass.class));
 		TestUtils.assertSameStaticFieldValues(classnode, Constants.class, loadedclass);
+
 	}
 
 	public static class MyConstantClass {
@@ -62,6 +66,13 @@ public class LimitedVisibilityInlineTest extends SakerTestCase {
 
 	public static class MySubClass extends MyConstantClass {
 
+		static final String STATICVAL;
+		static final String CONSTANT_STATICVAL;
+		static {
+			STATICVAL = "123";
+			CONSTANT_STATICVAL = "xyz";
+		}
+
 		MySubClass(String base) {
 			super(base);
 		}
@@ -82,6 +93,9 @@ public class LimitedVisibilityInlineTest extends SakerTestCase {
 
 		public static final String CREATE1 = MyConstantClass.create("1").getValue();
 		public static final String CREATE2 = MySubClass.create("2").getValue();
+
+		public static final String PACK_VIS_CONST = MySubClass.STATICVAL + "x";
+		public static final String PACK_VIS_CONST2 = MySubClass.CONSTANT_STATICVAL + "x";
 	}
 
 }
