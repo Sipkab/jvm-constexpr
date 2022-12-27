@@ -660,6 +660,7 @@ public class ConstantExpressionInliner {
 
 				case Opcodes.INVOKESTATIC:
 				case Opcodes.INVOKEVIRTUAL:
+				case Opcodes.INVOKEINTERFACE:
 				case Opcodes.INVOKESPECIAL: {
 					MethodInsnNode methodins = (MethodInsnNode) ins;
 					MethodKey memberkey = new MethodKey(methodins);
@@ -1039,6 +1040,7 @@ public class ConstantExpressionInliner {
 			int opcode = ins.getOpcode();
 			switch (opcode) {
 				case Opcodes.INVOKEVIRTUAL:
+				case Opcodes.INVOKEINTERFACE:
 				case Opcodes.INVOKESTATIC:
 				case Opcodes.INVOKESPECIAL: {
 					MethodInsnNode methodins = (MethodInsnNode) ins;
@@ -1095,7 +1097,8 @@ public class ConstantExpressionInliner {
 
 		int opcode = ins.getOpcode();
 		switch (opcode) {
-			case Opcodes.INVOKEVIRTUAL: {
+			case Opcodes.INVOKEVIRTUAL:
+			case Opcodes.INVOKEINTERFACE: {
 				MethodInsnNode methodins = (MethodInsnNode) ins;
 				if ("toString".equals(methodins.name) && "()Ljava/lang/String;".equals(methodins.desc)) {
 					//handle toString specially
@@ -1220,7 +1223,7 @@ public class ConstantExpressionInliner {
 				e.printStackTrace();
 			}
 		}
-		if (opcode == Opcodes.INVOKEVIRTUAL) {
+		if (opcode == Opcodes.INVOKEVIRTUAL || opcode == Opcodes.INVOKEINTERFACE) {
 			//handle some Enum methods specially as a last fallback
 			//we don't know if the value will be an enum, the reconstructors will ignore if not
 			MethodInsnNode methodins = (MethodInsnNode) ins;

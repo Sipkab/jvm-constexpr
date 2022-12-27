@@ -25,10 +25,20 @@ public class BasicEnumInlineTest extends SakerTestCase {
 		assertNull(TestUtils.getClInitMethod(classnode), "clinit method");
 	}
 
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public static class Constants {
-		public static final String VALUEOF = DayOfWeek.valueOf("MONDAY").name();
 		public static final String NAME = DayOfWeek.MONDAY.name();
 		public static final String NAME2 = TimeUnit.DAYS.name();
 		public static final String NAME3 = TimeUnit.valueOf("DAYS").name();
+		public static final String VALUEOF = DayOfWeek.valueOf("MONDAY").name();
+		public static final String ENUMVALUEOF = Enum.valueOf(DayOfWeek.class, "MONDAY").name();
+		public static final String DECLARINGCLASS = DayOfWeek.MONDAY.getDeclaringClass().getName();
+		public static final String ENUMDECLARINGCLASS = ((Enum<?>) DayOfWeek.MONDAY).getDeclaringClass().getName();
+		public static final int COMPARETO = DayOfWeek.MONDAY.compareTo(DayOfWeek.FRIDAY);
+		public static final int COMPARETORAW = ((Enum) DayOfWeek.MONDAY).compareTo((Enum) DayOfWeek.FRIDAY);
+		public static final int COMPARETOCOMPARABLE = ((Comparable) DayOfWeek.MONDAY)
+				.compareTo((Comparable) DayOfWeek.FRIDAY);
+		public static final int COMPARETOCOMPARABLEOBJ = ((Comparable) DayOfWeek.MONDAY)
+				.compareTo((Object) DayOfWeek.FRIDAY);
 	}
 }

@@ -70,6 +70,9 @@ class BaseConfig {
 		baseConstantReconstructors.put(new MethodKey("java/lang/Class", "getCanonicalName", "()Ljava/lang/String;"),
 				new TypeReferencedConstantReconstructor(ClassCanonicalNameConstantReconstructor.INSTANCE, Class.class));
 
+		addMethodConstantReconstructor(baseConstantReconstructors, Comparable.class, "compareTo", Object.class);
+		addMethodConstantReconstructor(baseConstantReconstructors, Comparable.class, "compareTo", Comparable.class);
+
 		addMethodConstantReconstructor(baseConstantReconstructors, Enum.class, "name");
 		addMethodConstantReconstructor(baseConstantReconstructors, Enum.class, "ordinal");
 		addMethodConstantReconstructor(baseConstantReconstructors, Enum.class, "compareTo", Object.class);
