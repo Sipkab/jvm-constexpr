@@ -105,6 +105,8 @@ public final class InlinerOptions {
 	 * <li>The contents of the fields are considered to be immutable, they hold no mutable state. They won't get
 	 * modified by any of the code that uses them (even if they have an array type). They can be eagerly inlined.</li>
 	 * </ul>
+	 * <p>
+	 * The fields specified here should be <code>static final</code> fields.
 	 * 
 	 * @param constantFields
 	 *            The constant fields.

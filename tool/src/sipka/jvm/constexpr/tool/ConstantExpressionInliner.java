@@ -1119,6 +1119,11 @@ public class ConstantExpressionInliner {
 						e.printStackTrace();
 					}
 				}
+
+				AsmStackReconstructedValue enumreconval = reconstructEnumMethodCall(context, ins);
+				if (enumreconval != null) {
+					return enumreconval;
+				}
 				break;
 			}
 			case Opcodes.INVOKESPECIAL: {
@@ -1187,6 +1192,7 @@ public class ConstantExpressionInliner {
 			default:
 				throw new IllegalArgumentException("Unknown opcode for constant reconstructor: " + opcode);
 		}
+
 		if (context.isForceReconstruct()) {
 			try {
 				switch (opcode) {
@@ -1223,21 +1229,30 @@ public class ConstantExpressionInliner {
 				e.printStackTrace();
 			}
 		}
-		if (opcode == Opcodes.INVOKEVIRTUAL || opcode == Opcodes.INVOKEINTERFACE) {
-			//handle some Enum methods specially as a last fallback
-			//we don't know if the value will be an enum, the reconstructors will ignore if not
-			MethodInsnNode methodins = (MethodInsnNode) ins;
-			if ("name".equals(methodins.name) && "()Ljava/lang/String;".equals(methodins.desc)) {
-				return EnumOnlyMethodConstantReconstructor.NAME_INSTANCE.reconstructValue(context, ins);
-			}
-			if ("ordinal".equals(methodins.name) && "()I".equals(methodins.desc)) {
-				return EnumOnlyMethodConstantReconstructor.ORDINAL_INSTANCE.reconstructValue(context, ins);
-			}
-			if ("getDeclaringClass".equals(methodins.name) && "()Ljava/lang/Class;".equals(methodins.desc)) {
-				return EnumOnlyMethodConstantReconstructor.GETDECLARINGCLASS_INSTANCE.reconstructValue(context, ins);
-			}
-		}
+		//INSERT HERE: any further specially handled method calls
 		return null;
+	}
+
+	private static AsmStackReconstructedValue reconstructEnumMethodCall(ReconstructionContext context,
+			AbstractInsnNode ins) {
+		int opcode = ins.getOpcode();
+		if (opcode != Opcodes.INVOKEVIRTUAL && opcode != Opcodes.INVOKEINTERFACE) {
+			return null;
+		}
+		//handle some Enum methods specially as a last fallback
+		//we don't know if the value will be an enum, the reconstructors will ignore if not
+		MethodInsnNode methodins = (MethodInsnNode) ins;
+		ConstantReconstructor enumreconstructor;
+		if ("name".equals(methodins.name) && "()Ljava/lang/String;".equals(methodins.desc)) {
+			enumreconstructor = EnumOnlyMethodConstantReconstructor.NAME_INSTANCE;
+		} else if ("ordinal".equals(methodins.name) && "()I".equals(methodins.desc)) {
+			enumreconstructor = EnumOnlyMethodConstantReconstructor.ORDINAL_INSTANCE;
+		} else if ("getDeclaringClass".equals(methodins.name) && "()Ljava/lang/Class;".equals(methodins.desc)) {
+			enumreconstructor = EnumOnlyMethodConstantReconstructor.GETDECLARINGCLASS_INSTANCE;
+		} else {
+			return null;
+		}
+		return enumreconstructor.reconstructValue(context, ins);
 	}
 
 	private Field findEnumConstantField(FieldInsnNode fieldins) {
