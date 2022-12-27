@@ -1569,7 +1569,7 @@ public class ConstantExpressionInliner {
 		if (transfield.setCalculatedConstantValue(derivedval)) {
 			//ok, no deconstruction necessary
 		} else {
-			ConstantDeconstructor deconstructor = getConstantDeconstructor(derivedval.getClass());
+			ConstantDeconstructor deconstructor = getConstantDeconstructor(derivedval);
 			if (deconstructor == null) {
 				//return true, as even if we failed to deconstruct the value, we still assigned it to the constant value
 				// of the transformed field
@@ -1694,12 +1694,11 @@ public class ConstantExpressionInliner {
 					result.add(new InsnNode(Opcodes.ACONST_NULL));
 					return result;
 				}
-				Class<? extends Object> valclass = val.getClass();
-				ConstantDeconstructor deconstructor = getConstantDeconstructor(valclass);
+				ConstantDeconstructor deconstructor = getConstantDeconstructor(val);
 				if (deconstructor == null) {
 					//no deconstructor found for this type, can't perform inlining
 					//TODO log?
-					System.out.println("No deconstructor for class: " + valclass);
+					System.out.println("No deconstructor for class: " + val.getClass());
 					return null;
 				}
 				return deconstructor.deconstructValue(this, transclass, val);
@@ -1966,18 +1965,13 @@ public class ConstantExpressionInliner {
 		return null;
 	}
 
-	private ConstantDeconstructor getConstantDeconstructor(Class<?> valclass) {
+	private ConstantDeconstructor getConstantDeconstructor(Object value) {
+		Class<?> valclass = value.getClass();
 		ConstantDeconstructor deconstructor = constantDeconstructors.get(valclass);
 		if (deconstructor != null) {
 			return deconstructor;
 		}
-		if (Enum.class.isAssignableFrom(valclass)) {
-			if (!valclass.isEnum()) {
-				//if the argument class is not an enum itself, then it is likely an anonymous subclass for a field
-				//get the superclass of it so the deconstruction works
-				//(tested using TimeUnit)
-				valclass = valclass.getSuperclass();
-			}
+		if (value instanceof Enum) {
 			return EnumFieldConstantDeconstructor.INSTANCE;
 		}
 		return null;
