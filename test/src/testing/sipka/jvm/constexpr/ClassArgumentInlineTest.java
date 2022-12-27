@@ -12,7 +12,7 @@ import testing.saker.SakerTest;
 import testing.saker.SakerTestCase;
 
 /**
- * Tests that the fields of a custom enum can be deconstructed-reconstructed.
+ * Tests that the {@link Class} types are properly loaded for constant method calls.
  */
 @SakerTest
 public class ClassArgumentInlineTest extends SakerTestCase {
