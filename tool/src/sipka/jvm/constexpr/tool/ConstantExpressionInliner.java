@@ -1108,9 +1108,8 @@ public class ConstantExpressionInliner {
 						return null;
 					}
 					try {
-						return new MethodBasedConstantReconstructor(
-								Utils.getMethodForMethodDescriptor(type, methodins.desc, methodins.name))
-										.reconstructValue(context, ins);
+						return new MethodBasedConstantReconstructor(Utils.getMethodForInstruction(type, methodins))
+								.reconstructValue(context, ins);
 					} catch (NoSuchMethodException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
@@ -1198,6 +1197,7 @@ public class ConstantExpressionInliner {
 								.reconstructValue(context, ins);
 					}
 					default: {
+						MethodInsnNode methodins = (MethodInsnNode) ins;
 						Class<?> type = Class.forName(Type.getObjectType(memberkey.getOwner()).getClassName(), false,
 								context.getClassLoader());
 
@@ -1208,9 +1208,8 @@ public class ConstantExpressionInliner {
 									Utils.getConstructorForMethodDescriptor(type, methodkey.getMethodDescriptor()))
 											.reconstructValue(context, ins);
 						}
-						return new MethodBasedConstantReconstructor(
-								Utils.getMethodForMethodDescriptor(type, methodkey.getMethodDescriptor(), methodname))
-										.reconstructValue(context, ins);
+						return new MethodBasedConstantReconstructor(Utils.getMethodForInstruction(type, methodins))
+								.reconstructValue(context, ins);
 					}
 				}
 			} catch (Exception e) {

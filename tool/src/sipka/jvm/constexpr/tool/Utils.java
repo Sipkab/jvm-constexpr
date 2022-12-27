@@ -22,7 +22,7 @@ public class Utils {
 	private Utils() {
 		throw new UnsupportedOperationException();
 	}
-	
+
 	public static final String CONSTRUCTOR_METHOD_NAME = "<init>";
 
 	public static final String JAVA_LANG_STRING_INTERNAL_NAME = Type.getInternalName(String.class);
@@ -534,28 +534,51 @@ public class Utils {
 	}
 
 	public static Method getMethodForInstruction(Class<?> type, MethodInsnNode methodins) throws NoSuchMethodException {
-		return getMethodForMethodDescriptor(type, methodins.desc, methodins.name);
+		return getMethodForMethodDescriptor(type, methodins.owner, methodins.desc, methodins.name);
 	}
 
-	public static Method getMethodForMethodDescriptor(Class<?> type, String descriptor, String name)
+	public static Method getMethodForMethodDescriptor(Class<?> type, String owner, String descriptor, String name)
 			throws NoSuchMethodException {
 		Type[] asmparamtypes = Type.getArgumentTypes(descriptor);
-		for (Method m : type.getMethods()) {
-			if (!isMethodMatchesNameAndDescriptor(m, descriptor, name, asmparamtypes)) {
-				continue;
-			}
-			m.setAccessible(true);
-			return m;
-		}
-		for (Method m : type.getDeclaredMethods()) {
-			if (!isMethodMatchesNameAndDescriptor(m, descriptor, name, asmparamtypes)) {
-				continue;
-			}
+		Method m = searchMethodForMethodDescriptor(type, asmparamtypes, owner, descriptor, name, false);
+		if (m != null) {
 			m.setAccessible(true);
 			return m;
 		}
 		throw new NoSuchMethodException(
 				"Method not found on " + type + " with name: " + name + " and descriptor: " + descriptor);
+	}
+
+	private static Method searchMethodForMethodDescriptor(Class<?> type, Type[] asmparamtypes, String owner,
+			String descriptor, String name, boolean hadowner) {
+		if (!hadowner) {
+			if (owner.equals(Type.getInternalName(type))) {
+				hadowner = true;
+			}
+		}
+		if (hadowner) {
+			for (Method m : type.getDeclaredMethods()) {
+				if (!isMethodMatchesNameAndDescriptor(m, descriptor, name, asmparamtypes)) {
+					continue;
+				}
+				m.setAccessible(true);
+				return m;
+			}
+		}
+		Class<?> sc = type.getSuperclass();
+		if (sc != null) {
+			Method m = searchMethodForMethodDescriptor(sc, asmparamtypes, owner, descriptor, name, hadowner);
+			if (m != null) {
+				return m;
+			}
+		}
+		for (Class<?> itf : type.getInterfaces()) {
+			Method m = searchMethodForMethodDescriptor(itf, asmparamtypes, owner, descriptor, name, hadowner);
+			if (m != null) {
+				return m;
+			}
+		}
+		return null;
 	}
 
 	private static boolean isMethodMatchesNameAndDescriptor(Method m, String descriptor, String name,
@@ -578,7 +601,7 @@ public class Utils {
 	public static Constructor<?> getConstructorForMethodDescriptor(Class<?> type, String descriptor)
 			throws NoSuchMethodException {
 		Type[] asmparamtypes = Type.getArgumentTypes(descriptor);
-		for (Constructor<?> constructor : type.getConstructors()) {
+		for (Constructor<?> constructor : type.getDeclaredConstructors()) {
 			Class<?>[] paramtypes = constructor.getParameterTypes();
 			if (!isSameTypes(paramtypes, asmparamtypes)) {
 				continue;
