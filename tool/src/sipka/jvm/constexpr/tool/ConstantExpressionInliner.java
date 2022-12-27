@@ -187,8 +187,6 @@ public class ConstantExpressionInliner {
 					for (TransformedField transfield : transclass.transformedFields.values()) {
 						boolean inlined = inlineFieldInitializerValueFromStaticInitializers(transclass, transfield,
 								transclass.clinitMethod);
-						System.out.println("ConstantExpressionInliner.run() inlined " + inlined + "  "
-								+ transfield.fieldNode.name);
 						if (inlined) {
 							//inline the field value to other codes
 							for (TransformedClass tc : inputClasses.values()) {
@@ -626,9 +624,23 @@ public class ConstantExpressionInliner {
 			if (argval == null) {
 				return false;
 			}
+			Object val = argval.getValue();
+			if (val instanceof Type) {
+				// replace with a Class instance
+				Class<?> c;
+				try {
+					c = Class.forName(((Type) val).getClassName(), false, context.getClassLoader());
+				} catch (ClassNotFoundException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+					return false;
+				}
+				argval = new AsmStackReconstructedValue(argval.getFirstIns(), argval.getLastIns(), c);
+				val = c;
+			}
 			outderivedargs[paramindex] = argval;
 			Type type = parameterAsmTypes == null ? null : parameterAsmTypes[paramindex];
-			outargs[paramindex] = castValueFromAsm(type, argval.getValue());
+			outargs[paramindex] = castValueFromAsm(type, val);
 			argit = argval.getFirstIns().getPrevious();
 		}
 		return true;
@@ -1692,6 +1704,11 @@ public class ConstantExpressionInliner {
 				if (val == null) {
 					InsnList result = new InsnList();
 					result.add(new InsnNode(Opcodes.ACONST_NULL));
+					return result;
+				}
+				if (val instanceof Class) {
+					InsnList result = new InsnList();
+					result.add(new LdcInsnNode(Type.getType((Class<?>) val)));
 					return result;
 				}
 				ConstantDeconstructor deconstructor = getConstantDeconstructor(val);
