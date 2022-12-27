@@ -1,7 +1,9 @@
 package sipka.jvm.constexpr.tool.options;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Member;
+import java.lang.reflect.Method;
 import java.time.LocalDate;
 import java.time.Month;
 import java.util.ArrayList;
@@ -168,21 +170,130 @@ public final class InlinerOptions {
 		return constantTypes;
 	}
 
+	/**
+	 * Sets the constant deconstructors.
+	 * <p>
+	 * The deconstructors specify the way of serializing a constant value back to the JVM stack. The configuration
+	 * holder for this is the {@link DeconstructorConfiguration} class, which can be instantiated using its static
+	 * factory methods for an appropriate use-case.
+	 * <p>
+	 * In general, deconstructors are a way of reconstructing the optimized constant instance during runtime.
+	 * <p>
+	 * An example of a deconstructor:
+	 * 
+	 * <pre>
+	 * class MyClass {
+	 * 	private final int value;
+	 * 
+	 * 	MyClass(int value) {
+	 * 		this.value = value;
+	 * 	}
+	 * 
+	 * 	public int getValue() {
+	 * 		return value;
+	 * 	}
+	 * }
+	 * </pre>
+	 * 
+	 * In the above case, the constructor with the <code>value</code> argument can be specified as a deconstructor. In
+	 * this case, if a <code>MyClass</code> constant is processed by the tool, then it will be written back to the stack
+	 * in the following way:
+	 * 
+	 * <pre>
+	 * new MyClass               # create a new MyClass instance
+	 * dup                       # duplicate the new MyClass reference on the stack
+	 * ldc MyClass.getValue()    # the getValue() function is invoked, 
+	 *                           # and the result is written to the stack as an ldc instruction
+	 * invokespecial MyClass.MyClass(int)    # invoke the constructor
+	 * </pre>
+	 * 
+	 * Each class can have only a single deconstructor, which is called when an object with that exact type is written
+	 * back to the JVM stack.
+	 * <p>
+	 * Classes without deconstructors can't be optimized, therefore it is recommended that they are set for classes that
+	 * are relevant for constant optimization.
+	 * 
+	 * @param deconstructorConfigurations
+	 *            The deconstructor configurations.
+	 * @throws NullPointerException
+	 *             If the argument is <code>null</code>.
+	 * @see DeconstructionSelector
+	 * @see DeconstructorConfiguration
+	 */
 	public void setDeconstructorConfigurations(Map<Class<?>, DeconstructionSelector> deconstructorConfigurations)
 			throws NullPointerException {
 		Objects.requireNonNull(deconstructorConfigurations, "deconstructorConfigurations");
 		this.deconstructorConfigurations = deconstructorConfigurations;
 	}
 
+	/**
+	 * Gets the deconstructor configurations.
+	 * <p>
+	 * Modifications to the returned collection may or may not be propagated back to the backing collection.
+	 * 
+	 * @return The deconstructor configurations.
+	 * @see #setDeconstructorConfigurations(Map)
+	 */
 	public Map<Class<?>, DeconstructionSelector> getDeconstructorConfigurations() {
 		return deconstructorConfigurations;
 	}
 
+	/**
+	 * Sets the constant reconstructor fields, methods and constructors.
+	 * <p>
+	 * Constant reconstructors are class members that can be invoked/accessed during constant optimization to get the
+	 * value that they designate.
+	 * <p>
+	 * The tool will examine the code of the processed classes. If it encounters an instruction that corresponds to one
+	 * of the constant reconstructors, then it will attempt to invoke/access this reconstructor to retrieve the constant
+	 * value that they compute.
+	 * <p>
+	 * After this, the inliner tool will search for a matching {@linkplain #setDeconstructorConfigurations(Map)
+	 * deconstructor configuration} and attempt to write back the computed value to the stack.
+	 * <p>
+	 * Basically, the constant reconstructors set here are the settings for which fields, methods, and constructors can
+	 * be processed as part of the inlining.
+	 * <p>
+	 * An example, let's say that the {@link Integer#valueOf(String, int)} method is set as a constant reconstructor. If
+	 * the inliner tool sees the following instructions on the stack:
+	 * 
+	 * <pre>
+	 * ldc "890A"
+	 * ldc 16
+	 * invokestatic Integer.valueOf(String, int)
+	 * </pre>
+	 * 
+	 * Then it will call this method, and get an Integer(123) instance. (This is when the tool <em>reconstructs</em> the
+	 * constant from the stack.) It will then use the deconstructor for {@link Integer} to write it back to the stack as
+	 * follows:
+	 * 
+	 * <pre>
+	 * ldc 35082
+	 * invokestatic Integer.valueOf(int)
+	 * </pre>
+	 * 
+	 * As a result, the hexadecimal parsing of <code>890A</code> has been performed by the tool, and a more efficient
+	 * instantiation of {@link Integer} is used instead.
+	 * 
+	 * @param constantReconstructors
+	 *            The constant reconstructors. The collections should only contain {@link Constructor}, {@link Method}
+	 *            or {@link Field} instances.
+	 * @throws NullPointerException
+	 *             If the argument is <code>null</code>.
+	 */
 	public void setConstantReconstructors(Collection<Member> constantReconstructors) throws NullPointerException {
 		Objects.requireNonNull(constantReconstructors, "constantReconstructors");
 		this.constantReconstructors = constantReconstructors;
 	}
 
+	/**
+	 * Gets the constant reconstructors.
+	 * <p>
+	 * Modifications to the returned collection may or may not be propagated back to the backing collection.
+	 * 
+	 * @return The constant reconstructors.
+	 * @see #setConstantReconstructors(Collection)
+	 */
 	public Collection<Member> getConstantReconstructors() {
 		return constantReconstructors;
 	}

@@ -18,7 +18,8 @@ public class DeconstructorConfiguration {
 		this.memberName = memberName;
 	}
 
-	public static DeconstructorConfiguration createConstructor(Constructor<?> constructor, String... gettermethods) {
+	public static DeconstructorConfiguration createConstructor(Constructor<?> constructor, String... gettermethods)
+			throws NullPointerException {
 		Type[] asmargtypes = Utils.toAsmTypes(constructor.getParameterTypes());
 
 		return new ConstructorDeconstructorConfiguration(Type.getType(constructor.getDeclaringClass()), asmargtypes,
@@ -26,11 +27,12 @@ public class DeconstructorConfiguration {
 	}
 
 	public static DeconstructorConfiguration createConstructor(Type methodowner, Type[] parametertypes,
-			String... gettermethods) {
+			String... gettermethods) throws NullPointerException {
 		return new ConstructorDeconstructorConfiguration(methodowner, parametertypes, gettermethods);
 	}
 
-	public static DeconstructorConfiguration createStaticMethod(Method method, String... gettermethods) {
+	public static DeconstructorConfiguration createStaticMethod(Method method, String... gettermethods)
+			throws NullPointerException {
 		if (((method.getModifiers() & Modifier.STATIC) != Modifier.STATIC)) {
 			throw new IllegalArgumentException("Method is not static: " + method);
 		}
@@ -41,12 +43,12 @@ public class DeconstructorConfiguration {
 	}
 
 	public static DeconstructorConfiguration createStaticMethod(Type methodowner, String methodname,
-			Type methoddescriptor, String... gettermethods) {
+			Type methoddescriptor, String... gettermethods) throws NullPointerException {
 		return new StaticMethodDeconstructorConfiguration(methodowner, methodname, methoddescriptor.getReturnType(),
 				methoddescriptor.getArgumentTypes(), gettermethods);
 	}
 
-	public static DeconstructorConfiguration createStaticField(Field field) {
+	public static DeconstructorConfiguration createStaticField(Field field) throws NullPointerException {
 		if (((field.getModifiers() & Modifier.STATIC) != Modifier.STATIC)) {
 			throw new IllegalArgumentException("Field is not static: " + field);
 		}
