@@ -42,4 +42,13 @@ class FieldBasedConstantReconstructor implements ConstantReconstructor {
 		return new AsmStackReconstructedValue(instanceval.getFirstIns(), ins.getNext(), fieldval);
 	}
 
+	@Override
+	public String toString() {
+		StringBuilder builder = new StringBuilder(getClass().getSimpleName());
+		builder.append("[field=");
+		builder.append(field);
+		builder.append("]");
+		return builder.toString();
+	}
+
 }

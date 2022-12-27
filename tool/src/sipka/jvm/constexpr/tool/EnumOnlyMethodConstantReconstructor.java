@@ -52,4 +52,13 @@ class EnumOnlyMethodConstantReconstructor implements ConstantReconstructor {
 		return new AsmStackReconstructedValue(subjectval.getFirstIns(), ins.getNext(), resultval);
 	}
 
+	@Override
+	public String toString() {
+		StringBuilder builder = new StringBuilder(getClass().getSimpleName());
+		builder.append("[method=");
+		builder.append(method);
+		builder.append("]");
+		return builder.toString();
+	}
+
 }

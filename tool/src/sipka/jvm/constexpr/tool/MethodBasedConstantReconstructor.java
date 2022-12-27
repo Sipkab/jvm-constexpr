@@ -63,4 +63,13 @@ final class MethodBasedConstantReconstructor implements ConstantReconstructor {
 		}
 		return new AsmStackReconstructedValue(firstins, ins.getNext(), resultobj);
 	}
+
+	@Override
+	public String toString() {
+		StringBuilder builder = new StringBuilder(getClass().getSimpleName());
+		builder.append("[method=");
+		builder.append(method);
+		builder.append("]");
+		return builder.toString();
+	}
 }

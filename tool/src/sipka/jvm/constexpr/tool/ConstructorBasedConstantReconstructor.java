@@ -13,7 +13,7 @@ import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.TypeInsnNode;
  */
 final class ConstructorBasedConstantReconstructor implements ConstantReconstructor {
 	private final Constructor<?> constructor;
-	
+
 	private transient final String typeInternalName;
 	private transient final Class<?>[] parameterTypes;
 
@@ -61,5 +61,14 @@ final class ConstructorBasedConstantReconstructor implements ConstantReconstruct
 			return null;
 		}
 		return new AsmStackReconstructedValue(typeins, ins.getNext(), instance);
+	}
+
+	@Override
+	public String toString() {
+		StringBuilder builder = new StringBuilder(getClass().getSimpleName());
+		builder.append("[constructor=");
+		builder.append(constructor);
+		builder.append("]");
+		return builder.toString();
 	}
 }

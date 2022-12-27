@@ -718,5 +718,11 @@ class BaseConfig {
 		protected String getName(Class<?> c) {
 			return c.getName();
 		}
+
+		@Override
+		public String toString() {
+			return getClass().getSimpleName() + "[]";
+		}
+
 	}
 }

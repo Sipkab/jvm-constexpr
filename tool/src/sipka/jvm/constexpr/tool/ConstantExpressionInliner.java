@@ -1087,18 +1087,9 @@ public class ConstantExpressionInliner {
 
 	private AsmStackReconstructedValue reconstructValueImpl(ReconstructionContext context, AbstractInsnNode ins,
 			MemberKey memberkey) {
-		ConstantReconstructor reconstructor = getConstantReconstructor(context, ins, memberkey);
-		if (reconstructor == null) {
-			return null;
-		}
-		return reconstructor.reconstructValue(context, ins);
-	}
-
-	private ConstantReconstructor getConstantReconstructor(ReconstructionContext context, AbstractInsnNode ins,
-			MemberKey memberkey) {
 		ConstantReconstructor reconstructor = constantReconstructors.get(memberkey);
 		if (reconstructor != null) {
-			return reconstructor;
+			return reconstructor.reconstructValue(context, ins);
 		}
 
 		int opcode = ins.getOpcode();
@@ -1108,7 +1099,7 @@ public class ConstantExpressionInliner {
 				if ("toString".equals(methodins.name) && "()Ljava/lang/String;".equals(methodins.desc)) {
 					//handle toString specially
 					//if the reconstruction succeeds, then we can call toString on it and inline that result
-					return MethodBasedConstantReconstructor.TOSTRING_INSTANCE;
+					return MethodBasedConstantReconstructor.TOSTRING_INSTANCE.reconstructValue(context, ins);
 				}
 				Class<?> type = constantTypes.get(methodins.owner);
 				if (type != null) {
@@ -1118,7 +1109,8 @@ public class ConstantExpressionInliner {
 					}
 					try {
 						return new MethodBasedConstantReconstructor(
-								Utils.getMethodForMethodDescriptor(type, methodins.desc, methodins.name));
+								Utils.getMethodForMethodDescriptor(type, methodins.desc, methodins.name))
+										.reconstructValue(context, ins);
 					} catch (NoSuchMethodException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
@@ -1134,7 +1126,8 @@ public class ConstantExpressionInliner {
 					if (type != null) {
 						try {
 							return new ConstructorBasedConstantReconstructor(
-									Utils.getConstructorForMethodDescriptor(type, methodins.desc));
+									Utils.getConstructorForMethodDescriptor(type, methodins.desc))
+											.reconstructValue(context, ins);
 						} catch (NoSuchMethodException e) {
 							// TODO Auto-generated catch block
 							e.printStackTrace();
@@ -1161,14 +1154,7 @@ public class ConstantExpressionInliner {
 								|| optionsConstantFields.containsKey(fieldkey)) {
 							//only return if the type of the value is a constant type, otherwise it might get modified by other code
 							//and thus result in us using different values
-							return new ConstantReconstructor() {
-
-								@Override
-								public AsmStackReconstructedValue reconstructValue(ReconstructionContext context,
-										AbstractInsnNode ins) {
-									return new AsmStackReconstructedValue(ins, ins.getNext(), constval);
-								}
-							};
+							return new SimpleConstantReconstructor(constval).reconstructValue(context, ins);
 						}
 					} else {
 						//TODO log if null?
@@ -1178,7 +1164,7 @@ public class ConstantExpressionInliner {
 				FieldInsnNode fieldins = (FieldInsnNode) ins;
 				Field enumfield = findEnumConstantField(fieldins);
 				if (enumfield != null) {
-					return new FieldBasedConstantReconstructor(enumfield);
+					return new FieldBasedConstantReconstructor(enumfield).reconstructValue(context, ins);
 				}
 				break;
 			}
@@ -1194,16 +1180,19 @@ public class ConstantExpressionInliner {
 				Class<?> type = Class.forName(Type.getObjectType(memberkey.getOwner()).getClassName(), false,
 						context.getClassLoader());
 				if (opcode == Opcodes.GETFIELD || opcode == Opcodes.GETSTATIC) {
-					return new FieldBasedConstantReconstructor(type.getField(memberkey.getMemberName()));
+					return new FieldBasedConstantReconstructor(type.getField(memberkey.getMemberName()))
+							.reconstructValue(context, ins);
 				}
 				MethodKey methodkey = (MethodKey) memberkey;
 				String methodname = memberkey.getMemberName();
 				if (Utils.CONSTRUCTOR_METHOD_NAME.equals(methodname)) {
 					return new ConstructorBasedConstantReconstructor(
-							Utils.getConstructorForMethodDescriptor(type, methodkey.getMethodDescriptor()));
+							Utils.getConstructorForMethodDescriptor(type, methodkey.getMethodDescriptor()))
+									.reconstructValue(context, ins);
 				}
 				return new MethodBasedConstantReconstructor(
-						Utils.getMethodForMethodDescriptor(type, methodkey.getMethodDescriptor(), methodname));
+						Utils.getMethodForMethodDescriptor(type, methodkey.getMethodDescriptor(), methodname))
+								.reconstructValue(context, ins);
 			} catch (Exception e) {
 				// TODO log
 				e.printStackTrace();
@@ -1214,13 +1203,13 @@ public class ConstantExpressionInliner {
 			//we don't know if the value will be an enum, the reconstructors will ignore if not
 			MethodInsnNode methodins = (MethodInsnNode) ins;
 			if ("name".equals(methodins.name) && "()Ljava/lang/String;".equals(methodins.desc)) {
-				return EnumOnlyMethodConstantReconstructor.NAME_INSTANCE;
+				return EnumOnlyMethodConstantReconstructor.NAME_INSTANCE.reconstructValue(context, ins);
 			}
 			if ("ordinal".equals(methodins.name) && "()I".equals(methodins.desc)) {
-				return EnumOnlyMethodConstantReconstructor.ORDINAL_INSTANCE;
+				return EnumOnlyMethodConstantReconstructor.ORDINAL_INSTANCE.reconstructValue(context, ins);
 			}
 			if ("getDeclaringClass".equals(methodins.name) && "()Ljava/lang/Class;".equals(methodins.desc)) {
-				return EnumOnlyMethodConstantReconstructor.GETDECLARINGCLASS_INSTANCE;
+				return EnumOnlyMethodConstantReconstructor.GETDECLARINGCLASS_INSTANCE.reconstructValue(context, ins);
 			}
 		}
 		return null;
