@@ -874,7 +874,8 @@ public class ConstantExpressionInliner {
 			//not static final field
 			return false;
 		}
-		Field constantfield = optionsConstantFields.get(new FieldKey(transclass.classNode.name, fieldnode.name));
+		Field constantfield = optionsConstantFields
+				.get(new FieldKey(transclass.classNode.name, fieldnode.name, fieldnode.desc));
 
 		Collection<AsmStackReconstructedValue> nvalues = getAssignedFieldValuesFromMethod(transclass, fieldnode,
 				clinitmethodnode, constantfield);
@@ -1141,10 +1142,12 @@ public class ConstantExpressionInliner {
 			}
 			case Opcodes.GETSTATIC: {
 				FieldKey fieldkey = (FieldKey) memberkey;
+				FieldInsnNode fieldins = (FieldInsnNode) ins;
 
 				TransformedClass fieldownertransclass = inputClasses.get(memberkey.getOwner());
 				if (fieldownertransclass != null) {
-					TransformedField transfield = fieldownertransclass.transformedFields.get(memberkey.getMemberName());
+					TransformedField transfield = fieldownertransclass.getTransformedField(fieldins.desc,
+							fieldins.name);
 					if (transfield != null && transfield.calculatedConstantValue != null) {
 						//the field should exist, but null check just in case
 
@@ -1160,7 +1163,6 @@ public class ConstantExpressionInliner {
 					}
 				}
 
-				FieldInsnNode fieldins = (FieldInsnNode) ins;
 				Field enumfield = findEnumConstantField(fieldins);
 				if (enumfield != null) {
 					return new FieldBasedConstantReconstructor(enumfield).reconstructValue(context, ins);
@@ -1174,8 +1176,8 @@ public class ConstantExpressionInliner {
 				if (constantTypes.containsKey(fieldins.owner)) {
 					//getting field of a constant type
 					//allow it
-					return new DynamicInstanceFieldBasedConstantReconstructor(fieldins.owner, fieldins.name)
-							.reconstructValue(context, ins);
+					return new DynamicInstanceFieldBasedConstantReconstructor(fieldins.owner, fieldins.name,
+							fieldins.desc).reconstructValue(context, ins);
 				}
 				break;
 			}
@@ -1187,8 +1189,8 @@ public class ConstantExpressionInliner {
 				switch (opcode) {
 					case Opcodes.GETFIELD: {
 						FieldInsnNode fieldins = (FieldInsnNode) ins;
-						return new DynamicInstanceFieldBasedConstantReconstructor(fieldins.owner, fieldins.name)
-								.reconstructValue(context, ins);
+						return new DynamicInstanceFieldBasedConstantReconstructor(fieldins.owner, fieldins.name,
+								fieldins.desc).reconstructValue(context, ins);
 					}
 					case Opcodes.GETSTATIC: {
 						Class<?> type = Class.forName(Type.getObjectType(memberkey.getOwner()).getClassName(), false,
@@ -1256,12 +1258,12 @@ public class ConstantExpressionInliner {
 		//try to find it, by searching for the constant reconstructors
 		//the field key for the tail map only contains the internal name, as we accept any of the reconstructors
 		//that are associated with this owner type
-		FieldKey fieldkey = new FieldKey(ownertype.getInternalName(), "");
-		NavigableMap<MemberKey, TypeReferencedConstantReconstructor> tailmap = constantReconstructors.tailMap(fieldkey,
-				true);
+		FieldKey searchfieldkey = new FieldKey(ownertype.getInternalName(), "", "");
+		NavigableMap<MemberKey, TypeReferencedConstantReconstructor> tailmap = constantReconstructors
+				.tailMap(searchfieldkey, true);
 		for (Entry<MemberKey, TypeReferencedConstantReconstructor> entry : tailmap.entrySet()) {
 			MemberKey em = entry.getKey();
-			if (!em.getOwner().equals(fieldkey.getOwner())) {
+			if (!em.getOwner().equals(searchfieldkey.getOwner())) {
 				//not found
 				break;
 			}

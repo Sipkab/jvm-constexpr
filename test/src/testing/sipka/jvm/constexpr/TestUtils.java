@@ -13,6 +13,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
+import saker.build.thirdparty.saker.util.ObjectUtils;
 import saker.build.thirdparty.saker.util.ReflectUtils;
 import saker.build.thirdparty.saker.util.classloader.MultiDataClassLoader;
 import saker.build.thirdparty.saker.util.io.ByteArrayRegion;
@@ -159,7 +160,7 @@ public class TestUtils {
 				SakerTestCase.assertNonNull(loadedval, "LOADED null");
 				SakerTestCase.assertNonNull(fieldval, "CLASS null");
 			} else {
-				if (loadedval.getClass() == fieldval.getClass()) {
+				if (ObjectUtils.isSameClass(loadedval, fieldval)) {
 					//can't check equality if the field values are from different classloaders
 					SakerTestCase.assertEquals(loadedval, fieldval, fieldname + ": LOADED - CLASS");
 				}

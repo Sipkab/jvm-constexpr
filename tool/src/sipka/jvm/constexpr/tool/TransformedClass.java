@@ -100,13 +100,17 @@ class TransformedClass {
 		}
 		for (FieldNode f : classNode.fields) {
 			TransformedField transfield = new TransformedField(f);
-			if (transformedFields.put(f.name, transfield) != null) {
+			if (transformedFields.put(f.desc + " " + f.name, transfield) != null) {
 				throw new IllegalArgumentException("Duplicate fields in class: " + f.name);
 			}
 			if (f.value != null) {
 				transfield.calculatedConstantValue = Optional.of(f.value);
 			}
 		}
+	}
+
+	public TransformedField getTransformedField(String desc, String name) {
+		return transformedFields.get(desc + " " + name);
 	}
 
 	public boolean isReferencesStaticField(ClassNode cn, FieldNode fn) {

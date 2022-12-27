@@ -8,10 +8,13 @@ import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.AbstractInsnNo
 class DynamicInstanceFieldBasedConstantReconstructor implements ConstantReconstructor {
 	private final String fieldOwnerInternalName;
 	private final String fieldName;
+	private final String fieldDescriptor;
 
-	public DynamicInstanceFieldBasedConstantReconstructor(String fieldOwnerInternalName, String fieldName) {
+	public DynamicInstanceFieldBasedConstantReconstructor(String fieldOwnerInternalName, String fieldName,
+			String fieldDescriptor) {
 		this.fieldOwnerInternalName = fieldOwnerInternalName;
 		this.fieldName = fieldName;
+		this.fieldDescriptor = fieldDescriptor;
 	}
 
 	@Override
@@ -38,7 +41,7 @@ class DynamicInstanceFieldBasedConstantReconstructor implements ConstantReconstr
 			}
 			Object fieldval;
 			try {
-				Field field = c.getDeclaredField(fieldName);
+				Field field = Utils.getFieldForDescriptor(c, fieldName, fieldDescriptor);
 				field.setAccessible(true);
 				fieldval = field.get(instanceval.getValue());
 			} catch (NoSuchFieldException e) {

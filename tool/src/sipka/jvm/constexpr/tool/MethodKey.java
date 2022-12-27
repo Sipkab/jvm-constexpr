@@ -81,8 +81,8 @@ class MethodKey extends MemberKey {
 
 	@Override
 	public String toString() {
-		StringBuilder builder = new StringBuilder();
-		builder.append("MethodKey[owner=");
+		StringBuilder builder = new StringBuilder(getClass().getSimpleName());
+		builder.append("[owner=");
 		builder.append(owner);
 		builder.append(", memberName=");
 		builder.append(memberName);

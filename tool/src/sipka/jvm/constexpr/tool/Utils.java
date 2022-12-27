@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -535,6 +536,21 @@ public class Utils {
 
 	public static Method getMethodForInstruction(Class<?> type, MethodInsnNode methodins) throws NoSuchMethodException {
 		return getMethodForMethodDescriptor(type, methodins.owner, methodins.desc, methodins.name);
+	}
+
+	public static Field getFieldForDescriptor(Class<?> type, String name, String descriptor)
+			throws NoSuchFieldException {
+		for (Field f : type.getDeclaredFields()) {
+			if (!f.getName().equals(name)) {
+				continue;
+			}
+			if (descriptor.equals(Type.getDescriptor(f.getType()))) {
+				f.setAccessible(true);
+				return f;
+			}
+		}
+		throw new NoSuchFieldException(
+				"Field not found on " + type + " with name: " + name + " and descriptor: " + descriptor);
 	}
 
 	public static Method getMethodForMethodDescriptor(Class<?> type, String owner, String descriptor, String name)
