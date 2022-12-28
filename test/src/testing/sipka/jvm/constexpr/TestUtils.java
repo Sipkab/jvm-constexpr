@@ -6,6 +6,8 @@ import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
+import java.util.ListIterator;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
@@ -21,7 +23,9 @@ import sipka.jvm.constexpr.tool.ConstantExpressionInliner;
 import sipka.jvm.constexpr.tool.OutputConsumer;
 import sipka.jvm.constexpr.tool.Utils;
 import sipka.jvm.constexpr.tool.log.AbstractSimpleToolLogger;
+import sipka.jvm.constexpr.tool.log.LogContextInfo;
 import sipka.jvm.constexpr.tool.log.LogEntry;
+import sipka.jvm.constexpr.tool.log.ReconstructionFailureLogEntry;
 import sipka.jvm.constexpr.tool.options.InlinerOptions;
 import sipka.jvm.constexpr.tool.options.ToolInput;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.ClassReader;
@@ -80,11 +84,27 @@ public class TestUtils {
 	public static InlinerOptions createOptionsForClasses(Class<?>... classes) {
 		InlinerOptions opts = new InlinerOptions();
 		opts.setLogger(new AbstractSimpleToolLogger() {
-			
+			@Override
+			public void log(ReconstructionFailureLogEntry logentry) {
+				List<LogContextInfo> contextstack = logentry.getContextStack();
+				for (ListIterator<LogContextInfo> it = contextstack.listIterator(contextstack.size()); it
+						.hasPrevious();) {
+					LogContextInfo info = it.previous();
+					System.err.println(info.getMessage());
+					System.err.println("\tin " + info.getBytecodeLocation());
+				}
+				Throwable rc = logentry.getRootCause();
+				if (rc != null) {
+					System.err.print("Caused by: ");
+					rc.printStackTrace();
+				}
+				System.err.println();
+			}
+
 			@Override
 			protected void log(LogEntry entry) {
 				// TODO Auto-generated method stub
-				System.out.println(entry.getMessage());
+				System.out.println(entry);
 			}
 		});
 		opts.setInputs(createInputsForClasses(classes));

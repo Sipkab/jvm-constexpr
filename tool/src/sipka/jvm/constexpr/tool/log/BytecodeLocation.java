@@ -39,6 +39,22 @@ public final class BytecodeLocation {
 		return line;
 	}
 
+	public int compareLocation(BytecodeLocation r) {
+		int cmp = this.className.compareTo(r.className);
+		if (cmp != 0) {
+			return cmp;
+		}
+		cmp = this.methodName.compareTo(r.methodName);
+		if (cmp != 0) {
+			return cmp;
+		}
+		cmp = this.methodDescriptor.compareTo(r.methodDescriptor);
+		if (cmp != 0) {
+			return cmp;
+		}
+		return Integer.compare(this.line, r.line);
+	}
+
 	@Override
 	public int hashCode() {
 		final int prime = 31;

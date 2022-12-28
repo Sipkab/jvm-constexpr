@@ -52,5 +52,11 @@ public class EnumFieldForwardCompatibilityInlineTest extends SakerTestCase {
 		static {
 			T3 = SourceVersion.valueOf("RELEASE_99999").name();
 		}
+
+		static String getNonExistent() {
+			return SourceVersion.valueOf("RELEASE_99998")
+					//multi-line
+					.name();
+		}
 	}
 }

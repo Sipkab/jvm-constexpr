@@ -10,6 +10,7 @@ import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
@@ -21,7 +22,9 @@ import java.util.TreeMap;
 import sipka.jvm.constexpr.tool.TransformedClass.TransformedField;
 import sipka.jvm.constexpr.tool.log.AbstractSimpleToolLogger;
 import sipka.jvm.constexpr.tool.log.BytecodeLocation;
+import sipka.jvm.constexpr.tool.log.LogContextInfo;
 import sipka.jvm.constexpr.tool.log.LogEntry;
+import sipka.jvm.constexpr.tool.log.ReconstructionFailureLogEntry;
 import sipka.jvm.constexpr.tool.log.ToolLogger;
 import sipka.jvm.constexpr.tool.options.DeconstructionSelector;
 import sipka.jvm.constexpr.tool.options.InlinerOptions;
@@ -79,6 +82,8 @@ public class ConstantExpressionInliner {
 	 * Internal names to classes.
 	 */
 	private final Map<String, Class<?>> constantTypes = new TreeMap<>();
+
+	private final Map<List<LogContextInfo>, ReconstructionFailureLogEntry> reconstructionFailureLogEntries = new HashMap<>();
 
 	private ToolLogger logger;
 
@@ -212,6 +217,35 @@ public class ConstantExpressionInliner {
 
 			cn.accept(cw);
 			oc.put(transclass.input, cw.toByteArray());
+		}
+
+		//order the reconstruction log entries by the size of their stack, so we always log the longest
+		//ones with a given root cause
+		List<ReconstructionFailureLogEntry> reconlogentries = new ArrayList<>(reconstructionFailureLogEntries.values());
+		reconlogentries.sort((l, r) -> {
+			return -Integer.compare(l.getContextStack().size(), r.getContextStack().size());
+		});
+		//sort by the root cause locations, so the logs are always reported in order
+		reconlogentries.sort((l, r) -> {
+			List<LogContextInfo> lcstack = l.getContextStack();
+			LogContextInfo llast = lcstack.get(lcstack.size() - 1);
+			List<LogContextInfo> rcstack = r.getContextStack();
+			LogContextInfo rlast = rcstack.get(rcstack.size() - 1);
+
+			BytecodeLocation lbcloc = llast.getBytecodeLocation();
+			BytecodeLocation rbcloc = rlast.getBytecodeLocation();
+			return lbcloc.compareLocation(rbcloc);
+		});
+
+		Collection<LogContextInfo> lastreconstructioncontextinfos = new HashSet<>();
+		for (ReconstructionFailureLogEntry entry : reconlogentries) {
+			List<LogContextInfo> cstack = entry.getContextStack();
+			LogContextInfo last = cstack.get(cstack.size() - 1);
+			if (!lastreconstructioncontextinfos.add(last)) {
+				//already logged an entry with this root cause 
+				continue;
+			}
+			logger.log(entry);
 		}
 	}
 
@@ -361,10 +395,9 @@ public class ConstantExpressionInliner {
 			try {
 				nvalue = reconstructStackValue(reconstructioncontext, prev);
 			} catch (ReconstructionException e) {
-				// TODO Auto-generated catch block
-				ReconstructionException exc = reconstructioncontext.newFieldInliningReconstructionException(e, ins,
+				ReconstructionException exc = reconstructioncontext.newMemberInliningReconstructionException(e, ins,
 						transclass.classNode.name, fieldnode.name, fieldnode.desc);
-				exc.printStackTrace();
+				handleReconstructionException(exc);
 				continue;
 			}
 			if (nvalue != null) {
@@ -1129,8 +1162,9 @@ public class ConstantExpressionInliner {
 					try {
 						reconstructedval = reconstructValueImpl(reconstructioncontext, ins, methodkey);
 					} catch (ReconstructionException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
+						ReconstructionException exc = reconstructioncontext.newMemberInliningReconstructionException(e,
+								ins, methodins.owner, methodins.name, methodins.desc);
+						handleReconstructionException(exc);
 						break;
 					}
 					if (reconstructedval == null) {
@@ -1363,7 +1397,11 @@ public class ConstantExpressionInliner {
 		Class<?> type = constantTypes.get(fieldtype.getInternalName());
 		if (type != null) {
 			try {
-				return type.getField(fieldins.name);
+				Field field = type.getField(fieldins.name);
+				if (field.isEnumConstant()) {
+					return field;
+				}
+				return null;
 			} catch (NoSuchFieldException | SecurityException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -1414,9 +1452,44 @@ public class ConstantExpressionInliner {
 		return null;
 	}
 
-	BytecodeLocation getBytecodeLocation(TransformedClass transclass, MethodNode method, AbstractInsnNode locationins) {
-		int line = Utils.getLineNumber(method, locationins);
-		return new BytecodeLocation(transclass.input, transclass.classNode.name, method.name, method.desc, line);
+	private static List<LogContextInfo> getLogContextInfo(ReconstructionException e) {
+		List<LogContextInfo> result = new ArrayList<>();
+		for (Throwable it = e; it instanceof ReconstructionException; it = it.getCause()) {
+			result.add(((ReconstructionException) it).getContextInfo());
+		}
+		return result;
+	}
+
+	private static Throwable getRootCause(ReconstructionException e) {
+		for (Throwable cause = e.getCause(); cause != null; cause = cause.getCause()) {
+			if (!(cause instanceof ReconstructionException)) {
+				return cause;
+			}
+		}
+		return null;
+	}
+
+	private void handleReconstructionException(ReconstructionException e) {
+		List<LogContextInfo> loginfocontext = getLogContextInfo(e);
+		if (reconstructionFailureLogEntries.containsKey(loginfocontext)) {
+			//a log entry is already present for this trace
+			return;
+		}
+		//we're recording either
+		// - a new log context info stack
+		// - or a log context info stack that is larger than one that is present
+		//add this entry
+		//and overwrite all entries that have a smaller but equal substack
+		//this is to avoid duplicate log entries that clutter the output unnecessarily
+		int contextcount = loginfocontext.size();
+		Throwable rootcause = getRootCause(e);
+		ReconstructionFailureLogEntry logentry = new ReconstructionFailureLogEntry(rootcause, loginfocontext);
+		reconstructionFailureLogEntries.put(loginfocontext, logentry);
+		for (int i = 1; i < contextcount; i++) {
+			List<LogContextInfo> subcontext = loginfocontext.subList(i, contextcount);
+			ReconstructionFailureLogEntry sublogentry = new ReconstructionFailureLogEntry(rootcause, subcontext);
+			reconstructionFailureLogEntries.put(subcontext, sublogentry);
+		}
 	}
 
 }
