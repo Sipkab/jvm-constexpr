@@ -16,6 +16,8 @@ import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Opcodes;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.AbstractInsnNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.IntInsnNode;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.LabelNode;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.LineNumberNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodInsnNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodNode;
 
@@ -78,6 +80,174 @@ public class Utils {
 		PRIMITIVE_TYPE_TO_ASM_STORE_ARRAY_OPCODE.put(double.class, Opcodes.DASTORE);
 		PRIMITIVE_TYPE_TO_ASM_STORE_ARRAY_OPCODE.put(boolean.class, Opcodes.BASTORE);
 		PRIMITIVE_TYPE_TO_ASM_STORE_ARRAY_OPCODE.put(char.class, Opcodes.CASTORE);
+	}
+	private static final String[] OPCODE_NAMES = new String[200];
+	static {
+		OPCODE_NAMES[0] = "NOP";
+		OPCODE_NAMES[1] = "ACONST_NULL";
+		OPCODE_NAMES[2] = "ICONST_M1";
+		OPCODE_NAMES[3] = "ICONST_0";
+		OPCODE_NAMES[4] = "ICONST_1";
+		OPCODE_NAMES[5] = "ICONST_2";
+		OPCODE_NAMES[6] = "ICONST_3";
+		OPCODE_NAMES[7] = "ICONST_4";
+		OPCODE_NAMES[8] = "ICONST_5";
+		OPCODE_NAMES[9] = "LCONST_0";
+		OPCODE_NAMES[10] = "LCONST_1";
+		OPCODE_NAMES[11] = "FCONST_0";
+		OPCODE_NAMES[12] = "FCONST_1";
+		OPCODE_NAMES[13] = "FCONST_2";
+		OPCODE_NAMES[14] = "DCONST_0";
+		OPCODE_NAMES[15] = "DCONST_1";
+		OPCODE_NAMES[16] = "BIPUSH";
+		OPCODE_NAMES[17] = "SIPUSH";
+		OPCODE_NAMES[18] = "LDC";
+		OPCODE_NAMES[21] = "ILOAD";
+		OPCODE_NAMES[22] = "LLOAD";
+		OPCODE_NAMES[23] = "FLOAD";
+		OPCODE_NAMES[24] = "DLOAD";
+		OPCODE_NAMES[25] = "ALOAD";
+		OPCODE_NAMES[46] = "IALOAD";
+		OPCODE_NAMES[47] = "LALOAD";
+		OPCODE_NAMES[48] = "FALOAD";
+		OPCODE_NAMES[49] = "DALOAD";
+		OPCODE_NAMES[50] = "AALOAD";
+		OPCODE_NAMES[51] = "BALOAD";
+		OPCODE_NAMES[52] = "CALOAD";
+		OPCODE_NAMES[53] = "SALOAD";
+		OPCODE_NAMES[54] = "ISTORE";
+		OPCODE_NAMES[55] = "LSTORE";
+		OPCODE_NAMES[56] = "FSTORE";
+		OPCODE_NAMES[57] = "DSTORE";
+		OPCODE_NAMES[58] = "ASTORE";
+		OPCODE_NAMES[79] = "IASTORE";
+		OPCODE_NAMES[80] = "LASTORE";
+		OPCODE_NAMES[81] = "FASTORE";
+		OPCODE_NAMES[82] = "DASTORE";
+		OPCODE_NAMES[83] = "AASTORE";
+		OPCODE_NAMES[84] = "BASTORE";
+		OPCODE_NAMES[85] = "CASTORE";
+		OPCODE_NAMES[86] = "SASTORE";
+		OPCODE_NAMES[87] = "POP";
+		OPCODE_NAMES[88] = "POP2";
+		OPCODE_NAMES[89] = "DUP";
+		OPCODE_NAMES[90] = "DUP_X1";
+		OPCODE_NAMES[91] = "DUP_X2";
+		OPCODE_NAMES[92] = "DUP2";
+		OPCODE_NAMES[93] = "DUP2_X1";
+		OPCODE_NAMES[94] = "DUP2_X2";
+		OPCODE_NAMES[95] = "SWAP";
+		OPCODE_NAMES[96] = "IADD";
+		OPCODE_NAMES[97] = "LADD";
+		OPCODE_NAMES[98] = "FADD";
+		OPCODE_NAMES[99] = "DADD";
+		OPCODE_NAMES[100] = "ISUB";
+		OPCODE_NAMES[101] = "LSUB";
+		OPCODE_NAMES[102] = "FSUB";
+		OPCODE_NAMES[103] = "DSUB";
+		OPCODE_NAMES[104] = "IMUL";
+		OPCODE_NAMES[105] = "LMUL";
+		OPCODE_NAMES[106] = "FMUL";
+		OPCODE_NAMES[107] = "DMUL";
+		OPCODE_NAMES[108] = "IDIV";
+		OPCODE_NAMES[109] = "LDIV";
+		OPCODE_NAMES[110] = "FDIV";
+		OPCODE_NAMES[111] = "DDIV";
+		OPCODE_NAMES[112] = "IREM";
+		OPCODE_NAMES[113] = "LREM";
+		OPCODE_NAMES[114] = "FREM";
+		OPCODE_NAMES[115] = "DREM";
+		OPCODE_NAMES[116] = "INEG";
+		OPCODE_NAMES[117] = "LNEG";
+		OPCODE_NAMES[118] = "FNEG";
+		OPCODE_NAMES[119] = "DNEG";
+		OPCODE_NAMES[120] = "ISHL";
+		OPCODE_NAMES[121] = "LSHL";
+		OPCODE_NAMES[122] = "ISHR";
+		OPCODE_NAMES[123] = "LSHR";
+		OPCODE_NAMES[124] = "IUSHR";
+		OPCODE_NAMES[125] = "LUSHR";
+		OPCODE_NAMES[126] = "IAND";
+		OPCODE_NAMES[127] = "LAND";
+		OPCODE_NAMES[128] = "IOR";
+		OPCODE_NAMES[129] = "LOR";
+		OPCODE_NAMES[130] = "IXOR";
+		OPCODE_NAMES[131] = "LXOR";
+		OPCODE_NAMES[132] = "IINC";
+		OPCODE_NAMES[133] = "I2L";
+		OPCODE_NAMES[134] = "I2F";
+		OPCODE_NAMES[135] = "I2D";
+		OPCODE_NAMES[136] = "L2I";
+		OPCODE_NAMES[137] = "L2F";
+		OPCODE_NAMES[138] = "L2D";
+		OPCODE_NAMES[139] = "F2I";
+		OPCODE_NAMES[140] = "F2L";
+		OPCODE_NAMES[141] = "F2D";
+		OPCODE_NAMES[142] = "D2I";
+		OPCODE_NAMES[143] = "D2L";
+		OPCODE_NAMES[144] = "D2F";
+		OPCODE_NAMES[145] = "I2B";
+		OPCODE_NAMES[146] = "I2C";
+		OPCODE_NAMES[147] = "I2S";
+		OPCODE_NAMES[148] = "LCMP";
+		OPCODE_NAMES[149] = "FCMPL";
+		OPCODE_NAMES[150] = "FCMPG";
+		OPCODE_NAMES[151] = "DCMPL";
+		OPCODE_NAMES[152] = "DCMPG";
+		OPCODE_NAMES[153] = "IFEQ";
+		OPCODE_NAMES[154] = "IFNE";
+		OPCODE_NAMES[155] = "IFLT";
+		OPCODE_NAMES[156] = "IFGE";
+		OPCODE_NAMES[157] = "IFGT";
+		OPCODE_NAMES[158] = "IFLE";
+		OPCODE_NAMES[159] = "IF_ICMPEQ";
+		OPCODE_NAMES[160] = "IF_ICMPNE";
+		OPCODE_NAMES[161] = "IF_ICMPLT";
+		OPCODE_NAMES[162] = "IF_ICMPGE";
+		OPCODE_NAMES[163] = "IF_ICMPGT";
+		OPCODE_NAMES[164] = "IF_ICMPLE";
+		OPCODE_NAMES[165] = "IF_ACMPEQ";
+		OPCODE_NAMES[166] = "IF_ACMPNE";
+		OPCODE_NAMES[167] = "GOTO";
+		OPCODE_NAMES[168] = "JSR";
+		OPCODE_NAMES[169] = "RET";
+		OPCODE_NAMES[170] = "TABLESWITCH";
+		OPCODE_NAMES[171] = "LOOKUPSWITCH";
+		OPCODE_NAMES[172] = "IRETURN";
+		OPCODE_NAMES[173] = "LRETURN";
+		OPCODE_NAMES[174] = "FRETURN";
+		OPCODE_NAMES[175] = "DRETURN";
+		OPCODE_NAMES[176] = "ARETURN";
+		OPCODE_NAMES[177] = "RETURN";
+		OPCODE_NAMES[178] = "GETSTATIC";
+		OPCODE_NAMES[179] = "PUTSTATIC";
+		OPCODE_NAMES[180] = "GETFIELD";
+		OPCODE_NAMES[181] = "PUTFIELD";
+		OPCODE_NAMES[182] = "INVOKEVIRTUAL";
+		OPCODE_NAMES[183] = "INVOKESPECIAL";
+		OPCODE_NAMES[184] = "INVOKESTATIC";
+		OPCODE_NAMES[185] = "INVOKEINTERFACE";
+		OPCODE_NAMES[186] = "INVOKEDYNAMIC";
+		OPCODE_NAMES[187] = "NEW";
+		OPCODE_NAMES[188] = "NEWARRAY";
+		OPCODE_NAMES[189] = "ANEWARRAY";
+		OPCODE_NAMES[190] = "ARRAYLENGTH";
+		OPCODE_NAMES[191] = "ATHROW";
+		OPCODE_NAMES[192] = "CHECKCAST";
+		OPCODE_NAMES[193] = "INSTANCEOF";
+		OPCODE_NAMES[194] = "MONITORENTER";
+		OPCODE_NAMES[195] = "MONITOREXIT";
+		OPCODE_NAMES[197] = "MULTIANEWARRAY";
+		OPCODE_NAMES[198] = "IFNULL";
+		OPCODE_NAMES[199] = "IFNONNULL";
+	}
+
+	public static String getOpcodeName(int opcode) {
+		try {
+			return OPCODE_NAMES[opcode];
+		} catch (ArrayIndexOutOfBoundsException e) {
+			throw e;
+		}
 	}
 
 	/**
@@ -534,10 +704,6 @@ public class Utils {
 		return true;
 	}
 
-	public static Method getMethodForInstruction(Class<?> type, MethodInsnNode methodins) throws NoSuchMethodException {
-		return getMethodForMethodDescriptor(type, methodins.owner, methodins.desc, methodins.name);
-	}
-
 	public static Field getFieldForDescriptor(Class<?> type, String name, String descriptor)
 			throws NoSuchFieldException {
 		for (Field f : type.getDeclaredFields()) {
@@ -551,6 +717,10 @@ public class Utils {
 		}
 		throw new NoSuchFieldException(
 				"Field not found on " + type + " with name: " + name + " and descriptor: " + descriptor);
+	}
+
+	public static Method getMethodForInstruction(Class<?> type, MethodInsnNode methodins) throws NoSuchMethodException {
+		return getMethodForMethodDescriptor(type, methodins.owner, methodins.desc, methodins.name);
 	}
 
 	public static Method getMethodForMethodDescriptor(Class<?> type, String owner, String descriptor, String name)
@@ -693,6 +863,65 @@ public class Utils {
 
 	public static void addToInternalNameMap(Map<String, Class<?>> map, Class<?> type) {
 		map.put(Type.getInternalName(type), type);
+	}
+
+	public static boolean isUnaryOperator(int opcode) {
+		switch (opcode) {
+			case Opcodes.CHECKCAST:
+			case Opcodes.I2L:
+			case Opcodes.I2F:
+			case Opcodes.I2D:
+			case Opcodes.I2B:
+			case Opcodes.I2C:
+			case Opcodes.I2S:
+			case Opcodes.INEG:
+			case Opcodes.L2I:
+			case Opcodes.L2F:
+			case Opcodes.L2D:
+			case Opcodes.LNEG:
+			case Opcodes.F2I:
+			case Opcodes.F2L:
+			case Opcodes.F2D:
+			case Opcodes.FNEG:
+			case Opcodes.D2I:
+			case Opcodes.D2L:
+			case Opcodes.D2F:
+			case Opcodes.DNEG:
+				return true;
+			default:
+				return false;
+		}
+	}
+
+	private static LineNumberNode findLineNumberNode(MethodNode method, LabelNode labelnode) {
+		for (AbstractInsnNode ins = method.instructions.getFirst(); ins != null; ins = ins.getNext()) {
+			if (ins.getType() != AbstractInsnNode.LINE) {
+				continue;
+			}
+			LineNumberNode ln = (LineNumberNode) ins;
+			if (ln.start.equals(labelnode)) {
+				return ln;
+			}
+		}
+		return null;
+	}
+
+	public static int getLineNumber(MethodNode method, AbstractInsnNode ins) {
+		for (AbstractInsnNode it = ins.getPrevious(); it != null; it = it.getPrevious()) {
+			switch (it.getType()) {
+				case AbstractInsnNode.LABEL: {
+					LineNumberNode ln = findLineNumberNode(method, (LabelNode) it);
+					if (ln != null) {
+						return ln.line;
+					}
+					break;
+				}
+				default: {
+					break;
+				}
+			}
+		}
+		return -1;
 	}
 
 }

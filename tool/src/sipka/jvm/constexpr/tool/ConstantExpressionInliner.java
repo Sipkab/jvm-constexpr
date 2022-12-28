@@ -19,6 +19,10 @@ import java.util.Objects;
 import java.util.TreeMap;
 
 import sipka.jvm.constexpr.tool.TransformedClass.TransformedField;
+import sipka.jvm.constexpr.tool.log.AbstractSimpleToolLogger;
+import sipka.jvm.constexpr.tool.log.BytecodeLocation;
+import sipka.jvm.constexpr.tool.log.LogEntry;
+import sipka.jvm.constexpr.tool.log.ToolLogger;
 import sipka.jvm.constexpr.tool.options.DeconstructionSelector;
 import sipka.jvm.constexpr.tool.options.InlinerOptions;
 import sipka.jvm.constexpr.tool.options.ToolInput;
@@ -76,6 +80,8 @@ public class ConstantExpressionInliner {
 	 */
 	private final Map<String, Class<?>> constantTypes = new TreeMap<>();
 
+	private ToolLogger logger;
+
 	private ConstantExpressionInliner() {
 	}
 
@@ -83,6 +89,17 @@ public class ConstantExpressionInliner {
 		OutputConsumer oc = options.getOutputConsumer();
 		if (oc == null) {
 			throw new IllegalArgumentException("Output consumer is not set.");
+		}
+
+		logger = options.getLogger();
+		if (logger == null) {
+			//initialize to non-null to avoid NPE and null checks in other places
+			logger = new AbstractSimpleToolLogger() {
+				@Override
+				protected void log(LogEntry entry) {
+					//ignore
+				}
+			};
 		}
 
 		Collection<? extends ToolInput<?>> inputs = options.getInputs();
@@ -230,9 +247,11 @@ public class ConstantExpressionInliner {
 	 * @param outderivedargs
 	 *            The output array of the reconstructed value holders.
 	 * @return <code>true</code> if the arguments were successfully reconstructed.
+	 * @throws ReconstructionException
 	 */
 	boolean reconstructArguments(ReconstructionContext context, Type[] parameterAsmTypes, Class<?>[] parameterTypes,
-			AbstractInsnNode ins, Object[] outargs, AsmStackReconstructedValue[] outderivedargs) {
+			AbstractInsnNode ins, Object[] outargs, AsmStackReconstructedValue[] outderivedargs)
+			throws ReconstructionException {
 		if (parameterAsmTypes == null) {
 			if (ins instanceof MethodInsnNode) {
 				String methoddesc = ((MethodInsnNode) ins).desc;
@@ -246,21 +265,27 @@ public class ConstantExpressionInliner {
 		AbstractInsnNode argit = ins.getPrevious();
 		for (int i = 0; i < outargs.length; i++) {
 			int paramindex = outargs.length - i - 1;
-			AsmStackReconstructedValue argval = reconstructStackValue(
-					context.withReceiverType(parameterTypes == null ? null : parameterTypes[paramindex]), argit);
+			AsmStackReconstructedValue argval;
+			try {
+				argval = reconstructStackValue(
+						context.withReceiverType(parameterTypes == null ? null : parameterTypes[paramindex]), argit);
+			} catch (ReconstructionException e) {
+				throw context.newArgumentIndexReconstructionException(e, ins, paramindex);
+			}
 			if (argval == null) {
 				return false;
 			}
 			Object val = argval.getValue();
 			if (val instanceof Type) {
 				// replace with a Class instance
+				Type typeval = (Type) val;
 				Class<?> c;
 				try {
-					c = Class.forName(((Type) val).getClassName(), false, context.getClassLoader());
+					c = Class.forName(typeval.getClassName(), false, context.getClassLoader());
 				} catch (ClassNotFoundException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-					return false;
+					throw context.newArgumentIndexReconstructionException(
+							context.newClassNotFoundReconstructionException(e, argit, typeval.getInternalName()), ins,
+							paramindex);
 				}
 				argval = new AsmStackReconstructedValue(argval.getFirstIns(), argval.getLastIns(), c);
 				val = c;
@@ -274,7 +299,7 @@ public class ConstantExpressionInliner {
 	}
 
 	boolean reconstructArguments(ReconstructionContext context, Class<?>[] parameterTypes, AbstractInsnNode ins,
-			Object[] outargs, AsmStackReconstructedValue[] outderivedargs) {
+			Object[] outargs, AsmStackReconstructedValue[] outderivedargs) throws ReconstructionException {
 		return reconstructArguments(context, null, parameterTypes, ins, outargs, outderivedargs);
 	}
 
@@ -313,7 +338,8 @@ public class ConstantExpressionInliner {
 				//TODO log it
 				return null;
 			}
-			reconstructioncontext = ReconstructionContext.createConstantField(this, transclass, constantfield);
+			reconstructioncontext = ReconstructionContext.createConstantField(this, transclass, constantfield,
+					clinitmethodnode);
 		} else {
 			//try to find the receiver type, not really important, but just to be nice
 			//array receiver types would only matter if the field is configured as constant, but that's the other branch of this condition
@@ -322,7 +348,8 @@ public class ConstantExpressionInliner {
 			if (receivertype == null) {
 				receivertype = constantTypes.get(fieldtype.getInternalName());
 			}
-			reconstructioncontext = ReconstructionContext.createForReceiverType(this, transclass, receivertype);
+			reconstructioncontext = ReconstructionContext.createForReceiverType(this, transclass, receivertype,
+					clinitmethodnode);
 		}
 
 		List<AsmStackReconstructedValue> results = new ArrayList<>();
@@ -330,7 +357,16 @@ public class ConstantExpressionInliner {
 		for (AbstractInsnNode ins : putinsns) {
 			AbstractInsnNode prev = ins.getPrevious(); // the instruction before PUTSTATIC/PUTFIELD
 
-			AsmStackReconstructedValue nvalue = reconstructStackValue(reconstructioncontext, prev);
+			AsmStackReconstructedValue nvalue;
+			try {
+				nvalue = reconstructStackValue(reconstructioncontext, prev);
+			} catch (ReconstructionException e) {
+				// TODO Auto-generated catch block
+				ReconstructionException exc = reconstructioncontext.newFieldInliningReconstructionException(e, ins,
+						transclass.classNode.name, fieldnode.name, fieldnode.desc);
+				exc.printStackTrace();
+				continue;
+			}
 			if (nvalue != null) {
 				AsmStackReconstructedValue result = results.isEmpty() ? null : results.get(0);
 				if (result != null && !Objects.deepEquals(result.getValue(), nvalue.getValue())) {
@@ -350,8 +386,11 @@ public class ConstantExpressionInliner {
 
 	/**
 	 * Reconstruct an array from an array store instruction.
+	 * 
+	 * @throws ReconstructionException
 	 */
-	private AsmStackReconstructedValue reconstructArrayStore(ReconstructionContext context, AbstractInsnNode ins) {
+	private AsmStackReconstructedValue reconstructArrayStore(ReconstructionContext context, AbstractInsnNode ins)
+			throws ReconstructionException {
 		//it has opcodes something like this:
 //51  iconst_4
 //52  anewarray java.lang.Object [3]
@@ -388,12 +427,23 @@ public class ConstantExpressionInliner {
 		List<Entry<Integer, Object>> elements = new ArrayList<>();
 
 		for (AbstractInsnNode insit = ins; insit != null;) {
-			AsmStackReconstructedValue elementval = reconstructStackValue(componentcontext, insit.getPrevious());
+			AsmStackReconstructedValue elementval;
+			try {
+				elementval = reconstructStackValue(componentcontext, insit.getPrevious());
+			} catch (ReconstructionException e) {
+				//failed to reconstruct the element, index 2
+				throw context.newOpcodeReconstructionException(e, ins, 2, storeopcode);
+			}
 			if (elementval == null) {
 				return null;
 			}
-			AsmStackReconstructedValue idxval = reconstructStackValue(intreceivercontext,
-					elementval.getFirstIns().getPrevious());
+			AsmStackReconstructedValue idxval;
+			try {
+				idxval = reconstructStackValue(intreceivercontext, elementval.getFirstIns().getPrevious());
+			} catch (ReconstructionException e) {
+				//failed to reconstruct the index in the array, index 1
+				throw context.newOpcodeReconstructionException(e, ins, 1, storeopcode);
+			}
 			if (idxval == null) {
 				return null;
 			}
@@ -415,7 +465,12 @@ public class ConstantExpressionInliner {
 			int prevopcode = previns.getOpcode();
 			if (prevopcode == Opcodes.ANEWARRAY || prevopcode == Opcodes.NEWARRAY) {
 				//creates the array
-				createarrayval = reconstructStackValue(context, previns);
+				try {
+					createarrayval = reconstructStackValue(context, previns);
+				} catch (ReconstructionException e) {
+					//failed to reconstruct the array, index 0
+					throw context.newOpcodeReconstructionException(e, ins, 0, storeopcode);
+				}
 				if (createarrayval == null) {
 					return null;
 				}
@@ -454,10 +509,14 @@ public class ConstantExpressionInliner {
 	 *            The reconstruction context.
 	 * @param ins
 	 *            The instruction at which the value should be reconstructed.
-	 * @return The value, or <code>null</code> if it failed.
+	 * @return The value, or <code>null</code> if the value at the given instruction is not a constant.
+	 * @throws ReconstructionException
+	 *             If the constant reconstruction failed due to some error.
 	 */
-	AsmStackReconstructedValue reconstructStackValue(ReconstructionContext context, AbstractInsnNode ins) {
+	AsmStackReconstructedValue reconstructStackValue(ReconstructionContext context, AbstractInsnNode ins)
+			throws ReconstructionException {
 		if (ins == null) {
+			//no instruction -> no value -> no constant
 			return null;
 		}
 		TransformedClass transformedclass = context.getTransformedClass();
@@ -594,6 +653,7 @@ public class ConstantExpressionInliner {
 					AsmStackReconstructedValue sizeval = reconstructStackValue(context.withReceiverType(int.class),
 							ins.getPrevious());
 					if (sizeval == null) {
+						//not constant size
 						return null;
 					}
 					int size = ((Number) sizeval.getValue()).intValue();
@@ -677,19 +737,6 @@ public class ConstantExpressionInliner {
 					InvokeDynamicInsnNode dynins = (InvokeDynamicInsnNode) ins;
 					return reconstructInvokeDynamic(context, dynins);
 				}
-//				case Opcodes.GETSTATIC: {
-//					FieldInsnNode fieldins = (FieldInsnNode) ins;
-//					FieldValueRetriever fieldretriever = getFieldRetriever(context, fieldins);
-//					if (fieldretriever == null) {
-//						return null;
-//					}
-//					Optional<?> fieldval = fieldretriever.getValue(this, transformedclass, null);
-//					if (fieldval == null) {
-//						return null;
-//					}
-//
-//					return new AsmStackReconstructedValue(ins, endins, fieldval.orElse(null));
-//				}
 				default: {
 					switch (ins.getType()) {
 						case AbstractInsnNode.LINE: {
@@ -716,7 +763,7 @@ public class ConstantExpressionInliner {
 	}
 
 	private AsmStackReconstructedValue reconstructInvokeDynamic(ReconstructionContext context,
-			InvokeDynamicInsnNode dynins) {
+			InvokeDynamicInsnNode dynins) throws ReconstructionException {
 		//specifically handle the string concatenation that is used from Java 9+
 		Handle bootstraphandle = dynins.bsm;
 		if (bootstraphandle.getTag() != Opcodes.H_INVOKESTATIC) {
@@ -748,8 +795,13 @@ public class ConstantExpressionInliner {
 		}
 		Object[] args = new Object[dynargcount];
 		AsmStackReconstructedValue[] derivedargs = new AsmStackReconstructedValue[dynargcount];
-		if (!reconstructArguments(context, null, dynins, args, derivedargs)) {
-			return null;
+		try {
+			if (!reconstructArguments(context, null, dynins, args, derivedargs)) {
+				return null;
+			}
+		} catch (ReconstructionException e) {
+			throw context.newMethodArgumentsReconstructionException(e, dynins, bootstraphandle.getOwner(),
+					bootstraphandle.getName(), bootstraphandle.getDesc());
 		}
 		//successfully reconstructed.
 		//perform the concatenation ourselves
@@ -788,12 +840,22 @@ public class ConstantExpressionInliner {
 	}
 
 	private AsmStackReconstructedValue reconstructBinaryOperator(ReconstructionContext operandcontext,
-			AbstractInsnNode ins, AbstractInsnNode endins, int opcode) {
-		AsmStackReconstructedValue rightop = reconstructStackValue(operandcontext, ins.getPrevious());
+			AbstractInsnNode ins, AbstractInsnNode endins, int opcode) throws ReconstructionException {
+		AsmStackReconstructedValue rightop;
+		try {
+			rightop = reconstructStackValue(operandcontext, ins.getPrevious());
+		} catch (ReconstructionException e) {
+			throw operandcontext.newOpcodeReconstructionException(e, ins, 0, opcode);
+		}
 		if (rightop == null) {
 			return null;
 		}
-		AsmStackReconstructedValue leftop = reconstructStackValue(operandcontext, rightop.getFirstIns().getPrevious());
+		AsmStackReconstructedValue leftop;
+		try {
+			leftop = reconstructStackValue(operandcontext, rightop.getFirstIns().getPrevious());
+		} catch (ReconstructionException e) {
+			throw operandcontext.newOpcodeReconstructionException(e, ins, 1, opcode);
+		}
 		if (leftop == null) {
 			return null;
 		}
@@ -805,8 +867,13 @@ public class ConstantExpressionInliner {
 	}
 
 	private AsmStackReconstructedValue reconstructUnaryOperator(ReconstructionContext operandcontext,
-			AbstractInsnNode ins, AbstractInsnNode endins, int opcode) {
-		AsmStackReconstructedValue val = reconstructStackValue(operandcontext, ins.getPrevious());
+			AbstractInsnNode ins, AbstractInsnNode endins, int opcode) throws ReconstructionException {
+		AsmStackReconstructedValue val;
+		try {
+			val = reconstructStackValue(operandcontext, ins.getPrevious());
+		} catch (ReconstructionException e) {
+			throw operandcontext.newOpcodeReconstructionException(e, ins, 0, opcode);
+		}
 		if (val == null) {
 			return null;
 		}
@@ -1056,10 +1123,16 @@ public class ConstantExpressionInliner {
 					}
 
 					ReconstructionContext reconstructioncontext = ReconstructionContext.createForReceiverType(this,
-							transclass, null);
+							transclass, null, methodnode);
 					MethodKey methodkey = new MethodKey(methodins);
-					AsmStackReconstructedValue reconstructedval = reconstructValueImpl(reconstructioncontext, ins,
-							methodkey);
+					AsmStackReconstructedValue reconstructedval;
+					try {
+						reconstructedval = reconstructValueImpl(reconstructioncontext, ins, methodkey);
+					} catch (ReconstructionException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+						break;
+					}
 					if (reconstructedval == null) {
 						break;
 					}
@@ -1089,7 +1162,7 @@ public class ConstantExpressionInliner {
 	}
 
 	private AsmStackReconstructedValue reconstructValueImpl(ReconstructionContext context, AbstractInsnNode ins,
-			MemberKey memberkey) {
+			MemberKey memberkey) throws ReconstructionException {
 		ConstantReconstructor reconstructor = constantReconstructors.get(memberkey);
 		if (reconstructor != null) {
 			return reconstructor.reconstructValue(context, ins);
@@ -1107,17 +1180,18 @@ public class ConstantExpressionInliner {
 				}
 				Class<?> type = constantTypes.get(methodins.owner);
 				if (type != null) {
-					if ("hashCode".equals(methodins.name)) {
+					if ("hashCode".equals(methodins.name) && "()I".equals(methodins.desc)) {
 						//don't inline hashCode by default on constant types, as that might not be stable
 						return null;
 					}
+					Method m;
 					try {
-						return new MethodBasedConstantReconstructor(Utils.getMethodForInstruction(type, methodins))
-								.reconstructValue(context, ins);
+						m = Utils.getMethodForInstruction(type, methodins);
 					} catch (NoSuchMethodException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
+						throw context.newMethodNotFoundReconstructionException(e, methodins, methodins.owner,
+								methodins.name, methodins.desc);
 					}
+					return new MethodBasedConstantReconstructor(m).reconstructValue(context, ins);
 				}
 
 				AsmStackReconstructedValue enumreconval = reconstructEnumMethodCall(context, ins);
@@ -1132,14 +1206,14 @@ public class ConstantExpressionInliner {
 					//constructor, allow if this is a constant type
 					Class<?> type = constantTypes.get(methodins.owner);
 					if (type != null) {
+						Constructor<?> constructor;
 						try {
-							return new ConstructorBasedConstantReconstructor(
-									Utils.getConstructorForMethodDescriptor(type, methodins.desc))
-											.reconstructValue(context, ins);
+							constructor = Utils.getConstructorForMethodDescriptor(type, methodins.desc);
 						} catch (NoSuchMethodException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
+							throw context.newMethodNotFoundReconstructionException(e, methodins, methodins.owner,
+									methodins.name, methodins.desc);
 						}
+						return new ConstructorBasedConstantReconstructor(constructor).reconstructValue(context, ins);
 					}
 				}
 				break;
@@ -1194,39 +1268,63 @@ public class ConstantExpressionInliner {
 		}
 
 		if (context.isForceReconstruct()) {
-			try {
-				switch (opcode) {
-					case Opcodes.GETFIELD: {
-						FieldInsnNode fieldins = (FieldInsnNode) ins;
-						return new DynamicInstanceFieldBasedConstantReconstructor(fieldins.owner, fieldins.name,
-								fieldins.desc).reconstructValue(context, ins);
-					}
-					case Opcodes.GETSTATIC: {
-						Class<?> type = Class.forName(Type.getObjectType(memberkey.getOwner()).getClassName(), false,
-								context.getClassLoader());
-						Field field = type.getDeclaredField(memberkey.getMemberName());
-						field.setAccessible(true);
-						return new FieldBasedConstantReconstructor(field).reconstructValue(context, ins);
-					}
-					default: {
-						MethodInsnNode methodins = (MethodInsnNode) ins;
-						Class<?> type = Class.forName(Type.getObjectType(memberkey.getOwner()).getClassName(), false,
-								context.getClassLoader());
-
-						MethodKey methodkey = (MethodKey) memberkey;
-						String methodname = memberkey.getMemberName();
-						if (Utils.CONSTRUCTOR_METHOD_NAME.equals(methodname)) {
-							return new ConstructorBasedConstantReconstructor(
-									Utils.getConstructorForMethodDescriptor(type, methodkey.getMethodDescriptor()))
-											.reconstructValue(context, ins);
-						}
-						return new MethodBasedConstantReconstructor(Utils.getMethodForInstruction(type, methodins))
-								.reconstructValue(context, ins);
-					}
+			switch (opcode) {
+				case Opcodes.GETFIELD: {
+					FieldInsnNode fieldins = (FieldInsnNode) ins;
+					return new DynamicInstanceFieldBasedConstantReconstructor(fieldins.owner, fieldins.name,
+							fieldins.desc).reconstructValue(context, ins);
 				}
-			} catch (Exception e) {
-				// TODO log
-				e.printStackTrace();
+				case Opcodes.GETSTATIC: {
+					FieldInsnNode fieldins = (FieldInsnNode) ins;
+					Class<?> type;
+					String classname = Type.getObjectType(memberkey.getOwner()).getClassName();
+					try {
+						type = Class.forName(classname, false, context.getClassLoader());
+					} catch (ClassNotFoundException e) {
+						throw context.newClassNotFoundReconstructionException(e, ins, memberkey.getOwner());
+					}
+					Field field;
+					try {
+						field = type.getDeclaredField(memberkey.getMemberName());
+						field.setAccessible(true);
+					} catch (NoSuchFieldException e) {
+						throw context.newFieldNotFoundReconstructionException(e, ins, fieldins.owner, fieldins.name,
+								fieldins.desc);
+					}
+					return new FieldBasedConstantReconstructor(field).reconstructValue(context, ins);
+				}
+				default: {
+					MethodInsnNode methodins = (MethodInsnNode) ins;
+					Class<?> type;
+					String classname = Type.getObjectType(memberkey.getOwner()).getClassName();
+					try {
+						type = Class.forName(classname, false, context.getClassLoader());
+					} catch (ClassNotFoundException e) {
+						throw context.newClassNotFoundReconstructionException(e, ins, memberkey.getOwner());
+					}
+
+					MethodKey methodkey = (MethodKey) memberkey;
+					String methodname = memberkey.getMemberName();
+					if (Utils.CONSTRUCTOR_METHOD_NAME.equals(methodname)) {
+						Constructor<?> constructor;
+						try {
+							constructor = Utils.getConstructorForMethodDescriptor(type,
+									methodkey.getMethodDescriptor());
+						} catch (NoSuchMethodException e) {
+							throw context.newMethodNotFoundReconstructionException(e, methodins, methodins.owner,
+									methodins.name, methodins.desc);
+						}
+						return new ConstructorBasedConstantReconstructor(constructor).reconstructValue(context, ins);
+					}
+					Method method;
+					try {
+						method = Utils.getMethodForInstruction(type, methodins);
+					} catch (NoSuchMethodException e) {
+						throw context.newMethodNotFoundReconstructionException(e, methodins, methodins.owner,
+								methodins.name, methodins.desc);
+					}
+					return new MethodBasedConstantReconstructor(method).reconstructValue(context, ins);
+				}
 			}
 		}
 		//INSERT HERE: any further specially handled method calls
@@ -1234,7 +1332,7 @@ public class ConstantExpressionInliner {
 	}
 
 	private static AsmStackReconstructedValue reconstructEnumMethodCall(ReconstructionContext context,
-			AbstractInsnNode ins) {
+			AbstractInsnNode ins) throws ReconstructionException {
 		int opcode = ins.getOpcode();
 		if (opcode != Opcodes.INVOKEVIRTUAL && opcode != Opcodes.INVOKEINTERFACE) {
 			return null;
@@ -1314,6 +1412,11 @@ public class ConstantExpressionInliner {
 			return EnumFieldConstantDeconstructor.INSTANCE;
 		}
 		return null;
+	}
+
+	BytecodeLocation getBytecodeLocation(TransformedClass transclass, MethodNode method, AbstractInsnNode locationins) {
+		int line = Utils.getLineNumber(method, locationins);
+		return new BytecodeLocation(transclass.input, transclass.classNode.name, method.name, method.desc, line);
 	}
 
 }

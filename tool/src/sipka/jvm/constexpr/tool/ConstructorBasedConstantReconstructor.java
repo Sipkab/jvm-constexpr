@@ -24,14 +24,20 @@ final class ConstructorBasedConstantReconstructor implements ConstantReconstruct
 	}
 
 	@Override
-	public AsmStackReconstructedValue reconstructValue(ReconstructionContext context, AbstractInsnNode ins) {
+	public AsmStackReconstructedValue reconstructValue(ReconstructionContext context, AbstractInsnNode ins)
+			throws ReconstructionException {
 		//ins is the INVOKESPECIAL
 		int paramcount = parameterTypes.length;
 		Object[] args = new Object[paramcount];
 		AsmStackReconstructedValue[] derivedargs = new AsmStackReconstructedValue[paramcount];
-		if (!context.getInliner().reconstructArguments(context.forArgumentReconstruction(), parameterTypes, ins, args,
-				derivedargs)) {
-			return null;
+		try {
+			if (!context.getInliner().reconstructArguments(context.forArgumentReconstruction(), parameterTypes, ins,
+					args, derivedargs)) {
+				return null;
+			}
+		} catch (ReconstructionException e) {
+			throw context.newMethodArgumentsReconstructionException(e, ins, typeInternalName,
+					Utils.CONSTRUCTOR_METHOD_NAME, Type.getConstructorDescriptor(constructor));
 		}
 		AbstractInsnNode beforeins = (paramcount == 0 ? ins : derivedargs[0].getFirstIns()).getPrevious();
 		//expected 
@@ -47,18 +53,16 @@ final class ConstructorBasedConstantReconstructor implements ConstantReconstruct
 		}
 		TypeInsnNode typeins = (TypeInsnNode) beforedup;
 		if (!typeInternalName.equals(typeins.desc)) {
-			//TODO log?
-			return null;
+			throw new IllegalArgumentException("Attempting to reconstruct different type: " + typeInternalName
+					+ " with NEW type on stack: " + typeins.desc);
 		}
 
 		Object instance;
 		try {
 			instance = constructor.newInstance(args);
-		} catch (InstantiationException | IllegalAccessException | IllegalArgumentException
-				| InvocationTargetException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			return null;
+		} catch (Exception e) {
+			throw context.newMethodInvocationFailureReconstructionException(e, ins, typeInternalName,
+					Utils.CONSTRUCTOR_METHOD_NAME, Type.getConstructorDescriptor(constructor), null, args);
 		}
 		return new AsmStackReconstructedValue(typeins, ins.getNext(), instance);
 	}

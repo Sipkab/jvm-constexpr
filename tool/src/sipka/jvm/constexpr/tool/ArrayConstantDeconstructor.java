@@ -20,12 +20,12 @@ class ArrayConstantDeconstructor implements ConstantDeconstructor {
 	public InsnList deconstructValue(ConstantExpressionInliner context, TransformedClass transclass, Object value) {
 		if (value == null) {
 			//shouldn't happen
-			return null;
+			throw new NullPointerException("Attempting to deconstruct null value as an array.");
 		}
 		Class<?> componenttype = value.getClass().getComponentType();
 		if (componenttype == null) {
 			//shouldn't happen either
-			return null;
+			throw new NullPointerException("Attempting to deconstruct non array type as array: " + value.getClass());
 		}
 		InsnList result = new InsnList();
 		int length = Array.getLength(value);

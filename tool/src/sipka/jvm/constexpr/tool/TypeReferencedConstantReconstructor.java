@@ -18,7 +18,8 @@ class TypeReferencedConstantReconstructor implements ConstantReconstructor {
 	}
 
 	@Override
-	public AsmStackReconstructedValue reconstructValue(ReconstructionContext context, AbstractInsnNode ins) {
+	public AsmStackReconstructedValue reconstructValue(ReconstructionContext context, AbstractInsnNode ins)
+			throws ReconstructionException {
 		return delegate.reconstructValue(context, ins);
 	}
 

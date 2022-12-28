@@ -393,26 +393,28 @@ class BaseConfig {
 					new MethodBasedConstantReconstructor(sbm), StringBuilder.class));
 		}
 
-		addConstantFields(baseConstantReconstructors, StandardCharsets.class, "US_ASCII", "ISO_8859_1", "UTF_8",
-				"UTF_16BE", "UTF_16LE", "UTF_16");
+		addConstantFieldReconstructors(baseConstantReconstructors, StandardCharsets.class, "US_ASCII", "ISO_8859_1",
+				"UTF_8", "UTF_16BE", "UTF_16LE", "UTF_16");
 
 		//XXX should we get all the declared fields instead, and add them based on that? seems more forward compatible
-		addConstantFields(baseConstantReconstructors, Locale.class, "ENGLISH", "FRENCH", "GERMAN", "ITALIAN",
-				"JAPANESE", "KOREAN", "CHINESE", "SIMPLIFIED_CHINESE", "TRADITIONAL_CHINESE", "FRANCE", "GERMANY",
-				"ITALY", "JAPAN", "KOREA", "UK", "US", "CANADA", "CANADA_FRENCH", "ROOT", "CHINA", "PRC", "TAIWAN");
+		addConstantFieldReconstructors(baseConstantReconstructors, Locale.class, "ENGLISH", "FRENCH", "GERMAN",
+				"ITALIAN", "JAPANESE", "KOREAN", "CHINESE", "SIMPLIFIED_CHINESE", "TRADITIONAL_CHINESE", "FRANCE",
+				"GERMANY", "ITALY", "JAPAN", "KOREA", "UK", "US", "CANADA", "CANADA_FRENCH", "ROOT", "CHINA", "PRC",
+				"TAIWAN");
 
-		addConstantFields(baseConstantReconstructors, Duration.class, "ZERO");
+		addConstantFieldReconstructors(baseConstantReconstructors, Duration.class, "ZERO");
 
-		addConstantFields(baseConstantReconstructors, Period.class, "ZERO");
+		addConstantFieldReconstructors(baseConstantReconstructors, Period.class, "ZERO");
 
-		addConstantFields(baseConstantReconstructors, JapaneseEra.class, "MEIJI", "TAISHO", "SHOWA", "HEISEI", "REIWA");
+		addConstantFieldReconstructors(baseConstantReconstructors, JapaneseEra.class, "MEIJI", "TAISHO", "SHOWA",
+				"HEISEI", "REIWA");
 
-		addConstantFields(baseConstantReconstructors, LocalDate.class, "MIN", "MAX");
-		addConstantFields(baseConstantReconstructors, LocalTime.class, "MIN", "MAX", "MIDNIGHT", "NOON");
-		addConstantFields(baseConstantReconstructors, LocalDateTime.class, "MIN", "MAX");
-		addConstantFields(baseConstantReconstructors, ZoneOffset.class, "UTC", "MIN", "MAX");
-		addConstantFields(baseConstantReconstructors, OffsetTime.class, "MIN", "MAX");
-		addConstantFields(baseConstantReconstructors, OffsetDateTime.class, "MIN", "MAX");
+		addConstantFieldReconstructors(baseConstantReconstructors, LocalDate.class, "MIN", "MAX");
+		addConstantFieldReconstructors(baseConstantReconstructors, LocalTime.class, "MIN", "MAX", "MIDNIGHT", "NOON");
+		addConstantFieldReconstructors(baseConstantReconstructors, LocalDateTime.class, "MIN", "MAX");
+		addConstantFieldReconstructors(baseConstantReconstructors, ZoneOffset.class, "UTC", "MIN", "MAX");
+		addConstantFieldReconstructors(baseConstantReconstructors, OffsetTime.class, "MIN", "MAX");
+		addConstantFieldReconstructors(baseConstantReconstructors, OffsetDateTime.class, "MIN", "MAX");
 	}
 
 	private static void initDeconstructors(Map<Class<?>, ConstantDeconstructor> baseConstantDeconstructors) {
@@ -546,16 +548,11 @@ class BaseConfig {
 
 	private static void addConstructorBasedDeconstructor(Map<Class<?>, ConstantDeconstructor> constantDeconstructors,
 			Class<?> type, Type[] asmargtypes, String... argumentsgettermethodnames) {
-		try {
-			ConstantDeconstructor deconstructor = ConstructorBasedDeconstructor.create(type, asmargtypes,
-					argumentsgettermethodnames);
-			Object prev = constantDeconstructors.putIfAbsent(type, deconstructor);
-			if (prev != null) {
-				throw new IllegalArgumentException("Duplicate constant deconstructor for: " + type);
-			}
-		} catch (Exception e) {
-			// TODO: handle exception
-			e.printStackTrace();
+		ConstantDeconstructor deconstructor = ConstructorBasedDeconstructor.create(type, asmargtypes,
+				argumentsgettermethodnames);
+		Object prev = constantDeconstructors.putIfAbsent(type, deconstructor);
+		if (prev != null) {
+			throw new IllegalArgumentException("Duplicate constant deconstructor for: " + type);
 		}
 	}
 
@@ -567,16 +564,11 @@ class BaseConfig {
 
 	private static void addStaticMethodBasedDeconstructor(Map<Class<?>, ConstantDeconstructor> constantDeconstructors,
 			Class<?> type, String methodname, Type[] asmargtypes, String... argumentsgettermethodnames) {
-		try {
-			ConstantDeconstructor deconstructor = StaticMethodBasedDeconstructor.createStaticFactoryDeconstructor(type,
-					methodname, asmargtypes, argumentsgettermethodnames);
-			Object prev = constantDeconstructors.putIfAbsent(type, deconstructor);
-			if (prev != null) {
-				throw new IllegalArgumentException("Duplicate constant deconstructor for: " + type);
-			}
-		} catch (Exception e) {
-			// TODO: handle exception
-			e.printStackTrace();
+		ConstantDeconstructor deconstructor = StaticMethodBasedDeconstructor.createStaticFactoryDeconstructor(type,
+				methodname, asmargtypes, argumentsgettermethodnames);
+		Object prev = constantDeconstructors.putIfAbsent(type, deconstructor);
+		if (prev != null) {
+			throw new IllegalArgumentException("Duplicate constant deconstructor for: " + type);
 		}
 	}
 
@@ -625,32 +617,19 @@ class BaseConfig {
 		}
 	}
 
-	private static void addConstantFields(
+	private static void addConstantFieldReconstructors(
 			Map<? super MemberKey, ? super TypeReferencedConstantReconstructor> constantFields, Class<?> type,
 			String... fieldnames) {
 		for (String fn : fieldnames) {
-			addConstantField(constantFields, type, fn);
+			addConstantFieldReconstructor(constantFields, type, fn);
 		}
 	}
 
-	private static void addConstantField(
+	private static void addConstantFieldReconstructor(
 			Map<? super MemberKey, ? super TypeReferencedConstantReconstructor> constantFields, Class<?> type,
 			String fieldname) {
 		try {
 			Field f = type.getField(fieldname);
-//			Object prev = constantFields.putIfAbsent(new FieldKey(f), new FieldValueRetriever() {
-//				@Override
-//				public Optional<?> getValue(ConstantExpressionInliner context, TransformedClass transclass,
-//						Object subject) {
-//					try {
-//						return Optional.ofNullable(f.get(subject));
-//					} catch (IllegalArgumentException | IllegalAccessException e) {
-//						// TODO Auto-generated catch block
-//						e.printStackTrace();
-//						return null;
-//					}
-//				}
-//			});
 			Object prev = constantFields.putIfAbsent(new FieldKey(f),
 					new TypeReferencedConstantReconstructor(new FieldBasedConstantReconstructor(f), type));
 			if (prev != null) {
@@ -664,7 +643,13 @@ class BaseConfig {
 	}
 
 	private static final class ClassCanonicalNameConstantReconstructor extends ClassNameConstantReconstructor {
-		public static final ClassCanonicalNameConstantReconstructor INSTANCE = new ClassCanonicalNameConstantReconstructor();
+		public static final ClassCanonicalNameConstantReconstructor INSTANCE = new ClassCanonicalNameConstantReconstructor(
+				"getCanonicalName");
+
+		public ClassCanonicalNameConstantReconstructor(String memberName) {
+			super(memberName);
+			// TODO Auto-generated constructor stub
+		}
 
 		@Override
 		protected String getName(Type t) {
@@ -678,7 +663,13 @@ class BaseConfig {
 	}
 
 	private static final class ClassSimpleNameConstantReconstructor extends ClassNameConstantReconstructor {
-		public static final ClassSimpleNameConstantReconstructor INSTANCE = new ClassSimpleNameConstantReconstructor();
+		public static final ClassSimpleNameConstantReconstructor INSTANCE = new ClassSimpleNameConstantReconstructor(
+				"getSimpleName");
+
+		public ClassSimpleNameConstantReconstructor(String memberName) {
+			super(memberName);
+			// TODO Auto-generated constructor stub
+		}
 
 		@Override
 		protected String getName(Type t) {
@@ -692,23 +683,40 @@ class BaseConfig {
 	}
 
 	private static class ClassNameConstantReconstructor implements ConstantReconstructor {
-		public static final ClassNameConstantReconstructor INSTANCE = new ClassNameConstantReconstructor();
+		public static final ClassNameConstantReconstructor INSTANCE = new ClassNameConstantReconstructor("getName");
+
+		private final String memberName;
+
+		public ClassNameConstantReconstructor(String memberName) {
+			this.memberName = memberName;
+		}
 
 		@Override
-		public AsmStackReconstructedValue reconstructValue(ReconstructionContext context, AbstractInsnNode ins) {
-			AsmStackReconstructedValue typeval = context.getInliner()
-					.reconstructStackValue(context.withReceiverType(Class.class), ins.getPrevious());
+		public AsmStackReconstructedValue reconstructValue(ReconstructionContext context, AbstractInsnNode ins)
+				throws ReconstructionException {
+			AsmStackReconstructedValue typeval;
+			try {
+				typeval = context.getInliner().reconstructStackValue(context.withReceiverType(Class.class),
+						ins.getPrevious());
+			} catch (ReconstructionException e) {
+				throw context.newInstanceAccessFailureReconstructionException(e, ins, "java/lang/Class", memberName,
+						"()Ljava/lang/String;");
+			}
 			if (typeval == null) {
 				return null;
 			}
 			Object val = typeval.getValue();
+			if (val == null) {
+				return null;
+			}
 			String result;
 			if (val instanceof Type) {
 				result = getName((Type) val);
 			} else if (val instanceof Class) {
 				result = getName((Class<?>) val);
 			} else {
-				//TODO log?
+				//some unrecognized type for Class method call
+				//can't do much, maybe programming error, or something?
 				return null;
 			}
 			return new AsmStackReconstructedValue(typeval.getFirstIns(), ins.getNext(), result);

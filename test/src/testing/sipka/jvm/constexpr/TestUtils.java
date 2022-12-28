@@ -20,6 +20,8 @@ import saker.build.thirdparty.saker.util.io.ByteArrayRegion;
 import sipka.jvm.constexpr.tool.ConstantExpressionInliner;
 import sipka.jvm.constexpr.tool.OutputConsumer;
 import sipka.jvm.constexpr.tool.Utils;
+import sipka.jvm.constexpr.tool.log.AbstractSimpleToolLogger;
+import sipka.jvm.constexpr.tool.log.LogEntry;
 import sipka.jvm.constexpr.tool.options.InlinerOptions;
 import sipka.jvm.constexpr.tool.options.ToolInput;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.ClassReader;
@@ -77,6 +79,14 @@ public class TestUtils {
 
 	public static InlinerOptions createOptionsForClasses(Class<?>... classes) {
 		InlinerOptions opts = new InlinerOptions();
+		opts.setLogger(new AbstractSimpleToolLogger() {
+			
+			@Override
+			protected void log(LogEntry entry) {
+				// TODO Auto-generated method stub
+				System.out.println(entry.getMessage());
+			}
+		});
 		opts.setInputs(createInputsForClasses(classes));
 		return opts;
 	}

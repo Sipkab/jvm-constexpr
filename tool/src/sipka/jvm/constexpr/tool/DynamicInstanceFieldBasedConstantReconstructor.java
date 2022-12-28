@@ -1,6 +1,9 @@
 package sipka.jvm.constexpr.tool;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.AbstractInsnNode;
@@ -18,10 +21,16 @@ class DynamicInstanceFieldBasedConstantReconstructor implements ConstantReconstr
 	}
 
 	@Override
-	public AsmStackReconstructedValue reconstructValue(ReconstructionContext context, AbstractInsnNode ins) {
-		//ins is GETSTATIC
-		AsmStackReconstructedValue instanceval = context.getInliner()
-				.reconstructStackValue(context.withReceiverType(null), ins.getPrevious());
+	public AsmStackReconstructedValue reconstructValue(ReconstructionContext context, AbstractInsnNode ins)
+			throws ReconstructionException {
+		//ins is GETFIELD
+		AsmStackReconstructedValue instanceval;
+		try {
+			instanceval = context.getInliner().reconstructStackValue(context.withReceiverType(null), ins.getPrevious());
+		} catch (ReconstructionException e) {
+			throw context.newInstanceAccessFailureReconstructionException(e, ins, fieldOwnerInternalName, fieldName,
+					fieldDescriptor);
+		}
 		if (instanceval == null) {
 			return null;
 		}
@@ -29,6 +38,7 @@ class DynamicInstanceFieldBasedConstantReconstructor implements ConstantReconstr
 		if (val == null) {
 			return null;
 		}
+		List<NoSuchFieldException> notfoundexc = null;
 		boolean foundowner = false;
 		for (Class<?> c = val.getClass(); c != null; c = c.getSuperclass()) {
 			if (!foundowner) {
@@ -40,22 +50,41 @@ class DynamicInstanceFieldBasedConstantReconstructor implements ConstantReconstr
 				}
 			}
 			Object fieldval;
+			Field field;
 			try {
-				Field field = Utils.getFieldForDescriptor(c, fieldName, fieldDescriptor);
+				field = Utils.getFieldForDescriptor(c, fieldName, fieldDescriptor);
+			} catch (NoSuchFieldException e) {
+				if (notfoundexc == null) {
+					notfoundexc = new ArrayList<>();
+				}
+				notfoundexc.add(e);
+				continue;
+			}
+			try {
 				field.setAccessible(true);
 				fieldval = field.get(instanceval.getValue());
-			} catch (NoSuchFieldException e) {
-				// TODO: handle exception
-				continue;
 			} catch (Exception e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-				return null;
+				throw context.newFieldAccessFailureReconstructionException(e, ins, fieldOwnerInternalName, fieldName,
+						fieldDescriptor, instanceval);
 			}
 			return new AsmStackReconstructedValue(instanceval.getFirstIns(), ins.getNext(), fieldval);
 		}
-		//TODO log
-		return null;
+
+		if (notfoundexc == null) {
+			notfoundexc = new ArrayList<>();
+			//have at least 1 exception for the cause of the ReconstructionException
+			notfoundexc.add(new NoSuchFieldException(Type.getType(fieldDescriptor).getClassName() + " "
+					+ Type.getObjectType(fieldOwnerInternalName).getClassName() + "." + fieldName));
+		}
+
+		Iterator<NoSuchFieldException> excit = notfoundexc.iterator();
+
+		ReconstructionException throwexc = context.newFieldNotFoundReconstructionException(excit.next(), ins,
+				fieldOwnerInternalName, fieldName, fieldDescriptor);
+		while (excit.hasNext()) {
+			throwexc.addSuppressed(excit.next());
+		}
+		throw throwexc;
 	}
 
 	@Override

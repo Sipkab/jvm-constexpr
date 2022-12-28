@@ -17,6 +17,7 @@ import java.util.UUID;
 
 import sipka.jvm.constexpr.tool.ConstantExpressionInliner;
 import sipka.jvm.constexpr.tool.OutputConsumer;
+import sipka.jvm.constexpr.tool.log.ToolLogger;
 
 /**
  * Options for the constant inliner tool.
@@ -34,6 +35,8 @@ public final class InlinerOptions {
 	protected Map<Class<?>, DeconstructionSelector> deconstructorConfigurations = new HashMap<>();
 
 	protected Collection<Member> constantReconstructors = new ArrayList<>();
+
+	protected ToolLogger logger;
 
 	/**
 	 * Creates an empty instance.
@@ -298,6 +301,14 @@ public final class InlinerOptions {
 	 */
 	public Collection<Member> getConstantReconstructors() {
 		return constantReconstructors;
+	}
+
+	public void setLogger(ToolLogger logger) {
+		this.logger = logger;
+	}
+
+	public ToolLogger getLogger() {
+		return logger;
 	}
 
 }
