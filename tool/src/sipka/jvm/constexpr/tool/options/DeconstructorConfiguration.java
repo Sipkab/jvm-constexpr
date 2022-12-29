@@ -6,7 +6,6 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
 import sipka.jvm.constexpr.tool.DeconstructionDataAccessor;
-import sipka.jvm.constexpr.tool.Utils;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 
 public class DeconstructorConfiguration {
@@ -21,8 +20,7 @@ public class DeconstructorConfiguration {
 
 	public static DeconstructorConfiguration createConstructor(Constructor<?> constructor,
 			DeconstructionDataAccessor... parameterdataaccessors) throws NullPointerException {
-		return new ConstructorDeconstructorConfiguration(Type.getType(constructor.getDeclaringClass()),
-				parameterdataaccessors);
+		return createConstructor(Type.getType(constructor.getDeclaringClass()), parameterdataaccessors);
 	}
 
 	public static DeconstructorConfiguration createConstructor(Type methodowner,
@@ -35,7 +33,7 @@ public class DeconstructorConfiguration {
 		if (((method.getModifiers() & Modifier.STATIC) != Modifier.STATIC)) {
 			throw new IllegalArgumentException("Method is not static: " + method);
 		}
-		return new StaticMethodDeconstructorConfiguration(Type.getType(method.getDeclaringClass()), method.getName(),
+		return createStaticMethod(Type.getType(method.getDeclaringClass()), method.getName(),
 				Type.getType(method.getReturnType()), parameterdataaccessors);
 	}
 
@@ -49,8 +47,12 @@ public class DeconstructorConfiguration {
 		if (((field.getModifiers() & Modifier.STATIC) != Modifier.STATIC)) {
 			throw new IllegalArgumentException("Field is not static: " + field);
 		}
-		return new FieldDeconstructorConfiguration(Type.getType(field.getDeclaringClass()), field.getName(),
+		return createStaticField(Type.getType(field.getDeclaringClass()), field.getName(),
 				Type.getType(field.getType()));
+	}
+
+	public static DeconstructorConfiguration createStaticField(Type fieldowner, String fieldname, Type fieldtype) {
+		return new FieldDeconstructorConfiguration(fieldowner, fieldname, fieldtype);
 	}
 
 	public Type getMemberOwner() {
