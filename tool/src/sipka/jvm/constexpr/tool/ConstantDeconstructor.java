@@ -1,7 +1,5 @@
 package sipka.jvm.constexpr.tool;
 
-import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.InsnList;
-
 /**
  * Interface for serializing an inline value to ASM instructions so that they can be represented on the stack.
  */

@@ -1,7 +1,5 @@
 package sipka.jvm.constexpr.tool;
 
-import java.lang.reflect.Method;
-
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Opcodes;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.InsnList;

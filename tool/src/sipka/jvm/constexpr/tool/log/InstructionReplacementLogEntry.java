@@ -1,8 +1,8 @@
 package sipka.jvm.constexpr.tool.log;
 
 import sipka.jvm.constexpr.tool.AsmStackInfo;
-import sipka.jvm.constexpr.tool.Utils;
 import sipka.jvm.constexpr.tool.AsmStackInfo.Kind;
+import sipka.jvm.constexpr.tool.Utils;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 
 public final class InstructionReplacementLogEntry implements LogEntry {
