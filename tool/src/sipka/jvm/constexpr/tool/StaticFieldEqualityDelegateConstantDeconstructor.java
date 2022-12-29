@@ -11,6 +11,8 @@ import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.InsnList;
  * {@link ConstantDeconstructor} that searches the given type with an equal static field to the inlined value. If found,
  * then a {@link Opcodes#GETSTATIC GETSTATIC} instruction is used to retrieve that field. Otherwise a delegate
  * {@link ConstantDeconstructor} is called.
+ * <p>
+ * Fields are expected to have the same type as the declaring type.
  */
 final class StaticFieldEqualityDelegateConstantDeconstructor implements ConstantDeconstructor {
 	private final ConstantDeconstructor delegate;
@@ -27,7 +29,8 @@ final class StaticFieldEqualityDelegateConstantDeconstructor implements Constant
 	@Override
 	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass,
 			Object value) {
-		DeconstructionResult fielddeconstruct = tryDeconstructEqualStaticField(transclass, type, value, fieldNames);
+		DeconstructionResult fielddeconstruct = tryDeconstructEqualStaticField(context, transclass, type, value,
+				fieldNames);
 		if (fielddeconstruct != null) {
 			return fielddeconstruct;
 		}
@@ -39,14 +42,21 @@ final class StaticFieldEqualityDelegateConstantDeconstructor implements Constant
 		return delegate.deconstructValue(context, transclass, value);
 	}
 
-	private static DeconstructionResult tryDeconstructEqualStaticField(TransformedClass transclass, Class<?> type,
-			Object val, String... fields) {
-		for (Field field : type.getDeclaredFields()) {
-			String reflectedfieldname = field.getName();
-			for (String fieldname : fields) {
+	private static DeconstructionResult tryDeconstructEqualStaticField(ConstantExpressionInliner context,
+			TransformedClass transclass, Class<?> type, Object val, String[] fields) {
+		Field[] declaredfields = type.getDeclaredFields();
+		for (String fieldname : fields) {
+			boolean foundwithname = false;
+			for (Field field : declaredfields) {
+				String reflectedfieldname = field.getName();
 				if (!reflectedfieldname.equals(fieldname)) {
 					continue;
 				}
+				if (!field.getType().equals(type)) {
+					//different field type than expected
+					continue;
+				}
+				foundwithname = true;
 				try {
 					if (val.equals(field.get(null))) {
 						Class<?> fieldtype = field.getType();
@@ -62,6 +72,11 @@ final class StaticFieldEqualityDelegateConstantDeconstructor implements Constant
 					e.printStackTrace();
 					continue;
 				}
+			}
+			if (!foundwithname) {
+				Type typeasmtype = Type.getType(type);
+				context.logConfigClassMemberNotAvailable(typeasmtype.getInternalName(), fieldname,
+						typeasmtype.getDescriptor(), null);
 			}
 		}
 		return null;

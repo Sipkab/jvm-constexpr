@@ -1,11 +1,16 @@
 package sipka.jvm.constexpr.tool;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -1339,5 +1344,18 @@ public class Utils {
 			appendAsmStackInfo(sb, args[i], "");
 		}
 		sb.append(')');
+	}
+
+	public static void appendThrowableStackTrace(StringBuilder sb, Throwable rc) {
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		try (PrintWriter pw = new PrintWriter(new OutputStreamWriter(baos, StandardCharsets.UTF_8))) {
+			rc.printStackTrace(pw);
+		}
+		try {
+			sb.append(baos.toString("UTF-8"));
+		} catch (UnsupportedEncodingException e) {
+			//shouldn't happen
+			throw new RuntimeException(e);
+		}
 	}
 }

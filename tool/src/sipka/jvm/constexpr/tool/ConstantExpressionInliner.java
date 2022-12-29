@@ -9,7 +9,6 @@ import java.lang.reflect.Method;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -23,8 +22,8 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 
 import sipka.jvm.constexpr.tool.TransformedClass.TransformedField;
-import sipka.jvm.constexpr.tool.log.BaseConfigClassMemberNotAvailableLogContextInfo;
 import sipka.jvm.constexpr.tool.log.BytecodeLocation;
+import sipka.jvm.constexpr.tool.log.ConfigClassMemberNotAvailableLogEntry;
 import sipka.jvm.constexpr.tool.log.DeconstructionFailedLogEntry;
 import sipka.jvm.constexpr.tool.log.DeconstructorNotConfiguredLogEntry;
 import sipka.jvm.constexpr.tool.log.InstructionReplacementLogEntry;
@@ -95,6 +94,7 @@ public class ConstantExpressionInliner {
 
 	private final Map<String, DeconstructorNotConfiguredLogEntry> deconstructorNotConfiguredLogEntries = new TreeMap<>();
 	private final Set<FieldKey> multipleInitializationLoggedFields = new TreeSet<>(MemberKey::compare);
+	private final Set<MemberKey> configMemberNotAvailableLoggedEntries = new TreeSet<>(MemberKey::compare);
 
 	private ToolLogger logger;
 
@@ -1587,17 +1587,19 @@ public class ConstantExpressionInliner {
 		}
 	}
 
-	void logBaseConfigClassMemberNotAvailable(String classInternalName, String memberName, String memberDescriptor,
+	void logConfigClassMemberNotAvailable(String classInternalName, String memberName, String memberDescriptor,
 			Throwable exception) {
 		if (logger == null) {
 			//no need for logging
 			return;
 		}
-		List<LogContextInfo> loginfocontext = Collections
-				.singletonList(new BaseConfigClassMemberNotAvailableLogContextInfo(null, classInternalName, memberName,
-						memberDescriptor));
-		ReconstructionFailureLogEntry logentry = new ReconstructionFailureLogEntry(exception, loginfocontext);
-		reconstructionFailureLogEntries.putIfAbsent(loginfocontext, logentry);
+		if (!configMemberNotAvailableLoggedEntries
+				.add(MemberKey.create(classInternalName, memberName, memberDescriptor))) {
+			//already logged
+			return;
+		}
+		logger.log(
+				new ConfigClassMemberNotAvailableLogEntry(classInternalName, memberName, memberDescriptor, exception));
 	}
 
 	void logDeconstructionFailure(Object value, DeconstructionDataAccessor accessor, Throwable cause) {

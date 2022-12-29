@@ -3,17 +3,19 @@ package sipka.jvm.constexpr.tool.log;
 import sipka.jvm.constexpr.tool.Utils;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 
-public final class BaseConfigClassMemberNotAvailableLogContextInfo extends BaseLogContextInfo {
+public final class ConfigClassMemberNotAvailableLogEntry implements LogEntry {
 	private final String className;
 	private final String memberName;
 	private final String memberDescriptor;
 
-	public BaseConfigClassMemberNotAvailableLogContextInfo(BytecodeLocation bytecodeLocation, String className,
-			String memberName, String memberDescriptor) {
-		super(bytecodeLocation);
+	private final transient Throwable exception;
+
+	public ConfigClassMemberNotAvailableLogEntry(String className, String memberName, String memberDescriptor,
+			Throwable exception) {
 		this.className = className;
 		this.memberName = memberName;
 		this.memberDescriptor = memberDescriptor;
+		this.exception = exception;
 	}
 
 	public String getClassName() {
@@ -26,6 +28,11 @@ public final class BaseConfigClassMemberNotAvailableLogContextInfo extends BaseL
 
 	public String getMemberDescriptor() {
 		return memberDescriptor;
+	}
+
+	//may be null
+	public Throwable getException() {
+		return exception;
 	}
 
 	@Override
@@ -42,6 +49,12 @@ public final class BaseConfigClassMemberNotAvailableLogContextInfo extends BaseL
 			sb.append("Field not found in current JVM: ");
 		}
 		Utils.appendMemberDescriptorPretty(sb, memberdesc, Type.getObjectType(className), memberName);
+		Throwable rc = exception;
+		if (rc != null) {
+			sb.append(System.lineSeparator());
+			sb.append("Caused by: ");
+			Utils.appendThrowableStackTrace(sb, rc);
+		}
 		return sb.toString();
 	}
 
@@ -63,7 +76,7 @@ public final class BaseConfigClassMemberNotAvailableLogContextInfo extends BaseL
 			return false;
 		if (getClass() != obj.getClass())
 			return false;
-		BaseConfigClassMemberNotAvailableLogContextInfo other = (BaseConfigClassMemberNotAvailableLogContextInfo) obj;
+		ConfigClassMemberNotAvailableLogEntry other = (ConfigClassMemberNotAvailableLogEntry) obj;
 		if (className == null) {
 			if (other.className != null)
 				return false;
@@ -85,14 +98,14 @@ public final class BaseConfigClassMemberNotAvailableLogContextInfo extends BaseL
 	@Override
 	public String toString() {
 		StringBuilder builder = new StringBuilder(getClass().getSimpleName());
-		builder.append("[bytecodeLocation=");
-		builder.append(bytecodeLocation);
-		builder.append(", className=");
+		builder.append("[className=");
 		builder.append(className);
 		builder.append(", memberName=");
 		builder.append(memberName);
 		builder.append(", memberDescriptor=");
 		builder.append(memberDescriptor);
+		builder.append(", exception=");
+		builder.append(exception);
 		builder.append("]");
 		return builder.toString();
 	}

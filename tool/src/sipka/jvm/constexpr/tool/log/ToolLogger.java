@@ -10,4 +10,6 @@ public interface ToolLogger {
 	public void log(MultipleInitializationPathLogEntry logentry);
 
 	public void log(DeconstructionFailedLogEntry logentry);
+
+	public void log(ConfigClassMemberNotAvailableLogEntry logentry);
 }

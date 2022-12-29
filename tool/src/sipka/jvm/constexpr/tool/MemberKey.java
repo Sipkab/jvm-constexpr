@@ -9,6 +9,14 @@ class MemberKey {
 		this.memberName = memberName;
 	}
 
+	public static MemberKey create(String owner, String membername, String descriptor) {
+		if (descriptor.charAt(0) == '(') {
+			//condition based on sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type.getTypeInternal(String, int, int)
+			return new MethodKey(owner, membername, descriptor);
+		}
+		return new FieldKey(owner, membername, descriptor);
+	}
+
 	/**
 	 * Ordering is based on a owner-member_name ascending order.
 	 * <p>

@@ -773,7 +773,7 @@ class BaseConfig {
 		@Override
 		public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass,
 				Object value) {
-			context.logBaseConfigClassMemberNotAvailable(classInternalName, methodName, methodDescr, e);
+			context.logConfigClassMemberNotAvailable(classInternalName, methodName, methodDescr, e);
 			return null;
 		}
 	}
@@ -796,8 +796,7 @@ class BaseConfig {
 		@Override
 		public AsmStackReconstructedValue reconstructValue(ReconstructionContext context, AbstractInsnNode ins)
 				throws ReconstructionException {
-			context.getInliner().logBaseConfigClassMemberNotAvailable(className, memberName, memberDescriptor,
-					exception);
+			context.getInliner().logConfigClassMemberNotAvailable(className, memberName, memberDescriptor, exception);
 			return null;
 		}
 

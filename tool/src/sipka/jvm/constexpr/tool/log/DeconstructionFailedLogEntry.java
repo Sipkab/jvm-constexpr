@@ -1,11 +1,6 @@
 package sipka.jvm.constexpr.tool.log;
 
-import java.io.ByteArrayOutputStream;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
-import java.io.UnsupportedEncodingException;
-import java.nio.charset.StandardCharsets;
-
+import sipka.jvm.constexpr.tool.Utils;
 import sipka.jvm.constexpr.tool.options.DeconstructionDataAccessor;
 
 public final class DeconstructionFailedLogEntry implements LogEntry {
@@ -37,16 +32,7 @@ public final class DeconstructionFailedLogEntry implements LogEntry {
 		Throwable rc = getCause();
 		if (rc != null) {
 			sb.append("Caused by: ");
-			ByteArrayOutputStream baos = new ByteArrayOutputStream();
-			try (PrintWriter pw = new PrintWriter(new OutputStreamWriter(baos, StandardCharsets.UTF_8))) {
-				rc.printStackTrace(pw);
-			}
-			try {
-				sb.append(baos.toString("UTF-8"));
-			} catch (UnsupportedEncodingException e) {
-				//shouldn't happen
-				throw new RuntimeException(e);
-			}
+			Utils.appendThrowableStackTrace(sb, rc);
 		}
 		return sb.toString();
 	}
