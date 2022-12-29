@@ -32,6 +32,10 @@ class FieldKey extends MemberKey {
 		return memberName;
 	}
 
+	public String getFieldDescriptor() {
+		return fieldDescriptor;
+	}
+
 	@Override
 	public String toString() {
 		StringBuilder builder = new StringBuilder(getClass().getSimpleName());

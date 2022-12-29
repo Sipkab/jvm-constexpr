@@ -9,6 +9,7 @@ import java.lang.reflect.Method;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -20,6 +21,7 @@ import java.util.Objects;
 import java.util.TreeMap;
 
 import sipka.jvm.constexpr.tool.TransformedClass.TransformedField;
+import sipka.jvm.constexpr.tool.log.BaseConfigClassMemberNotAvailableLogContextInfo;
 import sipka.jvm.constexpr.tool.log.BytecodeLocation;
 import sipka.jvm.constexpr.tool.log.InstructionReplacementLogEntry;
 import sipka.jvm.constexpr.tool.log.LogContextInfo;
@@ -1559,4 +1561,11 @@ public class ConstantExpressionInliner {
 		}
 	}
 
+	void logBaseConfigClassMemberNotAvailable(String className, String memberName, String memberDescriptor,
+			Throwable exception) {
+		List<LogContextInfo> loginfocontext = Collections.singletonList(
+				new BaseConfigClassMemberNotAvailableLogContextInfo(null, className, memberName, memberDescriptor));
+		ReconstructionFailureLogEntry logentry = new ReconstructionFailureLogEntry(exception, loginfocontext);
+		reconstructionFailureLogEntries.putIfAbsent(loginfocontext, logentry);
+	}
 }
