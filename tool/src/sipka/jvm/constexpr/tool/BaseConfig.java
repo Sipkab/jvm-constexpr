@@ -597,16 +597,18 @@ class BaseConfig {
 
 	private static void addConstructorBasedDeconstructor(Map<Class<?>, ConstantDeconstructor> constantDeconstructors,
 			Class<?> type, Class<?>[] asmargtypes, String... argumentsgettermethodnames) {
-		DeconstructionDataAccessor[] accessors = toDeconstructorDataAccessors(type, asmargtypes,
-				argumentsgettermethodnames);
-		if (accessors == null) {
+		DeconstructionDataAccessor[] accessors;
+		try {
+			accessors = toDeconstructorDataAccessors(type, asmargtypes, argumentsgettermethodnames);
+		} catch (NoSuchMethodException e) {
+			setDeconstructor(constantDeconstructors, type,
+					new BaseConfigMemberNotAvailableConstantDeconstructor(Utils.CONSTRUCTOR_METHOD_NAME,
+							Type.getMethodDescriptor(Type.VOID_TYPE, Utils.toAsmTypes(asmargtypes)),
+							Type.getType(type).getInternalName(), e));
 			return;
 		}
 		ConstantDeconstructor deconstructor = ConstructorBasedDeconstructor.create(type, accessors);
-		Object prev = constantDeconstructors.putIfAbsent(type, deconstructor);
-		if (prev != null) {
-			throw new IllegalArgumentException("Duplicate constant deconstructor for: " + type);
-		}
+		setDeconstructor(constantDeconstructors, type, deconstructor);
 	}
 
 	private static void addStaticMethodBasedDeconstructor(Map<Class<?>, ConstantDeconstructor> constantDeconstructors,
@@ -617,30 +619,29 @@ class BaseConfig {
 
 	private static void addStaticMethodBasedDeconstructor(Map<Class<?>, ConstantDeconstructor> constantDeconstructors,
 			Class<?> type, String methodname, Class<?>[] asmargtypes, String... argumentsgettermethodnames) {
-		DeconstructionDataAccessor[] accessors = toDeconstructorDataAccessors(type, asmargtypes,
-				argumentsgettermethodnames);
-		if (accessors == null) {
+		DeconstructionDataAccessor[] accessors;
+		try {
+			accessors = toDeconstructorDataAccessors(type, asmargtypes, argumentsgettermethodnames);
+		} catch (NoSuchMethodException e) {
+			setDeconstructor(constantDeconstructors, type,
+					new BaseConfigMemberNotAvailableConstantDeconstructor(methodname,
+							Type.getMethodDescriptor(Type.getType(type), Utils.toAsmTypes(asmargtypes)),
+							Type.getType(type).getInternalName(), e));
 			return;
 		}
 		addStaticMethodBasedDeconstructor(constantDeconstructors, type, methodname, accessors);
 	}
 
 	private static DeconstructionDataAccessor[] toDeconstructorDataAccessors(Class<?> type, Class<?>[] asmargtypes,
-			String... argumentsgettermethodnames) {
+			String... argumentsgettermethodnames) throws NoSuchMethodException {
 		DeconstructionDataAccessor[] accessors = new DeconstructionDataAccessor[argumentsgettermethodnames.length];
 		for (int i = 0; i < accessors.length; i++) {
 			Class<?> receivertype = asmargtypes[i];
-			try {
-				if (receivertype == null) {
-					accessors[i] = DeconstructionDataAccessor.createForMethod(type, argumentsgettermethodnames[i]);
-				} else {
-					accessors[i] = DeconstructionDataAccessor.createForMethodWithReceiver(type,
-							argumentsgettermethodnames[i], receivertype);
-				}
-			} catch (NoSuchMethodException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-				return null;
+			if (receivertype == null) {
+				accessors[i] = DeconstructionDataAccessor.createForMethod(type, argumentsgettermethodnames[i]);
+			} else {
+				accessors[i] = DeconstructionDataAccessor.createForMethodWithReceiver(type,
+						argumentsgettermethodnames[i], receivertype);
 			}
 		}
 		return accessors;
@@ -650,6 +651,11 @@ class BaseConfig {
 			Class<?> type, String methodname, DeconstructionDataAccessor... argumentdataaccessors) {
 		ConstantDeconstructor deconstructor = StaticMethodBasedDeconstructor.createStaticFactoryDeconstructor(type,
 				methodname, argumentdataaccessors);
+		setDeconstructor(constantDeconstructors, type, deconstructor);
+	}
+
+	private static void setDeconstructor(Map<Class<?>, ConstantDeconstructor> constantDeconstructors, Class<?> type,
+			ConstantDeconstructor deconstructor) {
 		Object prev = constantDeconstructors.putIfAbsent(type, deconstructor);
 		if (prev != null) {
 			throw new IllegalArgumentException("Duplicate constant deconstructor for: " + type);
@@ -746,6 +752,28 @@ class BaseConfig {
 				new TypeReferencedConstantReconstructor(reconstructor, type));
 		if (prev != null) {
 			throw new IllegalArgumentException("Duplicate constant fields for: " + fieldkey);
+		}
+	}
+
+	private static final class BaseConfigMemberNotAvailableConstantDeconstructor implements ConstantDeconstructor {
+		private final String methodName;
+		private final String methodDescr;
+		private final String classInternalName;
+		private final NoSuchMethodException e;
+
+		private BaseConfigMemberNotAvailableConstantDeconstructor(String methodname, String methoddescr,
+				String internalname, NoSuchMethodException e) {
+			this.methodName = methodname;
+			this.methodDescr = methoddescr;
+			this.classInternalName = internalname;
+			this.e = e;
+		}
+
+		@Override
+		public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass,
+				Object value) {
+			context.logBaseConfigClassMemberNotAvailable(classInternalName, methodName, methodDescr, e);
+			return null;
 		}
 	}
 

@@ -39,11 +39,11 @@ final class ConstructorBasedDeconstructor implements ConstantDeconstructor {
 		Type[] asmargtypes = new Type[dataAccessors.length];
 		for (int i = 0; i < dataAccessors.length; i++) {
 			DeconstructedData deconstructeddata;
+			DeconstructionDataAccessor dataaccessor = dataAccessors[i];
 			try {
-				deconstructeddata = dataAccessors[i].getData(value);
+				deconstructeddata = dataaccessor.getData(value);
 			} catch (Exception e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				context.logDeconstructionFailure(value, dataaccessor, e);
 				return null;
 			}
 			Object arg = deconstructeddata.getData();

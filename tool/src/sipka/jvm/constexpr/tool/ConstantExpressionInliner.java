@@ -25,6 +25,7 @@ import java.util.TreeSet;
 import sipka.jvm.constexpr.tool.TransformedClass.TransformedField;
 import sipka.jvm.constexpr.tool.log.BaseConfigClassMemberNotAvailableLogContextInfo;
 import sipka.jvm.constexpr.tool.log.BytecodeLocation;
+import sipka.jvm.constexpr.tool.log.DeconstructionFailedLogEntry;
 import sipka.jvm.constexpr.tool.log.DeconstructorNotConfiguredLogEntry;
 import sipka.jvm.constexpr.tool.log.InstructionReplacementLogEntry;
 import sipka.jvm.constexpr.tool.log.LogContextInfo;
@@ -1245,6 +1246,9 @@ public class ConstantExpressionInliner {
 					DeconstructionResult deconsresult = deconstructValue(transclass, inlineval, rettype);
 					if (deconsresult == null) {
 						//failed to deconstruct
+						//mark the instruction as inlined, so we don't process it again
+						//if the deconstruction failed once, it is expected to fail again the next time
+						transclass.inlinedInstructions.add(ins);
 						break;
 					}
 					InsnList deconstructedinstructions = deconsresult.getInstructions();
@@ -1582,15 +1586,24 @@ public class ConstantExpressionInliner {
 		}
 	}
 
-	void logBaseConfigClassMemberNotAvailable(String className, String memberName, String memberDescriptor,
+	void logBaseConfigClassMemberNotAvailable(String classInternalName, String memberName, String memberDescriptor,
 			Throwable exception) {
 		if (logger == null) {
 			//no need for logging
 			return;
 		}
-		List<LogContextInfo> loginfocontext = Collections.singletonList(
-				new BaseConfigClassMemberNotAvailableLogContextInfo(null, className, memberName, memberDescriptor));
+		List<LogContextInfo> loginfocontext = Collections
+				.singletonList(new BaseConfigClassMemberNotAvailableLogContextInfo(null, classInternalName, memberName,
+						memberDescriptor));
 		ReconstructionFailureLogEntry logentry = new ReconstructionFailureLogEntry(exception, loginfocontext);
 		reconstructionFailureLogEntries.putIfAbsent(loginfocontext, logentry);
+	}
+
+	void logDeconstructionFailure(Object value, DeconstructionDataAccessor accessor, Throwable cause) {
+		if (logger == null) {
+			//no need for logging
+			return;
+		}
+		logger.log(new DeconstructionFailedLogEntry(value, accessor, cause));
 	}
 }
