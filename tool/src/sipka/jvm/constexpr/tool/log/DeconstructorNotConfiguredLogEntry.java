@@ -2,7 +2,7 @@ package sipka.jvm.constexpr.tool.log;
 
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 
-public class DeconstructorNotConfiguredLogEntry implements LogEntry {
+public final class DeconstructorNotConfiguredLogEntry implements LogEntry {
 
 	private final String classInternalName;
 

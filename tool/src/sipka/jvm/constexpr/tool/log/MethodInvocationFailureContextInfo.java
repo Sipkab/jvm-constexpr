@@ -5,7 +5,7 @@ import java.util.Arrays;
 import sipka.jvm.constexpr.tool.Utils;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 
-public class MethodInvocationFailureContextInfo extends BaseLogContextInfo {
+public final class MethodInvocationFailureContextInfo extends BaseLogContextInfo {
 	private final String className;
 	private final String methodName;
 	private final String methodDescriptor;

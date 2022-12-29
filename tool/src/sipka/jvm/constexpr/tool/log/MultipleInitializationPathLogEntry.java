@@ -3,7 +3,7 @@ package sipka.jvm.constexpr.tool.log;
 import sipka.jvm.constexpr.tool.Utils;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 
-public class MultipleInitializationPathLogEntry implements LogEntry {
+public final class MultipleInitializationPathLogEntry implements LogEntry {
 
 	private final String classInternalName;
 	private final String fieldName;

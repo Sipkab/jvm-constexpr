@@ -3,7 +3,7 @@ package sipka.jvm.constexpr.tool.log;
 import sipka.jvm.constexpr.tool.Utils;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 
-public class FieldAccessFailureContextInfo extends BaseLogContextInfo {
+public final class FieldAccessFailureContextInfo extends BaseLogContextInfo {
 	private final String className;
 	private final String fieldName;
 	private final String fieldDescriptor;

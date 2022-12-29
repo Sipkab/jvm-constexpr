@@ -2,7 +2,7 @@ package sipka.jvm.constexpr.tool.log;
 
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 
-public class ClassNotFoundLogContextInfo extends BaseLogContextInfo {
+public final class ClassNotFoundLogContextInfo extends BaseLogContextInfo {
 	private final String className;
 
 	public ClassNotFoundLogContextInfo(BytecodeLocation bytecodeLocation, String className) {

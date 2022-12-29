@@ -3,7 +3,7 @@ package sipka.jvm.constexpr.tool.log;
 import sipka.jvm.constexpr.tool.Utils;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Opcodes;
 
-public class OpcodeArgumentLogContextInfo extends BaseLogContextInfo {
+public final class OpcodeArgumentLogContextInfo extends BaseLogContextInfo {
 	private final int argumentIndex;
 	private final int opcode;
 

@@ -3,7 +3,7 @@ package sipka.jvm.constexpr.tool.log;
 import sipka.jvm.constexpr.tool.Utils;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 
-public class BaseConfigClassMemberNotAvailableLogContextInfo extends BaseLogContextInfo {
+public final class BaseConfigClassMemberNotAvailableLogContextInfo extends BaseLogContextInfo {
 	private final String className;
 	private final String memberName;
 	private final String memberDescriptor;

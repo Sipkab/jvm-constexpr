@@ -1,6 +1,6 @@
 package sipka.jvm.constexpr.tool.log;
 
-public class ArgumentLogContextInfo extends BaseLogContextInfo {
+public final class ArgumentLogContextInfo extends BaseLogContextInfo {
 	private final int argumentIndex;
 
 	public ArgumentLogContextInfo(BytecodeLocation bytecodeLocation, int argumentIndex) {
