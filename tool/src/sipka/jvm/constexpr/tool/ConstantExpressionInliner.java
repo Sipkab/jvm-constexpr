@@ -1359,8 +1359,6 @@ public class ConstantExpressionInliner {
 									Type.getObjectType(fieldins.owner), fieldins.name, Type.getType(fieldins.desc)))
 											.reconstructValue(context, ins);
 						}
-					} else {
-						//TODO log if null?
 					}
 				}
 
@@ -1487,9 +1485,10 @@ public class ConstantExpressionInliner {
 					return field;
 				}
 				return null;
-			} catch (NoSuchFieldException | SecurityException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+			} catch (NoSuchFieldException e) {
+				//no such field
+				//strange, because it seems to be referenced from other code,
+				//but we can't do much about this
 				return null;
 			}
 		}
@@ -1508,18 +1507,20 @@ public class ConstantExpressionInliner {
 			}
 			//this reconstructor is associated with the same owner type that the field we're looking for
 			type = entry.getValue().type;
-			if (type != null) {
-				try {
-					Field field = type.getField(fieldins.name);
-					if (field.isEnumConstant()) {
-						return field;
-					}
-					return null;
-				} catch (NoSuchFieldException | SecurityException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-					return null;
+			if (type == null) {
+				continue;
+			}
+			try {
+				Field field = type.getField(fieldins.name);
+				if (field.isEnumConstant()) {
+					return field;
 				}
+				return null;
+			} catch (NoSuchFieldException e) {
+				//no such field
+				//strange, because it seems to be referenced from other code,
+				//but we can't do much about this
+				return null;
 			}
 		}
 		return null;

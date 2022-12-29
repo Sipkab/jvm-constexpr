@@ -492,7 +492,7 @@ class BaseConfig {
 				"getLeastSignificantBits");
 
 		addStaticMethodBasedDeconstructor(baseConstantDeconstructors, Instant.class, "ofEpochSecond",
-				new Type[] { null, Type.getType(long.class), }, "getEpochSecond", "getNano");
+				new Class<?>[] { null, long.class, }, "getEpochSecond", "getNano");
 
 		addStaticMethodBasedDeconstructor(baseConstantDeconstructors, ValueRange.class, "of", "getMinimum",
 				"getLargestMinimum", "getSmallestMaximum", "getMaximum");
@@ -591,14 +591,18 @@ class BaseConfig {
 
 	private static void addConstructorBasedDeconstructor(Map<Class<?>, ConstantDeconstructor> constantDeconstructors,
 			Class<?> type, String... argumentsgettermethodnames) {
-		addConstructorBasedDeconstructor(constantDeconstructors, type, new Type[argumentsgettermethodnames.length],
+		addConstructorBasedDeconstructor(constantDeconstructors, type, new Class<?>[argumentsgettermethodnames.length],
 				argumentsgettermethodnames);
 	}
 
 	private static void addConstructorBasedDeconstructor(Map<Class<?>, ConstantDeconstructor> constantDeconstructors,
-			Class<?> type, Type[] asmargtypes, String... argumentsgettermethodnames) {
-		ConstantDeconstructor deconstructor = ConstructorBasedDeconstructor.create(type, asmargtypes,
+			Class<?> type, Class<?>[] asmargtypes, String... argumentsgettermethodnames) {
+		DeconstructionDataAccessor[] accessors = toDeconstructorDataAccessors(type, asmargtypes,
 				argumentsgettermethodnames);
+		if (accessors == null) {
+			return;
+		}
+		ConstantDeconstructor deconstructor = ConstructorBasedDeconstructor.create(type, accessors);
 		Object prev = constantDeconstructors.putIfAbsent(type, deconstructor);
 		if (prev != null) {
 			throw new IllegalArgumentException("Duplicate constant deconstructor for: " + type);
@@ -608,13 +612,44 @@ class BaseConfig {
 	private static void addStaticMethodBasedDeconstructor(Map<Class<?>, ConstantDeconstructor> constantDeconstructors,
 			Class<?> type, String methodname, String... argumentsgettermethodnames) {
 		addStaticMethodBasedDeconstructor(constantDeconstructors, type, methodname,
-				new Type[argumentsgettermethodnames.length], argumentsgettermethodnames);
+				new Class<?>[argumentsgettermethodnames.length], argumentsgettermethodnames);
 	}
 
 	private static void addStaticMethodBasedDeconstructor(Map<Class<?>, ConstantDeconstructor> constantDeconstructors,
-			Class<?> type, String methodname, Type[] asmargtypes, String... argumentsgettermethodnames) {
+			Class<?> type, String methodname, Class<?>[] asmargtypes, String... argumentsgettermethodnames) {
+		DeconstructionDataAccessor[] accessors = toDeconstructorDataAccessors(type, asmargtypes,
+				argumentsgettermethodnames);
+		if (accessors == null) {
+			return;
+		}
+		addStaticMethodBasedDeconstructor(constantDeconstructors, type, methodname, accessors);
+	}
+
+	private static DeconstructionDataAccessor[] toDeconstructorDataAccessors(Class<?> type, Class<?>[] asmargtypes,
+			String... argumentsgettermethodnames) {
+		DeconstructionDataAccessor[] accessors = new DeconstructionDataAccessor[argumentsgettermethodnames.length];
+		for (int i = 0; i < accessors.length; i++) {
+			Class<?> receivertype = asmargtypes[i];
+			try {
+				if (receivertype == null) {
+					accessors[i] = DeconstructionDataAccessor.createForMethod(type, argumentsgettermethodnames[i]);
+				} else {
+					accessors[i] = DeconstructionDataAccessor.createForMethodWithReceiver(type,
+							argumentsgettermethodnames[i], receivertype);
+				}
+			} catch (NoSuchMethodException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+				return null;
+			}
+		}
+		return accessors;
+	}
+
+	private static void addStaticMethodBasedDeconstructor(Map<Class<?>, ConstantDeconstructor> constantDeconstructors,
+			Class<?> type, String methodname, DeconstructionDataAccessor... argumentdataaccessors) {
 		ConstantDeconstructor deconstructor = StaticMethodBasedDeconstructor.createStaticFactoryDeconstructor(type,
-				methodname, asmargtypes, argumentsgettermethodnames);
+				methodname, argumentdataaccessors);
 		Object prev = constantDeconstructors.putIfAbsent(type, deconstructor);
 		if (prev != null) {
 			throw new IllegalArgumentException("Duplicate constant deconstructor for: " + type);

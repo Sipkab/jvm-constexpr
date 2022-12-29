@@ -2,8 +2,6 @@ package sipka.jvm.constexpr.tool;
 
 import java.time.LocalTime;
 
-import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.InsnList;
-
 /**
  * {@link ConstantDeconstructor} for the {@link LocalTime} class.
  */
@@ -12,12 +10,18 @@ final class LocalTimeConstantDeconstructor implements ConstantDeconstructor {
 	static {
 		ConstantDeconstructor instance = null;
 		try {
-			ConstantDeconstructor hourmindecon = StaticMethodBasedDeconstructor.createStaticFactoryDeconstructor(LocalTime.class, "of",
-					"getHour", "getMinute");
-			ConstantDeconstructor hourminsecdecon = StaticMethodBasedDeconstructor.createStaticFactoryDeconstructor(LocalTime.class,
-					"of", "getHour", "getMinute", "getSecond");
-			ConstantDeconstructor alldecon = StaticMethodBasedDeconstructor.createStaticFactoryDeconstructor(LocalTime.class, "of",
-					"getHour", "getMinute", "getSecond", "getNano");
+			ConstantDeconstructor hourmindecon = StaticMethodBasedDeconstructor.createStaticFactoryDeconstructor(
+					LocalTime.class, "of", DeconstructionDataAccessor.createForMethod(LocalTime.class, "getHour"),
+					DeconstructionDataAccessor.createForMethod(LocalTime.class, "getMinute"));
+			ConstantDeconstructor hourminsecdecon = StaticMethodBasedDeconstructor.createStaticFactoryDeconstructor(
+					LocalTime.class, "of", DeconstructionDataAccessor.createForMethod(LocalTime.class, "getHour"),
+					DeconstructionDataAccessor.createForMethod(LocalTime.class, "getMinute"),
+					DeconstructionDataAccessor.createForMethod(LocalTime.class, "getSecond"));
+			ConstantDeconstructor alldecon = StaticMethodBasedDeconstructor.createStaticFactoryDeconstructor(
+					LocalTime.class, "of", DeconstructionDataAccessor.createForMethod(LocalTime.class, "getHour"),
+					DeconstructionDataAccessor.createForMethod(LocalTime.class, "getMinute"),
+					DeconstructionDataAccessor.createForMethod(LocalTime.class, "getSecond"),
+					DeconstructionDataAccessor.createForMethod(LocalTime.class, "getNano"));
 			instance = new LocalTimeConstantDeconstructor(hourmindecon, hourminsecdecon, alldecon);
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -39,7 +43,8 @@ final class LocalTimeConstantDeconstructor implements ConstantDeconstructor {
 	}
 
 	@Override
-	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass, Object value) {
+	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass,
+			Object value) {
 		LocalTime lt = (LocalTime) value;
 		if (lt.getNano() == 0) {
 			if (lt.getSecond() == 0) {

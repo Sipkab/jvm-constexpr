@@ -2,8 +2,6 @@ package sipka.jvm.constexpr.tool;
 
 import java.time.Period;
 
-import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.InsnList;
-
 /**
  * {@link ConstantDeconstructor} for the {@link Period} class.
  */
@@ -12,14 +10,16 @@ final class PeriodConstantDeconstructor implements ConstantDeconstructor {
 	static {
 		ConstantDeconstructor instance = null;
 		try {
-			ConstantDeconstructor yearsdecon = StaticMethodBasedDeconstructor.createStaticFactoryDeconstructor(Period.class, "ofYears",
-					"getYears");
-			ConstantDeconstructor monthsdecon = StaticMethodBasedDeconstructor.createStaticFactoryDeconstructor(Period.class,
-					"ofMonths", "getMonths");
-			ConstantDeconstructor daysdecon = StaticMethodBasedDeconstructor.createStaticFactoryDeconstructor(Period.class, "ofDays",
-					"getDays");
-			ConstantDeconstructor alldecon = StaticMethodBasedDeconstructor.createStaticFactoryDeconstructor(Period.class, "of",
-					"getYears", "getMonths", "getDays");
+			ConstantDeconstructor yearsdecon = StaticMethodBasedDeconstructor.createStaticFactoryDeconstructor(
+					Period.class, "ofYears", DeconstructionDataAccessor.createForMethod(Period.class, "getYears"));
+			ConstantDeconstructor monthsdecon = StaticMethodBasedDeconstructor.createStaticFactoryDeconstructor(
+					Period.class, "ofMonths", DeconstructionDataAccessor.createForMethod(Period.class, "getMonths"));
+			ConstantDeconstructor daysdecon = StaticMethodBasedDeconstructor.createStaticFactoryDeconstructor(
+					Period.class, "ofDays", DeconstructionDataAccessor.createForMethod(Period.class, "getDays"));
+			ConstantDeconstructor alldecon = StaticMethodBasedDeconstructor.createStaticFactoryDeconstructor(
+					Period.class, "of", DeconstructionDataAccessor.createForMethod(Period.class, "getYears"),
+					DeconstructionDataAccessor.createForMethod(Period.class, "getMonths"),
+					DeconstructionDataAccessor.createForMethod(Period.class, "getDays"));
 			instance = new PeriodConstantDeconstructor(yearsdecon, monthsdecon, daysdecon, alldecon);
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -42,7 +42,8 @@ final class PeriodConstantDeconstructor implements ConstantDeconstructor {
 	}
 
 	@Override
-	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass, Object value) {
+	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass,
+			Object value) {
 		Period period = (Period) value;
 		int y = period.getYears();
 		int m = period.getMonths();

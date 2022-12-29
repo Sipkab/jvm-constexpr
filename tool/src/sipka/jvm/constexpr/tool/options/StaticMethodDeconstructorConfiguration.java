@@ -2,14 +2,15 @@ package sipka.jvm.constexpr.tool.options;
 
 import java.util.Arrays;
 
+import sipka.jvm.constexpr.tool.DeconstructionDataAccessor;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 
 public final class StaticMethodDeconstructorConfiguration extends ExecutableDeconstructorConfiguration {
 	protected final Type executableReturnType;
 
 	StaticMethodDeconstructorConfiguration(Type executableOwner, String executableName, Type executableReturnType,
-			Type[] executableParameterTypes, String[] getterMethodNames) {
-		super(executableOwner, executableName, executableParameterTypes, getterMethodNames);
+			DeconstructionDataAccessor[] executableParameterDataAccessors) {
+		super(executableOwner, executableName, executableParameterDataAccessors);
 		this.executableReturnType = executableReturnType;
 	}
 
@@ -52,9 +53,7 @@ public final class StaticMethodDeconstructorConfiguration extends ExecutableDeco
 		builder.append(", executableReturnType=");
 		builder.append(executableReturnType);
 		builder.append(", executableParameterTypes=");
-		builder.append(Arrays.toString(executableParameterTypes));
-		builder.append(", getterMethodNames=");
-		builder.append(Arrays.toString(getterMethodNames));
+		builder.append(Arrays.toString(executableParameterDataAccessors));
 		builder.append("]");
 		return builder.toString();
 	}

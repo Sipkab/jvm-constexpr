@@ -1,6 +1,5 @@
 package sipka.jvm.constexpr.tool;
 
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Opcodes;
@@ -18,67 +17,51 @@ final class StaticMethodBasedDeconstructor implements ConstantDeconstructor {
 	private final String methodOwnerTypeInternalName;
 	private final String methodName;
 
-	private final Type valueType;
-	private final String[] methodsNames;
-	private final Type[] asmArgTypes;
+	private final Type returnType;
+	private final DeconstructionDataAccessor[] dataAccessors;
 
-	public StaticMethodBasedDeconstructor(Type valuetype, Type methodownertype, String methodname, String[] methods,
-			Type[] asmargtypes) {
-		this.valueType = valuetype;
+	public StaticMethodBasedDeconstructor(Type valuetype, Type methodownertype, String methodname,
+			DeconstructionDataAccessor[] dataAccessors) {
+		this.returnType = valuetype;
 		this.methodOwnerTypeInternalName = methodownertype.getInternalName();
 		this.methodName = methodname;
-		this.methodsNames = methods;
-		this.asmArgTypes = asmargtypes;
+		this.dataAccessors = dataAccessors;
 	}
 
 	@Override
 	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass,
 			Object value) {
-		try {
-			InsnList insnlist = new InsnList();
-			AsmStackInfo[] arginfos = new AsmStackInfo[methodsNames.length];
-			for (int i = 0; i < methodsNames.length; i++) {
-				Method method = value.getClass().getMethod(methodsNames[i]);
-				Object arg = method.invoke(value);
-				Type argasmtype = asmArgTypes[i];
-				if (argasmtype == null) {
-					argasmtype = Type.getType(method.getReturnType());
-					asmArgTypes[i] = argasmtype;
-				}
-				DeconstructionResult argdecon = context.deconstructValue(transclass, arg, argasmtype);
-				if (argdecon == null) {
-					return null;
-				}
-				arginfos[i] = argdecon.getStackInfo();
-				insnlist.add(argdecon.getInstructions());
+		InsnList insnlist = new InsnList();
+		AsmStackInfo[] arginfos = new AsmStackInfo[dataAccessors.length];
+
+		Type[] asmargtypes = new Type[dataAccessors.length];
+		for (int i = 0; i < dataAccessors.length; i++) {
+			DeconstructedData deconstructeddata;
+			try {
+				deconstructeddata = dataAccessors[i].getData(value);
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+				return null;
 			}
-			//arguments everything has been deconstructed, add the invokespecial
-
-			MethodInsnNode initins = new MethodInsnNode(Opcodes.INVOKESTATIC, methodOwnerTypeInternalName, methodName,
-					Type.getMethodDescriptor(valueType, asmArgTypes));
-			insnlist.add(initins);
-
-			return DeconstructionResult.createStaticMethod(insnlist, Type.getObjectType(methodOwnerTypeInternalName),
-					methodName, Type.getType(initins.desc), arginfos);
-		} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException
-				| SecurityException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			return null;
+			Object arg = deconstructeddata.getData();
+			Type argasmtype = Type.getType(deconstructeddata.getReceiverType());
+			asmargtypes[i] = argasmtype;
+			DeconstructionResult argdecon = context.deconstructValue(transclass, arg, argasmtype);
+			if (argdecon == null) {
+				return null;
+			}
+			arginfos[i] = argdecon.getStackInfo();
+			insnlist.add(argdecon.getInstructions());
 		}
-	}
+		//arguments everything has been deconstructed, add the invoke instruction
 
-	/**
-	 * @param type
-	 *            The owner of the method, and the return type of the method.
-	 * @param methodname
-	 * @param argumentsgettermethodnames
-	 * @return
-	 */
-	public static ConstantDeconstructor createStaticFactoryDeconstructor(Class<?> type, String methodname,
-			String... argumentsgettermethodnames) {
-		return createStaticFactoryDeconstructor(type, methodname, new Type[argumentsgettermethodnames.length],
-				argumentsgettermethodnames);
+		MethodInsnNode initins = new MethodInsnNode(Opcodes.INVOKESTATIC, methodOwnerTypeInternalName, methodName,
+				Type.getMethodDescriptor(returnType, asmargtypes));
+		insnlist.add(initins);
+
+		return DeconstructionResult.createStaticMethod(insnlist, Type.getObjectType(methodOwnerTypeInternalName),
+				methodName, Type.getType(initins.desc), arginfos);
 	}
 
 	/**
@@ -86,13 +69,13 @@ final class StaticMethodBasedDeconstructor implements ConstantDeconstructor {
 	 *            The owner of the method, and the return type of the method.
 	 * @param methodname
 	 * @param asmargtypes
-	 * @param argumentsgettermethodnames
+	 * @param argumentdataaccessors
 	 * @return
 	 */
 	public static ConstantDeconstructor createStaticFactoryDeconstructor(Class<?> type, String methodname,
-			Type[] asmargtypes, String... argumentsgettermethodnames) {
+			DeconstructionDataAccessor... argumentdataaccessors) {
 		Type asmtype = Type.getType(type);
-		return createStaticMethodDeconstructor(type, asmtype, methodname, asmargtypes, argumentsgettermethodnames);
+		return createStaticMethodDeconstructor(type, asmtype, methodname, argumentdataaccessors);
 	}
 
 	/**
@@ -101,30 +84,13 @@ final class StaticMethodBasedDeconstructor implements ConstantDeconstructor {
 	 * @param methodowner
 	 *            The owner type of the method.
 	 * @param methodname
-	 * @param argumentsgettermethodnames
+	 * @param argumentdataaccessors
 	 * @return
 	 */
 	public static ConstantDeconstructor createStaticMethodDeconstructor(Class<?> valuetype, Type methodowner,
-			String methodname, String... argumentsgettermethodnames) {
-		return createStaticMethodDeconstructor(valuetype, methodowner, methodname,
-				new Type[argumentsgettermethodnames.length], argumentsgettermethodnames);
-	}
-
-	/**
-	 * @param valuetype
-	 *            The return type of the method.
-	 * @param methodowner
-	 *            The owner type of the method.
-	 * @param methodname
-	 * @param asmargtypes
-	 * @param argumentsgettermethodnames
-	 * @return
-	 */
-	public static ConstantDeconstructor createStaticMethodDeconstructor(Class<?> valuetype, Type methodowner,
-			String methodname, Type[] asmargtypes, String... argumentsgettermethodnames) {
+			String methodname, DeconstructionDataAccessor... argumentdataaccessors) {
 		Type valueasmtype = Type.getType(valuetype);
-		return createStaticMethodDeconstructor(valueasmtype, methodowner, methodname, asmargtypes,
-				argumentsgettermethodnames);
+		return createStaticMethodDeconstructor(valueasmtype, methodowner, methodname, argumentdataaccessors);
 	}
 
 	/**
@@ -133,13 +99,11 @@ final class StaticMethodBasedDeconstructor implements ConstantDeconstructor {
 	 * @param methodowner
 	 *            The owner type of the method.
 	 * @param methodname
-	 * @param asmargtypes
-	 * @param argumentsgettermethodnames
+	 * @param argumentdataaccessors
 	 * @return
 	 */
 	public static ConstantDeconstructor createStaticMethodDeconstructor(Type valuetype, Type methodowner,
-			String methodname, Type[] asmargtypes, String... argumentsgettermethodnames) {
-		return new StaticMethodBasedDeconstructor(valuetype, methodowner, methodname, argumentsgettermethodnames,
-				asmargtypes);
+			String methodname, DeconstructionDataAccessor... argumentdataaccessors) {
+		return new StaticMethodBasedDeconstructor(valuetype, methodowner, methodname, argumentdataaccessors);
 	}
 }

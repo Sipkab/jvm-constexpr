@@ -41,21 +41,27 @@ final class StaticFieldEqualityDelegateConstantDeconstructor implements Constant
 
 	private static DeconstructionResult tryDeconstructEqualStaticField(TransformedClass transclass, Class<?> type,
 			Object val, String... fields) {
-		for (String fieldname : fields) {
-			try {
-				Field field = type.getField(fieldname);
-				if (val.equals(field.get(null))) {
-					InsnList result = new InsnList();
-					Class<?> fieldtype = field.getType();
-					Type fieldasmtype = Type.getType(fieldtype);
-					result.add(new FieldInsnNode(Opcodes.GETSTATIC, Type.getInternalName(type), fieldname,
-							fieldasmtype.getDescriptor()));
-					return DeconstructionResult.createField(result, Type.getType(type), fieldname, fieldasmtype);
+		for (Field field : type.getDeclaredFields()) {
+			String reflectedfieldname = field.getName();
+			for (String fieldname : fields) {
+				if (!reflectedfieldname.equals(fieldname)) {
+					continue;
 				}
-			} catch (Exception e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-				continue;
+				try {
+					if (val.equals(field.get(null))) {
+						Class<?> fieldtype = field.getType();
+						Type fieldasmtype = Type.getType(fieldtype);
+
+						InsnList result = new InsnList();
+						result.add(new FieldInsnNode(Opcodes.GETSTATIC, Type.getInternalName(type), fieldname,
+								fieldasmtype.getDescriptor()));
+						return DeconstructionResult.createField(result, Type.getType(type), fieldname, fieldasmtype);
+					}
+				} catch (Exception e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+					continue;
+				}
 			}
 		}
 		return null;

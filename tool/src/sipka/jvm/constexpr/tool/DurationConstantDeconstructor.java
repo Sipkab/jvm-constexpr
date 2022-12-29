@@ -2,8 +2,6 @@ package sipka.jvm.constexpr.tool;
 
 import java.time.Duration;
 
-import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
-
 /**
  * {@link ConstantDeconstructor} for the {@link Duration} class.
  */
@@ -12,11 +10,14 @@ final class DurationConstantDeconstructor implements ConstantDeconstructor {
 	static {
 		ConstantDeconstructor instance = null;
 		try {
-			ConstantDeconstructor nanosbaseddeconstructor = StaticMethodBasedDeconstructor.createStaticFactoryDeconstructor(
-					Duration.class, "ofSeconds", new Type[] { null, Type.getType(long.class), }, "getSeconds",
-					"getNano");
+			ConstantDeconstructor nanosbaseddeconstructor = StaticMethodBasedDeconstructor
+					.createStaticFactoryDeconstructor(Duration.class, "ofSeconds",
+							DeconstructionDataAccessor.createForMethod(Duration.class, "getSeconds"),
+							DeconstructionDataAccessor.createForMethodWithReceiver(Duration.class, "getNano",
+									long.class));
 			ConstantDeconstructor secondsbaseddeconstructor = StaticMethodBasedDeconstructor
-					.createStaticFactoryDeconstructor(Duration.class, "ofSeconds", "getSeconds");
+					.createStaticFactoryDeconstructor(Duration.class, "ofSeconds",
+							DeconstructionDataAccessor.createForMethod(Duration.class, "getSeconds"));
 			instance = new DurationConstantDeconstructor(nanosbaseddeconstructor, secondsbaseddeconstructor);
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -34,7 +35,8 @@ final class DurationConstantDeconstructor implements ConstantDeconstructor {
 	}
 
 	@Override
-	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass, Object value) {
+	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass,
+			Object value) {
 		//if the nanos part of the Duration is 0, then we can use the ofSeconds(long) method instead of ofSeconds(long,long)
 		//for deconstruction
 		Duration dur = (Duration) value;

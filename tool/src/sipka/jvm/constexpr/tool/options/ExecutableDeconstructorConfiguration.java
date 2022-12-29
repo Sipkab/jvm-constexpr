@@ -2,37 +2,27 @@ package sipka.jvm.constexpr.tool.options;
 
 import java.util.Arrays;
 
+import sipka.jvm.constexpr.tool.DeconstructionDataAccessor;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 
 public class ExecutableDeconstructorConfiguration extends DeconstructorConfiguration {
-	protected final Type[] executableParameterTypes;
-	protected final String[] getterMethodNames;
+	protected final DeconstructionDataAccessor[] executableParameterDataAccessors;
 
-	ExecutableDeconstructorConfiguration(Type memberOwner, String memberName, Type[] executableParameterTypes,
-			String[] getterMethodNames) {
+	ExecutableDeconstructorConfiguration(Type memberOwner, String memberName,
+			DeconstructionDataAccessor[] executableParameterDataAccessors) {
 		super(memberOwner, memberName);
-		if (executableParameterTypes.length != getterMethodNames.length) {
-			throw new IllegalArgumentException("Mismatch between reconstructor method parameter type count: "
-					+ executableParameterTypes.length + " and getter method count: " + getterMethodNames.length);
-		}
-		this.executableParameterTypes = executableParameterTypes;
-		this.getterMethodNames = getterMethodNames;
+		this.executableParameterDataAccessors = executableParameterDataAccessors;
 	}
 
-	public Type[] getExecutableParameterTypes() {
-		return executableParameterTypes;
-	}
-
-	public String[] getGetterMethodNames() {
-		return getterMethodNames;
+	public DeconstructionDataAccessor[] getExecutableParameterDataAccessors() {
+		return executableParameterDataAccessors;
 	}
 
 	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = super.hashCode();
-		result = prime * result + Arrays.hashCode(executableParameterTypes);
-		result = prime * result + Arrays.hashCode(getterMethodNames);
+		result = prime * result + Arrays.hashCode(executableParameterDataAccessors);
 		return result;
 	}
 
@@ -45,9 +35,7 @@ public class ExecutableDeconstructorConfiguration extends DeconstructorConfigura
 		if (getClass() != obj.getClass())
 			return false;
 		ExecutableDeconstructorConfiguration other = (ExecutableDeconstructorConfiguration) obj;
-		if (!Arrays.equals(executableParameterTypes, other.executableParameterTypes))
-			return false;
-		if (!Arrays.equals(getterMethodNames, other.getterMethodNames))
+		if (!Arrays.equals(executableParameterDataAccessors, other.executableParameterDataAccessors))
 			return false;
 		return true;
 	}
@@ -60,9 +48,7 @@ public class ExecutableDeconstructorConfiguration extends DeconstructorConfigura
 		builder.append(", memberName=");
 		builder.append(memberName);
 		builder.append(", executableParameterTypes=");
-		builder.append(Arrays.toString(executableParameterTypes));
-		builder.append(", getterMethodNames=");
-		builder.append(Arrays.toString(getterMethodNames));
+		builder.append(Arrays.toString(executableParameterDataAccessors));
 		builder.append("]");
 		return builder.toString();
 	}

@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.NavigableMap;
 
+import sipka.jvm.constexpr.tool.DeconstructionDataAccessor;
 import sipka.jvm.constexpr.tool.options.DeconstructionSelector;
 import sipka.jvm.constexpr.tool.options.DeconstructorConfiguration;
 import sipka.jvm.constexpr.tool.options.InlinerOptions;
@@ -24,8 +25,10 @@ public class CustomConstantTypeTest extends SakerTestCase {
 		opts.setConstantTypes(Arrays.asList(MyConstantClass.class));
 
 		Map<Class<?>, DeconstructionSelector> deconstructorConfigurations = new HashMap<>();
-		deconstructorConfigurations.put(MyConstantClass.class, DeconstructionSelector.create(DeconstructorConfiguration
-				.createConstructor(MyConstantClass.class.getConstructor(int.class), "getVal")));
+		deconstructorConfigurations.put(MyConstantClass.class,
+				DeconstructionSelector.create(
+						DeconstructorConfiguration.createConstructor(MyConstantClass.class.getConstructor(int.class),
+								DeconstructionDataAccessor.createForMethod(MyConstantClass.class, "getVal"))));
 		opts.setDeconstructorConfigurations(deconstructorConfigurations);
 
 		opts.setConstantReconstructors(Arrays.asList(MyConstantClass.class.getMethod("create", int.class),

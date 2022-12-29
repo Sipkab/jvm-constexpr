@@ -5,6 +5,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
+import sipka.jvm.constexpr.tool.DeconstructionDataAccessor;
 import sipka.jvm.constexpr.tool.Utils;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 
@@ -18,34 +19,30 @@ public class DeconstructorConfiguration {
 		this.memberName = memberName;
 	}
 
-	public static DeconstructorConfiguration createConstructor(Constructor<?> constructor, String... gettermethods)
-			throws NullPointerException {
-		Type[] asmargtypes = Utils.toAsmTypes(constructor.getParameterTypes());
-
-		return new ConstructorDeconstructorConfiguration(Type.getType(constructor.getDeclaringClass()), asmargtypes,
-				gettermethods);
+	public static DeconstructorConfiguration createConstructor(Constructor<?> constructor,
+			DeconstructionDataAccessor... parameterdataaccessors) throws NullPointerException {
+		return new ConstructorDeconstructorConfiguration(Type.getType(constructor.getDeclaringClass()),
+				parameterdataaccessors);
 	}
 
-	public static DeconstructorConfiguration createConstructor(Type methodowner, Type[] parametertypes,
-			String... gettermethods) throws NullPointerException {
-		return new ConstructorDeconstructorConfiguration(methodowner, parametertypes, gettermethods);
+	public static DeconstructorConfiguration createConstructor(Type methodowner,
+			DeconstructionDataAccessor... parameterdataaccessors) throws NullPointerException {
+		return new ConstructorDeconstructorConfiguration(methodowner, parameterdataaccessors);
 	}
 
-	public static DeconstructorConfiguration createStaticMethod(Method method, String... gettermethods)
-			throws NullPointerException {
+	public static DeconstructorConfiguration createStaticMethod(Method method,
+			DeconstructionDataAccessor... parameterdataaccessors) throws NullPointerException {
 		if (((method.getModifiers() & Modifier.STATIC) != Modifier.STATIC)) {
 			throw new IllegalArgumentException("Method is not static: " + method);
 		}
-		Type[] asmargtypes = Utils.toAsmTypes(method.getParameterTypes());
-
 		return new StaticMethodDeconstructorConfiguration(Type.getType(method.getDeclaringClass()), method.getName(),
-				Type.getType(method.getReturnType()), asmargtypes, gettermethods);
+				Type.getType(method.getReturnType()), parameterdataaccessors);
 	}
 
 	public static DeconstructorConfiguration createStaticMethod(Type methodowner, String methodname,
-			Type methoddescriptor, String... gettermethods) throws NullPointerException {
+			Type methoddescriptor, DeconstructionDataAccessor... parameterdataaccessors) throws NullPointerException {
 		return new StaticMethodDeconstructorConfiguration(methodowner, methodname, methoddescriptor.getReturnType(),
-				methoddescriptor.getArgumentTypes(), gettermethods);
+				parameterdataaccessors);
 	}
 
 	public static DeconstructorConfiguration createStaticField(Field field) throws NullPointerException {

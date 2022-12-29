@@ -14,7 +14,8 @@ final class ConfigSelectorConstantDeconstructor implements ConstantDeconstructor
 	}
 
 	@Override
-	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass, Object value) {
+	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass,
+			Object value) {
 		DeconstructorConfiguration config = selector.chooseDeconstructorConfiguration(value);
 		if (config == null) {
 			return null;
@@ -23,13 +24,13 @@ final class ConfigSelectorConstantDeconstructor implements ConstantDeconstructor
 		if (config instanceof ConstructorDeconstructorConfiguration) {
 			ConstructorDeconstructorConfiguration conconfig = (ConstructorDeconstructorConfiguration) config;
 			deconstructor = ConstructorBasedDeconstructor.create(config.getMemberOwner(),
-					conconfig.getExecutableParameterTypes(), conconfig.getGetterMethodNames());
+					conconfig.getExecutableParameterDataAccessors());
 		} else if (config instanceof StaticMethodDeconstructorConfiguration) {
 			StaticMethodDeconstructorConfiguration methodconfig = (StaticMethodDeconstructorConfiguration) config;
 
 			deconstructor = StaticMethodBasedDeconstructor.createStaticMethodDeconstructor(
 					methodconfig.getExecutableReturnType(), config.getMemberOwner(), config.getMemberName(),
-					methodconfig.getExecutableParameterTypes(), methodconfig.getGetterMethodNames());
+					methodconfig.getExecutableParameterDataAccessors());
 		} else if (config instanceof FieldDeconstructorConfiguration) {
 			FieldDeconstructorConfiguration fieldconfig = (FieldDeconstructorConfiguration) config;
 			deconstructor = FieldConstantDeconstructor.createStaticFieldDeconstructor(
