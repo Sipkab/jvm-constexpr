@@ -924,4 +924,30 @@ public class Utils {
 		return -1;
 	}
 
+	public static boolean isSameInsruction(MethodInsnNode l, AbstractInsnNode r) {
+		if (l == null) {
+			return r == null;
+		}
+		if (r == null) {
+			return false;
+		}
+		if (l.getOpcode() != r.getOpcode()) {
+			return false;
+		}
+		MethodInsnNode rn = (MethodInsnNode) r;
+		if (!l.owner.equals(rn.owner)) {
+			return false;
+		}
+		if (!l.name.equals(rn.name)) {
+			return false;
+		}
+		if (!l.desc.equals(rn.desc)) {
+			return false;
+		}
+		if (l.itf != rn.itf) {
+			return false;
+		}
+		return true;
+	}
+
 }

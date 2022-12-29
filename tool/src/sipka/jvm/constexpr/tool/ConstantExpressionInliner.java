@@ -20,10 +20,8 @@ import java.util.Objects;
 import java.util.TreeMap;
 
 import sipka.jvm.constexpr.tool.TransformedClass.TransformedField;
-import sipka.jvm.constexpr.tool.log.AbstractSimpleToolLogger;
 import sipka.jvm.constexpr.tool.log.BytecodeLocation;
 import sipka.jvm.constexpr.tool.log.LogContextInfo;
-import sipka.jvm.constexpr.tool.log.LogEntry;
 import sipka.jvm.constexpr.tool.log.ReconstructionFailureLogEntry;
 import sipka.jvm.constexpr.tool.log.ToolLogger;
 import sipka.jvm.constexpr.tool.options.DeconstructionSelector;
@@ -97,15 +95,6 @@ public class ConstantExpressionInliner {
 		}
 
 		logger = options.getLogger();
-		if (logger == null) {
-			//initialize to non-null to avoid NPE and null checks in other places
-			logger = new AbstractSimpleToolLogger() {
-				@Override
-				protected void log(LogEntry entry) {
-					//ignore
-				}
-			};
-		}
 
 		Collection<? extends ToolInput<?>> inputs = options.getInputs();
 
@@ -209,6 +198,39 @@ public class ConstantExpressionInliner {
 			}
 		}
 
+		//report the logs before the outputs, so the caller can have a chance to abort in case of error
+		if (logger != null) {
+			//order the reconstruction log entries by the size of their stack, so we always log the longest
+			//ones with a given root cause
+			List<ReconstructionFailureLogEntry> reconlogentries = new ArrayList<>(
+					reconstructionFailureLogEntries.values());
+			reconlogentries.sort((l, r) -> {
+				return -Integer.compare(l.getContextStack().size(), r.getContextStack().size());
+			});
+			//sort by the root cause locations, so the logs are always reported in order
+			reconlogentries.sort((l, r) -> {
+				List<LogContextInfo> lcstack = l.getContextStack();
+				LogContextInfo llast = lcstack.get(lcstack.size() - 1);
+				List<LogContextInfo> rcstack = r.getContextStack();
+				LogContextInfo rlast = rcstack.get(rcstack.size() - 1);
+
+				BytecodeLocation lbcloc = llast.getBytecodeLocation();
+				BytecodeLocation rbcloc = rlast.getBytecodeLocation();
+				return lbcloc.compareLocation(rbcloc);
+			});
+
+			Collection<LogContextInfo> lastreconstructioncontextinfos = new HashSet<>();
+			for (ReconstructionFailureLogEntry entry : reconlogentries) {
+				List<LogContextInfo> cstack = entry.getContextStack();
+				LogContextInfo last = cstack.get(cstack.size() - 1);
+				if (!lastreconstructioncontextinfos.add(last)) {
+					//already logged an entry with this root cause 
+					continue;
+				}
+				logger.log(entry);
+			}
+		}
+
 		for (Entry<String, TransformedClass> entry : inputClasses.entrySet()) {
 			TransformedClass transclass = entry.getValue();
 
@@ -219,34 +241,6 @@ public class ConstantExpressionInliner {
 			oc.put(transclass.input, cw.toByteArray());
 		}
 
-		//order the reconstruction log entries by the size of their stack, so we always log the longest
-		//ones with a given root cause
-		List<ReconstructionFailureLogEntry> reconlogentries = new ArrayList<>(reconstructionFailureLogEntries.values());
-		reconlogentries.sort((l, r) -> {
-			return -Integer.compare(l.getContextStack().size(), r.getContextStack().size());
-		});
-		//sort by the root cause locations, so the logs are always reported in order
-		reconlogentries.sort((l, r) -> {
-			List<LogContextInfo> lcstack = l.getContextStack();
-			LogContextInfo llast = lcstack.get(lcstack.size() - 1);
-			List<LogContextInfo> rcstack = r.getContextStack();
-			LogContextInfo rlast = rcstack.get(rcstack.size() - 1);
-
-			BytecodeLocation lbcloc = llast.getBytecodeLocation();
-			BytecodeLocation rbcloc = rlast.getBytecodeLocation();
-			return lbcloc.compareLocation(rbcloc);
-		});
-
-		Collection<LogContextInfo> lastreconstructioncontextinfos = new HashSet<>();
-		for (ReconstructionFailureLogEntry entry : reconlogentries) {
-			List<LogContextInfo> cstack = entry.getContextStack();
-			LogContextInfo last = cstack.get(cstack.size() - 1);
-			if (!lastreconstructioncontextinfos.add(last)) {
-				//already logged an entry with this root cause 
-				continue;
-			}
-			logger.log(entry);
-		}
 	}
 
 	/**
@@ -1178,6 +1172,12 @@ public class ConstantExpressionInliner {
 						break;
 					}
 					AbstractInsnNode lastdeconins = deconstructedinstructions.getLast();
+					if (Utils.isSameInsruction(methodins, lastdeconins)) {
+						//the reconstructed instruction is the same as the one we're processing
+						//don't replace the instructions
+						transclass.inlinedInstructions.add(lastdeconins);
+						break;
+					}
 
 					instructions.insertBefore(reconstructedval.getFirstIns(), deconstructedinstructions);
 
@@ -1470,6 +1470,10 @@ public class ConstantExpressionInliner {
 	}
 
 	private void handleReconstructionException(ReconstructionException e) {
+		if (logger == null) {
+			//no need for logging
+			return;
+		}
 		List<LogContextInfo> loginfocontext = getLogContextInfo(e);
 		if (reconstructionFailureLogEntries.containsKey(loginfocontext)) {
 			//a log entry is already present for this trace
