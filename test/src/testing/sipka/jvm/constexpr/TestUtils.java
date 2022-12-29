@@ -6,8 +6,6 @@ import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.List;
-import java.util.ListIterator;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
@@ -22,10 +20,6 @@ import saker.build.thirdparty.saker.util.io.ByteArrayRegion;
 import sipka.jvm.constexpr.tool.ConstantExpressionInliner;
 import sipka.jvm.constexpr.tool.OutputConsumer;
 import sipka.jvm.constexpr.tool.Utils;
-import sipka.jvm.constexpr.tool.log.AbstractSimpleToolLogger;
-import sipka.jvm.constexpr.tool.log.LogContextInfo;
-import sipka.jvm.constexpr.tool.log.LogEntry;
-import sipka.jvm.constexpr.tool.log.ReconstructionFailureLogEntry;
 import sipka.jvm.constexpr.tool.options.InlinerOptions;
 import sipka.jvm.constexpr.tool.options.ToolInput;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.ClassReader;
@@ -83,14 +77,7 @@ public class TestUtils {
 
 	public static InlinerOptions createOptionsForClasses(Class<?>... classes) {
 		InlinerOptions opts = new InlinerOptions();
-		opts.setLogger(new AbstractSimpleToolLogger() {
-			@Override
-			protected void log(LogEntry entry) {
-				// TODO Auto-generated method stub
-				System.err.println(entry.getMessage().trim());
-				System.err.println();
-			}
-		});
+		opts.setLogger(new TestCollectingLogger());
 		opts.setInputs(createInputsForClasses(classes));
 		return opts;
 	}

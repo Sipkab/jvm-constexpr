@@ -49,7 +49,9 @@ class MemberKey {
 		if (r instanceof MethodKey) {
 			return -1;
 		}
-		return 0;
+		//both are field keys
+
+		return ((FieldKey) l).getFieldDescriptor().compareTo(((FieldKey) r).getFieldDescriptor());
 	}
 
 	public final String getOwner() {

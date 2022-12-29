@@ -6,4 +6,6 @@ public interface ToolLogger {
 	public void log(InstructionReplacementLogEntry logentry);
 
 	public void log(DeconstructorNotConfiguredLogEntry logentry);
+
+	public void log(MultipleInitializationPathLogEntry logentry);
 }

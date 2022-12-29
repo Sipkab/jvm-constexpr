@@ -18,7 +18,9 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.Objects;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 
 import sipka.jvm.constexpr.tool.TransformedClass.TransformedField;
 import sipka.jvm.constexpr.tool.log.BaseConfigClassMemberNotAvailableLogContextInfo;
@@ -26,6 +28,7 @@ import sipka.jvm.constexpr.tool.log.BytecodeLocation;
 import sipka.jvm.constexpr.tool.log.DeconstructorNotConfiguredLogEntry;
 import sipka.jvm.constexpr.tool.log.InstructionReplacementLogEntry;
 import sipka.jvm.constexpr.tool.log.LogContextInfo;
+import sipka.jvm.constexpr.tool.log.MultipleInitializationPathLogEntry;
 import sipka.jvm.constexpr.tool.log.ReconstructionFailureLogEntry;
 import sipka.jvm.constexpr.tool.log.ToolLogger;
 import sipka.jvm.constexpr.tool.options.DeconstructionSelector;
@@ -89,6 +92,7 @@ public class ConstantExpressionInliner {
 	private final Map<List<LogContextInfo>, ReconstructionFailureLogEntry> reconstructionFailureLogEntries = new HashMap<>();
 
 	private final Map<String, DeconstructorNotConfiguredLogEntry> deconstructorNotConfiguredLogEntries = new TreeMap<>();
+	private final Set<FieldKey> multipleInitializationLoggedFields = new TreeSet<>(MemberKey::compare);
 
 	private ToolLogger logger;
 
@@ -374,7 +378,13 @@ public class ConstantExpressionInliner {
 		if (constantfield != null) {
 			if (putinsns.size() != 1) {
 				//force inline, but multiple initialization paths
-				//TODO log it
+				if (logger != null) {
+					if (multipleInitializationLoggedFields
+							.add(new FieldKey(transclass.classNode.name, fieldnode.name, fieldnode.desc))) {
+						logger.log(new MultipleInitializationPathLogEntry(transclass.classNode.name, fieldnode.name,
+								fieldnode.desc));
+					}
+				}
 				return null;
 			}
 			reconstructioncontext = ReconstructionContext.createConstantField(this, transclass, constantfield,

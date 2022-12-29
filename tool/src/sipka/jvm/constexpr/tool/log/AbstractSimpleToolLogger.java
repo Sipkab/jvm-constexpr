@@ -16,5 +16,10 @@ public abstract class AbstractSimpleToolLogger implements ToolLogger {
 		this.log((LogEntry) logentry);
 	}
 
+	@Override
+	public void log(MultipleInitializationPathLogEntry logentry) {
+		this.log((LogEntry) logentry);
+	}
+
 	protected abstract void log(LogEntry entry);
 }

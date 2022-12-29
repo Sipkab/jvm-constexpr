@@ -8,7 +8,9 @@ import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import sipka.jvm.constexpr.tool.log.MultipleInitializationPathLogEntry;
 import sipka.jvm.constexpr.tool.options.InlinerOptions;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.ClassNode;
 import testing.saker.SakerTest;
 import testing.saker.SakerTestCase;
@@ -22,8 +24,8 @@ public class ConstantFieldInlineTest extends SakerTestCase {
 	@Override
 	public void runTest(Map<String, String> parameters) throws Throwable {
 		InlinerOptions opts = TestUtils.createOptionsForClasses(Constants.class);
-		opts.setConstantFields(Arrays.asList(TestUtils.getFields(Constants.class, "computed", "millis",
-				"random_uuid", "random_str", "format", "objformat")));
+		opts.setConstantFields(Arrays.asList(TestUtils.getFields(Constants.class, "computed", "millis", "random_uuid",
+				"random_str", "format", "objformat", "multipath")));
 		NavigableMap<String, ClassNode> outputs = TestUtils.performInliningClassNodes(opts);
 		assertEquals(outputs.size(), 1); // testing a single class
 
@@ -38,7 +40,10 @@ public class ConstantFieldInlineTest extends SakerTestCase {
 		assertFalse(TestUtils.isContainsInvokeStatic(TestUtils.getClInitMethod(classnode), String.class, "format",
 				String.class, Object[].class), "String.format called");
 
-		TestUtils.assertSameStaticFieldValues(classnode, Constants.class);
+		TestUtils.assertSameStaticFieldValues(classnode, Constants.class, "multipath");
+
+		assertTrue(((TestCollectingLogger) opts.getLogger()).getLogEntries().contains(
+				new MultipleInitializationPathLogEntry(Type.getInternalName(Constants.class), "multipath", "I")));
 	}
 
 	public static class Constants {
@@ -58,8 +63,18 @@ public class ConstantFieldInlineTest extends SakerTestCase {
 		public static final String concat2 = format + " Y";
 		public static final String concat3 = objformat + " Z";
 
+		public static final int multipath;
+
 		private static long computer() {
 			return Constants.class.getName().hashCode();
+		}
+
+		static {
+			if (Boolean.getBoolean("random_property")) {
+				multipath = 100;
+			} else {
+				multipath = 123;
+			}
 		}
 	}
 }
