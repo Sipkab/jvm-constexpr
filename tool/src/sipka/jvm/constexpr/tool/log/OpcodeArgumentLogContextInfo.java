@@ -34,11 +34,11 @@ public final class OpcodeArgumentLogContextInfo extends BaseLogContextInfo {
 			case Opcodes.AASTORE: {
 				switch (argumentIndex) {
 					case 0:
-						return "When trying to construct array";
+						return "When trying to reconstruct array";
 					case 1:
-						return "When trying to construct array index";
+						return "When trying to reconstruct array index";
 					case 2:
-						return "When trying to construct array element";
+						return "When trying to reconstruct array element";
 					default: {
 						throw new IllegalArgumentException(
 								"Invalid argument index for array store opcode: " + argumentIndex);
@@ -94,7 +94,7 @@ public final class OpcodeArgumentLogContextInfo extends BaseLogContextInfo {
 						+ (argumentIndex == 0 ? "left" : "right") + " argument";
 			default: {
 				//unknown?
-				return "When handling opcode: " + opcode + " (" + Utils.getOpcodeName(opcode) + ") and argument: "
+				return "When handling opcode: " + opcode + " (" + Utils.getOpcodeName(opcode) + ") and argument index: "
 						+ argumentIndex;
 			}
 		}
