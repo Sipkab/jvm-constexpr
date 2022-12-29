@@ -246,9 +246,10 @@ public class AsmStackInfo {
 
 	@Override
 	public String toString() {
+		StringBuilder sb = new StringBuilder(getClass().getSimpleName());
+		sb.append('[');
 		switch (kind) {
 			case ARRAY: {
-				StringBuilder sb = new StringBuilder();
 				sb.append(kind.name());
 				sb.append(" [");
 				for (int i = 0; i < elements.length; i++) {
@@ -259,22 +260,39 @@ public class AsmStackInfo {
 					sb.append(elem);
 				}
 				sb.append("]");
-				return sb.toString();
+				break;
 			}
 			case CONSTANT:
-				return kind.name() + ": " + object;
-			case NULL:
-				return kind.name();
-			case CONSTRUCTOR: // TODO args
-				return kind.name() + " " + type.getInternalName() + descriptor;
+				sb.append(kind.name());
+				sb.append(": ");
+				sb.append(object);
+				break;
+			case CONSTRUCTOR:
+				sb.append(kind.name());
+				sb.append(" ");
+				sb.append(type.getInternalName());
+				sb.append(descriptor);
+				break;
 			case STATIC_FIELD:
-			case FIELD: // TODO
-				return kind.name() + " " + descriptor + " " + type.getInternalName() + "." + name;
-			case STATIC_METHOD: // TODO args
-			case METHOD: // TODO
-				return kind.name() + " " + type.getInternalName() + "." + name + descriptor;
+			case FIELD:
+				sb.append(kind.name());
+				sb.append(" ");
+				sb.append(descriptor);
+				sb.append(" ");
+				sb.append(type.getInternalName());
+				sb.append(".");
+				sb.append(name);
+				break;
+			case STATIC_METHOD:
+			case METHOD:
+				sb.append(kind.name());
+				sb.append(" ");
+				sb.append(type.getInternalName());
+				sb.append(".");
+				sb.append(name);
+				sb.append(descriptor);
+				break;
 			case OPERATOR:
-				StringBuilder sb = new StringBuilder();
 				sb.append(kind.name());
 				sb.append(" ");
 				sb.append(Utils.getOpcodeName((int) object));
@@ -286,11 +304,15 @@ public class AsmStackInfo {
 					}
 					sb.append(elem);
 				}
-				return sb.toString();
+				break;
+			case NULL:
 			default: {
-				return kind.name();
+				sb.append(kind.name());
+				break;
 			}
 		}
+		sb.append(']');
+		return sb.toString();
 	}
 
 }
