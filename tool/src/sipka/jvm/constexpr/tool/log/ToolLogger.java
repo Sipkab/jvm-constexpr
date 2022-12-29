@@ -4,4 +4,6 @@ public interface ToolLogger {
 	public void log(ReconstructionFailureLogEntry logentry);
 
 	public void log(InstructionReplacementLogEntry logentry);
+
+	public void log(DeconstructorNotConfiguredLogEntry logentry);
 }

@@ -23,6 +23,7 @@ import java.util.TreeMap;
 import sipka.jvm.constexpr.tool.TransformedClass.TransformedField;
 import sipka.jvm.constexpr.tool.log.BaseConfigClassMemberNotAvailableLogContextInfo;
 import sipka.jvm.constexpr.tool.log.BytecodeLocation;
+import sipka.jvm.constexpr.tool.log.DeconstructorNotConfiguredLogEntry;
 import sipka.jvm.constexpr.tool.log.InstructionReplacementLogEntry;
 import sipka.jvm.constexpr.tool.log.LogContextInfo;
 import sipka.jvm.constexpr.tool.log.ReconstructionFailureLogEntry;
@@ -86,6 +87,8 @@ public class ConstantExpressionInliner {
 	private final Map<String, Class<?>> constantTypes = new TreeMap<>();
 
 	private final Map<List<LogContextInfo>, ReconstructionFailureLogEntry> reconstructionFailureLogEntries = new HashMap<>();
+
+	private final Map<String, DeconstructorNotConfiguredLogEntry> deconstructorNotConfiguredLogEntries = new TreeMap<>();
 
 	private ToolLogger logger;
 
@@ -232,6 +235,10 @@ public class ConstantExpressionInliner {
 					continue;
 				}
 				logger.log(entry);
+			}
+
+			for (DeconstructorNotConfiguredLogEntry logentry : deconstructorNotConfiguredLogEntries.values()) {
+				logger.log(logentry);
 			}
 		}
 
@@ -1171,8 +1178,11 @@ public class ConstantExpressionInliner {
 				ConstantDeconstructor deconstructor = getConstantDeconstructor(val);
 				if (deconstructor == null) {
 					//no deconstructor found for this type, can't perform inlining
-					//TODO log?
-					System.out.println("No deconstructor for class: " + val.getClass());
+					if (logger != null) {
+						String typeinternalname = Type.getInternalName(val.getClass());
+						deconstructorNotConfiguredLogEntries.putIfAbsent(typeinternalname,
+								new DeconstructorNotConfiguredLogEntry(typeinternalname));
+					}
 					return null;
 				}
 				return deconstructor.deconstructValue(this, transclass, val);
@@ -1563,6 +1573,10 @@ public class ConstantExpressionInliner {
 
 	void logBaseConfigClassMemberNotAvailable(String className, String memberName, String memberDescriptor,
 			Throwable exception) {
+		if (logger == null) {
+			//no need for logging
+			return;
+		}
 		List<LogContextInfo> loginfocontext = Collections.singletonList(
 				new BaseConfigClassMemberNotAvailableLogContextInfo(null, className, memberName, memberDescriptor));
 		ReconstructionFailureLogEntry logentry = new ReconstructionFailureLogEntry(exception, loginfocontext);

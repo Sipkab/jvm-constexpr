@@ -1,6 +1,7 @@
 package sipka.jvm.constexpr.tool.log;
 
 public interface LogContextInfo {
+	//may be null
 	public BytecodeLocation getBytecodeLocation();
 
 	public String getMessage();
