@@ -1,30 +1,32 @@
-package sipka.jvm.constexpr.tool;
+package sipka.jvm.constexpr.tool.options;
 
-import java.lang.reflect.Method;
+import java.lang.reflect.Field;
 
-public final class MethodDeconstructionDataAccessor implements DeconstructionDataAccessor {
-	private final Method method;
+import sipka.jvm.constexpr.tool.DeconstructedData;
+
+public final class FieldDeconstructionDataAccessor implements DeconstructionDataAccessor {
+	private final Field field;
 	private final Class<?> receiverType;
 
-	public MethodDeconstructionDataAccessor(Method method) {
-		this(method, method.getReturnType());
+	public FieldDeconstructionDataAccessor(Field f) {
+		this(f, f.getType());
 	}
 
-	public MethodDeconstructionDataAccessor(Method method, Class<?> receiverType) {
-		this.method = method;
+	public FieldDeconstructionDataAccessor(Field field, Class<?> receiverType) {
+		this.field = field;
 		this.receiverType = receiverType;
 	}
 
 	@Override
 	public DeconstructedData getData(Object value) throws Exception {
-		return new DeconstructedData(method.invoke(value), receiverType);
+		return new DeconstructedData(field.get(value), receiverType);
 	}
 
 	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + ((method == null) ? 0 : method.hashCode());
+		result = prime * result + ((field == null) ? 0 : field.hashCode());
 		result = prime * result + ((receiverType == null) ? 0 : receiverType.hashCode());
 		return result;
 	}
@@ -37,11 +39,11 @@ public final class MethodDeconstructionDataAccessor implements DeconstructionDat
 			return false;
 		if (getClass() != obj.getClass())
 			return false;
-		MethodDeconstructionDataAccessor other = (MethodDeconstructionDataAccessor) obj;
-		if (method == null) {
-			if (other.method != null)
+		FieldDeconstructionDataAccessor other = (FieldDeconstructionDataAccessor) obj;
+		if (field == null) {
+			if (other.field != null)
 				return false;
-		} else if (!method.equals(other.method))
+		} else if (!field.equals(other.field))
 			return false;
 		if (receiverType == null) {
 			if (other.receiverType != null)
@@ -54,12 +56,11 @@ public final class MethodDeconstructionDataAccessor implements DeconstructionDat
 	@Override
 	public String toString() {
 		StringBuilder builder = new StringBuilder(getClass().getSimpleName());
-		builder.append("[method=");
-		builder.append(method);
+		builder.append("[field=");
+		builder.append(field);
 		builder.append(", receiverType=");
 		builder.append(receiverType);
 		builder.append("]");
 		return builder.toString();
 	}
-
 }

@@ -2,6 +2,8 @@ package sipka.jvm.constexpr.tool;
 
 import java.time.Duration;
 
+import sipka.jvm.constexpr.tool.options.DeconstructionDataAccessor;
+
 /**
  * {@link ConstantDeconstructor} for the {@link Duration} class.
  */

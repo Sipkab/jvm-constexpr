@@ -27,11 +27,6 @@
 // THE POSSIBILITY OF SUCH DAMAGE.
 package sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm;
 
-import java.io.DataInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.regex.Pattern;
-
 /**
  * Defines additional JVM opcodes, access flags and constants which are not part of the ASM public
  * API.

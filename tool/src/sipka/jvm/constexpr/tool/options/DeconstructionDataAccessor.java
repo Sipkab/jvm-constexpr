@@ -1,7 +1,9 @@
-package sipka.jvm.constexpr.tool;
+package sipka.jvm.constexpr.tool.options;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+
+import sipka.jvm.constexpr.tool.DeconstructedData;
 
 public interface DeconstructionDataAccessor {
 	public DeconstructedData getData(Object value) throws Exception;

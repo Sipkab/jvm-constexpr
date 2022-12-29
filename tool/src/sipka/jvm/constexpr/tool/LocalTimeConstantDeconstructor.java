@@ -2,6 +2,8 @@ package sipka.jvm.constexpr.tool;
 
 import java.time.LocalTime;
 
+import sipka.jvm.constexpr.tool.options.DeconstructionDataAccessor;
+
 /**
  * {@link ConstantDeconstructor} for the {@link LocalTime} class.
  */

@@ -41,6 +41,7 @@ import java.util.concurrent.TimeUnit;
 
 import javax.lang.model.SourceVersion;
 
+import sipka.jvm.constexpr.tool.options.DeconstructionDataAccessor;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.AbstractInsnNode;
 

@@ -32,6 +32,7 @@ import sipka.jvm.constexpr.tool.log.LogContextInfo;
 import sipka.jvm.constexpr.tool.log.MultipleInitializationPathLogEntry;
 import sipka.jvm.constexpr.tool.log.ReconstructionFailureLogEntry;
 import sipka.jvm.constexpr.tool.log.ToolLogger;
+import sipka.jvm.constexpr.tool.options.DeconstructionDataAccessor;
 import sipka.jvm.constexpr.tool.options.DeconstructionSelector;
 import sipka.jvm.constexpr.tool.options.InlinerOptions;
 import sipka.jvm.constexpr.tool.options.ToolInput;

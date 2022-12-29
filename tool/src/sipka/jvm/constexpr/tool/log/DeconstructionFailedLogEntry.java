@@ -6,7 +6,7 @@ import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 
-import sipka.jvm.constexpr.tool.DeconstructionDataAccessor;
+import sipka.jvm.constexpr.tool.options.DeconstructionDataAccessor;
 
 public final class DeconstructionFailedLogEntry implements LogEntry {
 	private final Object object;

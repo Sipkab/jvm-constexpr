@@ -5,7 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.NavigableMap;
 
-import sipka.jvm.constexpr.tool.DeconstructionDataAccessor;
+import sipka.jvm.constexpr.tool.options.DeconstructionDataAccessor;
 import sipka.jvm.constexpr.tool.options.DeconstructionSelector;
 import sipka.jvm.constexpr.tool.options.DeconstructorConfiguration;
 import sipka.jvm.constexpr.tool.options.InlinerOptions;

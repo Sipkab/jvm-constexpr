@@ -5,7 +5,6 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
-import sipka.jvm.constexpr.tool.DeconstructionDataAccessor;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 
 public class DeconstructorConfiguration {

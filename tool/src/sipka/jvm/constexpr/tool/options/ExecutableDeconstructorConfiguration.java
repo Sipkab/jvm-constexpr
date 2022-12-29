@@ -2,7 +2,6 @@ package sipka.jvm.constexpr.tool.options;
 
 import java.util.Arrays;
 
-import sipka.jvm.constexpr.tool.DeconstructionDataAccessor;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 
 public class ExecutableDeconstructorConfiguration extends DeconstructorConfiguration {
