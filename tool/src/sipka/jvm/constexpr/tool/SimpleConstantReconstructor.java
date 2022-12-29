@@ -4,14 +4,16 @@ import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.AbstractInsnNo
 
 final class SimpleConstantReconstructor implements ConstantReconstructor {
 	private final Object val;
+	private final AsmStackInfo stackInfo;
 
-	public SimpleConstantReconstructor(Object val) {
+	public SimpleConstantReconstructor(Object val, AsmStackInfo stackInfo) {
 		this.val = val;
+		this.stackInfo = stackInfo;
 	}
 
 	@Override
 	public AsmStackReconstructedValue reconstructValue(ReconstructionContext context, AbstractInsnNode ins) {
-		return new AsmStackReconstructedValue(ins, ins.getNext(), val);
+		return new AsmStackReconstructedValue(ins, ins.getNext(), stackInfo, val);
 	}
 
 	@Override

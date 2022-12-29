@@ -12,10 +12,11 @@ final class StringConstantDeconstructor implements ConstantDeconstructor {
 	public static final StringConstantDeconstructor INSTANCE = new StringConstantDeconstructor();
 
 	@Override
-	public InsnList deconstructValue(ConstantExpressionInliner context, TransformedClass transclass, Object val) {
+	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass,
+			Object val) {
 		InsnList instructions = new InsnList();
 		//cast to String just to be safe
 		instructions.add(new LdcInsnNode((String) val));
-		return instructions;
+		return DeconstructionResult.createConstant(instructions, val);
 	}
 }

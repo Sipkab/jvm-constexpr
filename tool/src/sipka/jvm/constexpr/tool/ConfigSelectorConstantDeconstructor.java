@@ -5,7 +5,6 @@ import sipka.jvm.constexpr.tool.options.DeconstructionSelector;
 import sipka.jvm.constexpr.tool.options.DeconstructorConfiguration;
 import sipka.jvm.constexpr.tool.options.FieldDeconstructorConfiguration;
 import sipka.jvm.constexpr.tool.options.StaticMethodDeconstructorConfiguration;
-import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.InsnList;
 
 final class ConfigSelectorConstantDeconstructor implements ConstantDeconstructor {
 	private final DeconstructionSelector selector;
@@ -15,7 +14,7 @@ final class ConfigSelectorConstantDeconstructor implements ConstantDeconstructor
 	}
 
 	@Override
-	public InsnList deconstructValue(ConstantExpressionInliner context, TransformedClass transclass, Object value) {
+	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass, Object value) {
 		DeconstructorConfiguration config = selector.chooseDeconstructorConfiguration(value);
 		if (config == null) {
 			return null;

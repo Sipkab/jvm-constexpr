@@ -719,7 +719,11 @@ class BaseConfig {
 				//can't do much, maybe programming error, or something?
 				return null;
 			}
-			return new AsmStackReconstructedValue(typeval.getFirstIns(), ins.getNext(), result);
+			return new AsmStackReconstructedValue(typeval.getFirstIns(), ins.getNext(),
+					AsmStackInfo.createMethod(Type.getType(Class.class), memberName,
+							Type.getMethodType("()Ljava/lang/String;"), typeval.getStackInfo(),
+							AsmStackInfo.EMPTY_ASMSTACKINFO_ARRAY),
+					result);
 		}
 
 		protected String getName(Type t) {

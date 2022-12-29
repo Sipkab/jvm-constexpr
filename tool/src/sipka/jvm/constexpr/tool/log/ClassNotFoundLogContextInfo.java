@@ -1,5 +1,7 @@
 package sipka.jvm.constexpr.tool.log;
 
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
+
 public class ClassNotFoundLogContextInfo extends BaseLogContextInfo {
 	private final String className;
 
@@ -14,7 +16,7 @@ public class ClassNotFoundLogContextInfo extends BaseLogContextInfo {
 
 	@Override
 	public String getMessage() {
-		return "Class not found with name: " + className;
+		return "Class not found with name: " + Type.getObjectType(className).getClassName();
 	}
 
 	@Override

@@ -1,5 +1,6 @@
 package sipka.jvm.constexpr.tool.log;
 
+import sipka.jvm.constexpr.tool.Utils;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 
 public class MemberInliningLogContextInfo extends BaseLogContextInfo {
@@ -29,12 +30,15 @@ public class MemberInliningLogContextInfo extends BaseLogContextInfo {
 
 	@Override
 	public String getMessage() {
-		Type desctype = Type.getType(memberDescriptor);
-		if (desctype.getSort() == Type.METHOD) {
-			return "When trying to optimize method: " + className + "." + memberName + memberDescriptor;
+		Type membertypedesc = Type.getType(memberDescriptor);
+		StringBuilder sb = new StringBuilder();
+		if (membertypedesc.getSort() == Type.METHOD) {
+			sb.append("When trying to optimize method: ");
+		} else {
+			sb.append("When trying to reconstruct field value: ");
 		}
-		return "When trying to reconstruct field value: " + className + "." + memberName + " with descriptor: "
-				+ memberDescriptor;
+		Utils.appendMemberDescriptorPretty(sb, membertypedesc, Type.getObjectType(className), memberName);
+		return sb.toString();
 	}
 
 	@Override

@@ -1,21 +1,23 @@
 package sipka.jvm.constexpr.tool.log;
 
+import sipka.jvm.constexpr.tool.Utils;
 import sipka.jvm.constexpr.tool.options.ToolInput;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 
 public final class BytecodeLocation {
 	private transient ToolInput<?> input;
 
 	private String className;
-	private String methodName;
-	private String methodDescriptor;
+	private String memberName;
+	private String memberDescriptor;
 	private int line;
 
-	public BytecodeLocation(ToolInput<?> input, String className, String methodName, String methodDescriptor,
+	public BytecodeLocation(ToolInput<?> input, String className, String memberName, String memberDescriptor,
 			int line) {
 		this.input = input;
 		this.className = className;
-		this.methodName = methodName;
-		this.methodDescriptor = methodDescriptor;
+		this.memberName = memberName;
+		this.memberDescriptor = memberDescriptor;
 		this.line = line;
 	}
 
@@ -27,12 +29,12 @@ public final class BytecodeLocation {
 		return className;
 	}
 
-	public String getMethodDescriptor() {
-		return methodDescriptor;
+	public String getMemberName() {
+		return memberName;
 	}
 
-	public String getMethodName() {
-		return methodName;
+	public String getMemberDescriptor() {
+		return memberDescriptor;
 	}
 
 	public int getLine() {
@@ -44,11 +46,11 @@ public final class BytecodeLocation {
 		if (cmp != 0) {
 			return cmp;
 		}
-		cmp = this.methodName.compareTo(r.methodName);
+		cmp = this.memberName.compareTo(r.memberName);
 		if (cmp != 0) {
 			return cmp;
 		}
-		cmp = this.methodDescriptor.compareTo(r.methodDescriptor);
+		cmp = this.memberDescriptor.compareTo(r.memberDescriptor);
 		if (cmp != 0) {
 			return cmp;
 		}
@@ -61,8 +63,8 @@ public final class BytecodeLocation {
 		int result = 1;
 		result = prime * result + ((className == null) ? 0 : className.hashCode());
 		result = prime * result + line;
-		result = prime * result + ((methodDescriptor == null) ? 0 : methodDescriptor.hashCode());
-		result = prime * result + ((methodName == null) ? 0 : methodName.hashCode());
+		result = prime * result + ((memberDescriptor == null) ? 0 : memberDescriptor.hashCode());
+		result = prime * result + ((memberName == null) ? 0 : memberName.hashCode());
 		return result;
 	}
 
@@ -82,15 +84,15 @@ public final class BytecodeLocation {
 			return false;
 		if (line != other.line)
 			return false;
-		if (methodDescriptor == null) {
-			if (other.methodDescriptor != null)
+		if (memberDescriptor == null) {
+			if (other.memberDescriptor != null)
 				return false;
-		} else if (!methodDescriptor.equals(other.methodDescriptor))
+		} else if (!memberDescriptor.equals(other.memberDescriptor))
 			return false;
-		if (methodName == null) {
-			if (other.methodName != null)
+		if (memberName == null) {
+			if (other.memberName != null)
 				return false;
-		} else if (!methodName.equals(other.methodName))
+		} else if (!memberName.equals(other.memberName))
 			return false;
 		return true;
 	}
@@ -98,10 +100,8 @@ public final class BytecodeLocation {
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
-		sb.append(className);
-		sb.append(".");
-		sb.append(methodName);
-		sb.append(methodDescriptor);
+		Utils.appendMemberDescriptorPretty(sb, Type.getType(memberDescriptor), Type.getObjectType(className),
+				memberName);
 		if (line >= 0) {
 			sb.append(" (line ");
 			sb.append(line);

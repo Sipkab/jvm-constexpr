@@ -42,7 +42,7 @@ final class PeriodConstantDeconstructor implements ConstantDeconstructor {
 	}
 
 	@Override
-	public InsnList deconstructValue(ConstantExpressionInliner context, TransformedClass transclass, Object value) {
+	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass, Object value) {
 		Period period = (Period) value;
 		int y = period.getYears();
 		int m = period.getMonths();

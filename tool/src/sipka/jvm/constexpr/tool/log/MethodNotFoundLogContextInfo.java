@@ -1,6 +1,7 @@
 package sipka.jvm.constexpr.tool.log;
 
 import sipka.jvm.constexpr.tool.Utils;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 
 public class MethodNotFoundLogContextInfo extends BaseLogContextInfo {
 	private final String className;
@@ -29,10 +30,15 @@ public class MethodNotFoundLogContextInfo extends BaseLogContextInfo {
 
 	@Override
 	public String getMessage() {
+		StringBuilder sb = new StringBuilder();
 		if (Utils.CONSTRUCTOR_METHOD_NAME.equals(methodName)) {
-			return "Constructor not found: " + className + methodDescriptor;
+			sb.append("Constructor not found: ");
+		} else {
+			sb.append("Method not found: ");
 		}
-		return "Method not found: " + className + "." + methodName + methodDescriptor;
+		Utils.appendMemberDescriptorPretty(sb, Type.getType(methodDescriptor), Type.getObjectType(className),
+				methodName);
+		return sb.toString();
 	}
 
 	@Override

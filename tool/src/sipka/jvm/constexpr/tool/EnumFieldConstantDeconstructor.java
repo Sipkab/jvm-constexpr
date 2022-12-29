@@ -15,15 +15,17 @@ final class EnumFieldConstantDeconstructor implements ConstantDeconstructor {
 	public static final EnumFieldConstantDeconstructor INSTANCE = new EnumFieldConstantDeconstructor();
 
 	@Override
-	public InsnList deconstructValue(ConstantExpressionInliner context, TransformedClass transclass, Object value) {
+	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass,
+			Object value) {
 		Enum<?> en = (Enum<?>) value;
 		String fieldname = en.name();
 
 		Class<?> enumclass = en.getDeclaringClass();
 
+		Type enumclasstype = Type.getType(enumclass);
 		InsnList result = new InsnList();
-		result.add(new FieldInsnNode(Opcodes.GETSTATIC, Type.getInternalName(enumclass), fieldname,
-				Type.getDescriptor(enumclass)));
-		return result;
+		result.add(new FieldInsnNode(Opcodes.GETSTATIC, enumclasstype.getInternalName(), fieldname,
+				enumclasstype.getDescriptor()));
+		return DeconstructionResult.createField(result, enumclasstype, fieldname, enumclasstype);
 	}
 }

@@ -18,5 +18,5 @@ interface ConstantDeconstructor {
 	 *            The value.
 	 * @return The generated instruction list.
 	 */
-	public InsnList deconstructValue(ConstantExpressionInliner context, TransformedClass transclass, Object value);
+	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass, Object value);
 }

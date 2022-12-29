@@ -84,6 +84,12 @@ public class ArrayFieldTest extends SakerTestCase {
 		public static final long nCO1 = (long) nonCONST_Object[1];
 		public static final double nCO2 = (double) nonCONST_Object[2];
 
+		public static final int ARRGET0 = new int[] { 1, 2, 3 }[0];
+		public static final int ARRGET1 = new int[] { 1, 2, 3 }[1];
+		public static final int ARRGET2 = new int[] { 1, 2, 3 }[2];
+		public static final int ARRGETPI = new int[] { 1, 2, 3 }[Integer.parseInt("2")];
+		public static final int ARRGETNV = (new int[3])[2];
+
 		private static byte[] computer() {
 			return "COMPUTED".getBytes(StandardCharsets.UTF_8);
 		}

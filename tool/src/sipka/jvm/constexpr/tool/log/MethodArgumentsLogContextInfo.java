@@ -1,6 +1,7 @@
 package sipka.jvm.constexpr.tool.log;
 
 import sipka.jvm.constexpr.tool.Utils;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 
 public class MethodArgumentsLogContextInfo extends BaseLogContextInfo {
 	private final String className;
@@ -29,10 +30,15 @@ public class MethodArgumentsLogContextInfo extends BaseLogContextInfo {
 
 	@Override
 	public String getMessage() {
+		Type membertypedesc = Type.getType(methodDescriptor);
+		StringBuilder sb = new StringBuilder();
 		if (Utils.CONSTRUCTOR_METHOD_NAME.equals(methodName)) {
-			return "When trying to reconstruct constructor arguments of: " + className + methodDescriptor;
+			sb.append("When trying to reconstruct constructor arguments of: ");
+		} else {
+			sb.append("When trying to reconstruct method arguments of: ");
 		}
-		return "When trying to reconstruct method arguments of: " + className + "." + methodName + methodDescriptor;
+		Utils.appendMemberDescriptorPretty(sb, membertypedesc, Type.getObjectType(className), methodName);
+		return sb.toString();
 	}
 
 	@Override

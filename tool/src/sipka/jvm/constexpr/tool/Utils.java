@@ -12,6 +12,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
+import sipka.jvm.constexpr.tool.AsmStackInfo.Kind;
+import sipka.jvm.constexpr.tool.log.BytecodeLocation;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Opcodes;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.AbstractInsnNode;
@@ -820,6 +822,30 @@ public class Utils {
 		}
 	}
 
+	public static Object getDefaultValue(Type type) {
+		switch (type.getSort()) {
+			case Type.BOOLEAN:
+				return false;
+			case Type.CHAR:
+				return '\0';
+			case Type.BYTE:
+				return (byte) 0;
+			case Type.SHORT:
+				return (short) 0;
+			case Type.INT:
+				return 0;
+			case Type.FLOAT:
+				return (float) 0;
+			case Type.LONG:
+				return (long) 0;
+			case Type.DOUBLE:
+				return (double) 0;
+			default: {
+				return null;
+			}
+		}
+	}
+
 	public static Class<?> getReceiverType(Type fieldtype) {
 		switch (fieldtype.getSort()) {
 			case Type.BOOLEAN:
@@ -950,4 +976,368 @@ public class Utils {
 		return true;
 	}
 
+	public static BytecodeLocation getBytecodeLocation(TransformedClass transclass, MethodNode methodnode,
+			AbstractInsnNode locationins) {
+		int line = getLineNumber(methodnode, locationins);
+		return new BytecodeLocation(transclass.input, transclass.classNode.name, methodnode.name, methodnode.desc,
+				line);
+	}
+
+	public static void appendMemberDescriptorPretty(StringBuilder sb, Type desctype, Type classtype, String name) {
+		if (desctype.getSort() == Type.METHOD) {
+			//method descriptor
+			sb.append(classtype.getClassName());
+			if (CONSTRUCTOR_METHOD_NAME.equals(name)) {
+				//constructor, no need for the name of the method
+			} else {
+				sb.append(".");
+				sb.append(name);
+			}
+			Type[] argtypes = desctype.getArgumentTypes();
+			sb.append('(');
+			for (int i = 0; i < argtypes.length; i++) {
+				if (i != 0) {
+					sb.append(", ");
+				}
+				sb.append(argtypes[i].getClassName());
+			}
+			sb.append(')');
+		} else {
+			//field descriptor
+			sb.append(desctype.getClassName());
+			sb.append(' ');
+			sb.append(classtype.getClassName());
+			sb.append('.');
+			sb.append(name);
+		}
+	}
+
+	public static String formatConstant(Object value) {
+		//based on com.sun.tools.javac.util.Constants.format(Object)
+		if (value == null) {
+			return "null";
+		}
+		if (value instanceof Byte)
+			return String.format("(byte)0x%02x", (byte) value);
+		if (value instanceof Short)
+			return String.format("(short)%d", (short) value);
+		if (value instanceof Long)
+			return ((long) value) + "L";
+		if (value instanceof Float) {
+			float f = (float) value;
+
+			if (Float.isNaN(f) || Float.isInfinite(f)) {
+				return value.toString();
+			}
+			return f + "f";
+		}
+		if (value instanceof Double) {
+			double d = (double) value;
+
+			if (Double.isNaN(d) || Double.isInfinite(d)) {
+				return value.toString();
+			}
+			return d + "";
+		}
+		if (value instanceof Character) {
+			char c = (char) value;
+			return '\'' + quote(c) + '\'';
+		}
+		if (value instanceof String) {
+			String s = (String) value;
+			return '\"' + quote(s) + '\"';
+		}
+		if (value instanceof Integer || value instanceof Boolean)
+			return value.toString();
+		return value.toString();
+	}
+
+	private static String quote(String s) {
+		StringBuilder buf = new StringBuilder();
+		for (int i = 0; i < s.length(); i++) {
+			buf.append(quote(s.charAt(i)));
+		}
+		return buf.toString();
+	}
+
+	//based on com.sun.tools.javac.util.Convert.quote(char)
+	private static String quote(char ch) {
+		switch (ch) {
+			case '\b':
+				return "\\b";
+			case '\f':
+				return "\\f";
+			case '\n':
+				return "\\n";
+			case '\r':
+				return "\\r";
+			case '\t':
+				return "\\t";
+			case '\'':
+				return "\\'";
+			case '\"':
+				return "\\\"";
+			case '\\':
+				return "\\\\";
+			default:
+				return (isPrintableAscii(ch)) ? String.valueOf(ch) : String.format("\\u%04x", (int) ch);
+		}
+	}
+
+	//based on com.sun.tools.javac.util.Convert.isPrintableAscii(char)
+	private static boolean isPrintableAscii(char ch) {
+		return ch >= ' ' && ch <= '~';
+	}
+
+	public static void appendAsmStackInfo(StringBuilder sb, AsmStackInfo info, String indentation) {
+		sb.append(indentation);
+		switch (info.getKind()) {
+			case NULL:
+				sb.append("null");
+				return;
+			case CONSTANT:
+				sb.append(formatConstant(info.getObject()));
+				return;
+			case METHOD: {
+				AsmStackInfo obj = (AsmStackInfo) info.getObject();
+				AsmStackInfo[] args = info.getElements();
+
+				appendAsmStackInfo(sb, obj, "");
+				sb.append('.');
+				sb.append(info.getName());
+				appendAsmStackInfoArgs(sb, args);
+				return;
+			}
+			case STATIC_METHOD: {
+				AsmStackInfo[] args = info.getElements();
+
+				sb.append(info.getType().getClassName());
+				sb.append('.');
+				sb.append(info.getName());
+				appendAsmStackInfoArgs(sb, args);
+				return;
+			}
+			case CONSTRUCTOR: {
+				AsmStackInfo[] args = info.getElements();
+
+				sb.append("new ");
+				sb.append(info.getType().getClassName());
+				appendAsmStackInfoArgs(sb, args);
+				return;
+			}
+			case STATIC_FIELD: {
+				sb.append(info.getType().getClassName());
+				sb.append('.');
+				sb.append(info.getName());
+				return;
+			}
+			case FIELD: {
+				AsmStackInfo obj = (AsmStackInfo) info.getObject();
+
+				appendAsmStackInfo(sb, obj, "");
+				sb.append('.');
+				sb.append(info.getName());
+				return;
+			}
+			case OPERATOR: {
+				int opcode = (int) info.getObject();
+				String opstr = getOperatorString(opcode);
+				AsmStackInfo[] elems = info.getElements();
+				if (opcode == Opcodes.CHECKCAST) {
+					sb.append("((");
+					sb.append(info.getType().getClassName());
+					sb.append(") ");
+					appendAsmStackInfo(sb, elems[0], "");
+					sb.append(')');
+				} else if (elems.length == 1) {
+					//unary operator
+					sb.append(opstr);
+					appendAsmStackInfo(sb, elems[0], "");
+				} else {
+					appendAsmStackInfo(sb, elems[0], "");
+					sb.append(' ');
+					sb.append(opstr);
+					sb.append(' ');
+					appendAsmStackInfo(sb, elems[1], "");
+				}
+
+				return;
+			}
+			case ARRAY: {
+				Type componenttype = info.getType();
+				AsmStackInfo[] elements = info.getElements();
+				sb.append("new ");
+				sb.append(componenttype.getClassName());
+				sb.append('[');
+				sb.append(elements.length);
+				sb.append(']');
+				if (!isAllNullElements(elements)) {
+					sb.append(" { ");
+					for (int i = 0; i < elements.length; i++) {
+						if (i != 0) {
+							sb.append(", ");
+						}
+						appendAsmArrayElement(sb, componenttype, elements[i]);
+					}
+					sb.append(" }");
+				}
+				return;
+			}
+			case ARRAY_LOAD: {
+				AsmStackInfo arrinfo = (AsmStackInfo) info.getObject();
+				AsmStackInfo indexinfo = info.getElements()[0];
+				if (arrinfo.getKind() == Kind.ARRAY && indexinfo.getKind() == Kind.CONSTANT) {
+					//only display the loaded item, to reduce verbosity
+					Type componenttype = arrinfo.getType();
+					AsmStackInfo[] elements = arrinfo.getElements();
+					int index = ((Number) indexinfo.getObject()).intValue();
+					boolean allnullelems = isAllNullElements(elements);
+					if (allnullelems) {
+						sb.append('(');
+					}
+					sb.append("new ");
+					sb.append(componenttype.getClassName());
+					sb.append('[');
+					sb.append(elements.length);
+					sb.append(']');
+					if (allnullelems) {
+						//no need for the init block
+						//but put the new clause in parentheses, so it doesn't seem like a multi dimensional array
+						sb.append(')');
+					} else {
+						sb.append(" { ");
+						if (index != 0) {
+							sb.append("..., ");
+						}
+						appendAsmArrayElement(sb, componenttype, elements[index]);
+						if (index + 1 < elements.length) {
+							sb.append(", ...");
+						}
+						sb.append(" }");
+					}
+				} else {
+					appendAsmStackInfo(sb, arrinfo, "");
+				}
+				sb.append('[');
+				appendAsmStackInfo(sb, indexinfo, "");
+				sb.append(']');
+				return;
+			}
+			default: {
+				sb.append(info);
+				break;
+			}
+		}
+	}
+
+	private static boolean isAllNullElements(Object[] array) {
+		for (Object o : array) {
+			if (o != null) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private static void appendAsmArrayElement(StringBuilder sb, Type componenttype, AsmStackInfo elem) {
+		if (elem == null) {
+			sb.append(formatConstant(getDefaultValue(componenttype)));
+		} else {
+			appendAsmStackInfo(sb, elem, "");
+		}
+	}
+
+	private static String getOperatorString(int opcode) {
+		switch (opcode) {
+			case Opcodes.IADD:
+				return "+";
+			case Opcodes.ISUB:
+				return "-";
+			case Opcodes.IMUL:
+				return "*";
+			case Opcodes.IDIV:
+				return "/";
+			case Opcodes.IREM:
+				return "%";
+			case Opcodes.ISHL:
+				return "<<";
+			case Opcodes.ISHR:
+				return ">>";
+			case Opcodes.IUSHR:
+				return ">>>";
+			case Opcodes.IAND:
+				return "&";
+			case Opcodes.IOR:
+				return "|";
+			case Opcodes.IXOR:
+				return "^";
+
+			case Opcodes.LADD:
+				return "+";
+			case Opcodes.LSUB:
+				return "-";
+			case Opcodes.LMUL:
+				return "*";
+			case Opcodes.LDIV:
+				return "/";
+			case Opcodes.LREM:
+				return "%";
+			case Opcodes.LSHL:
+				return "<<";
+			case Opcodes.LSHR:
+				return ">>";
+			case Opcodes.LUSHR:
+				return ">>>";
+			case Opcodes.LAND:
+				return "&";
+			case Opcodes.LOR:
+				return "|";
+			case Opcodes.LXOR:
+				return "^";
+
+			case Opcodes.I2B:
+				return "(byte)";
+			case Opcodes.I2S:
+				return "(short)";
+			case Opcodes.L2I:
+			case Opcodes.F2I:
+			case Opcodes.D2I:
+				return "(int)";
+			case Opcodes.I2L:
+			case Opcodes.F2L:
+			case Opcodes.D2L:
+				return "(long)";
+			case Opcodes.I2F:
+			case Opcodes.L2F:
+			case Opcodes.D2F:
+				return "(float)";
+			case Opcodes.I2D:
+			case Opcodes.L2D:
+			case Opcodes.F2D:
+				return "(double)";
+			case Opcodes.I2C:
+				return "(char)";
+
+			case Opcodes.INEG:
+			case Opcodes.LNEG:
+			case Opcodes.FNEG:
+			case Opcodes.DNEG:
+				return "-";
+
+			default: {
+				return getOpcodeName(opcode);
+			}
+		}
+	}
+
+	private static void appendAsmStackInfoArgs(StringBuilder sb, AsmStackInfo[] args) {
+		sb.append('(');
+		for (int i = 0; i < args.length; i++) {
+			if (i != 0) {
+				sb.append(", ");
+			}
+			appendAsmStackInfo(sb, args[i], "");
+		}
+		sb.append(')');
+	}
 }

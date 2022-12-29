@@ -95,12 +95,18 @@ public class BoxedPrimitivesInlineTest extends SakerTestCase {
 		public static final float objectPrimitiveFloat;
 		public static final float parseFloat;
 		public static final float newFloat = new Float("123.4");
+		public static final float floatNaN;
+		public static final float floatPosInf;
+		public static final float floatNegInf;
 		static {
 			strFloat = Float.valueOf("111");
 			valueOfFloat = Float.valueOf(123L);
 			autoBoxFloat = (Float) 456f;
 			objectPrimitiveFloat = (float) (Object) 123f;
 			parseFloat = Float.parseFloat("123.456");
+			floatNaN = 0.0f / 0.0f;
+			floatPosInf = 1.0f / 0.0f;
+			floatNegInf = -1.0f / 0.0f;
 		}
 
 		public static final double strDouble;
@@ -109,12 +115,18 @@ public class BoxedPrimitivesInlineTest extends SakerTestCase {
 		public static final double objectPrimitiveDouble;
 		public static final double parseDouble;
 		public static final double newDouble = new Double("123.45");
+		public static final double doubleNaN;
+		public static final double doublePosInf;
+		public static final double doubleNegInf;
 		static {
 			strDouble = Double.valueOf("111");
 			valueOfDouble = Double.valueOf(123L);
 			autoBoxDouble = (Double) 456d;
 			objectPrimitiveDouble = (double) (Object) 123d;
 			parseDouble = Double.parseDouble("123.4567890123456789");
+			doubleNaN = 0.0d / 0.0d;
+			doublePosInf = 1.0d / 0.0d;
+			doubleNegInf = -1.0d / 0.0d;
 		}
 
 		public static final char valueOfCharacter;

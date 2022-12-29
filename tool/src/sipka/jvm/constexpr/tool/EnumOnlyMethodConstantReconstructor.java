@@ -1,6 +1,5 @@
 package sipka.jvm.constexpr.tool;
 
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
@@ -61,7 +60,10 @@ class EnumOnlyMethodConstantReconstructor implements ConstantReconstructor {
 					Type.getInternalName(method.getDeclaringClass()), method.getName(),
 					Type.getMethodDescriptor(method), subject, EMPTY_OBJECT_ARRAY);
 		}
-		return new AsmStackReconstructedValue(subjectval.getFirstIns(), ins.getNext(), resultval);
+		return new AsmStackReconstructedValue(subjectval.getFirstIns(), ins.getNext(),
+				AsmStackInfo.createMethod(Type.getType(method.getDeclaringClass()), method.getName(),
+						Type.getType(method), subjectval.getStackInfo(), AsmStackInfo.EMPTY_ASMSTACKINFO_ARRAY),
+				resultval);
 	}
 
 	@Override

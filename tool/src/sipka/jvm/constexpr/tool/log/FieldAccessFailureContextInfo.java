@@ -1,5 +1,8 @@
 package sipka.jvm.constexpr.tool.log;
 
+import sipka.jvm.constexpr.tool.Utils;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
+
 public class FieldAccessFailureContextInfo extends BaseLogContextInfo {
 	private final String className;
 	private final String fieldName;
@@ -35,11 +38,7 @@ public class FieldAccessFailureContextInfo extends BaseLogContextInfo {
 	public String getMessage() {
 		StringBuilder sb = new StringBuilder();
 		sb.append("Failed to access field: ");
-		sb.append(fieldDescriptor);
-		sb.append(" ");
-		sb.append(className);
-		sb.append(".");
-		sb.append(fieldName);
+		Utils.appendMemberDescriptorPretty(sb, Type.getType(fieldDescriptor), Type.getObjectType(className), fieldName);
 		if (instance != null) {
 			sb.append(System.lineSeparator());
 			sb.append("\t\ton instance: ");

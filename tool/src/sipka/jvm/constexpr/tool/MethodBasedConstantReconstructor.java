@@ -49,11 +49,13 @@ final class MethodBasedConstantReconstructor implements ConstantReconstructor {
 		}
 		AbstractInsnNode firstins = paramcount == 0 ? ins : derivedargs[0].getFirstIns();
 		Object subject;
+		AsmStackReconstructedValue subjectval;
 		if (staticFunc) {
+			subjectval = null;
 			subject = null;
 		} else {
 			try {
-				AsmStackReconstructedValue subjectval = context.getInliner().reconstructStackValue(
+				subjectval = context.getInliner().reconstructStackValue(
 						context.withReceiverType(method.getDeclaringClass()), firstins.getPrevious());
 				if (subjectval == null) {
 					return null;
@@ -74,7 +76,16 @@ final class MethodBasedConstantReconstructor implements ConstantReconstructor {
 					Type.getInternalName(method.getDeclaringClass()), method.getName(),
 					Type.getMethodDescriptor(method), subject, args);
 		}
-		return new AsmStackReconstructedValue(firstins, ins.getNext(), resultobj);
+		AsmStackInfo stackinfo;
+		if (staticFunc) {
+			stackinfo = AsmStackInfo.createStaticMethod(Type.getType(method.getDeclaringClass()), method.getName(),
+					Type.getType(method), AsmStackReconstructedValue.toStackInfoArray(derivedargs));
+		} else {
+			stackinfo = AsmStackInfo.createMethod(Type.getType(method.getDeclaringClass()), method.getName(),
+					Type.getType(method), subjectval.getStackInfo(),
+					AsmStackReconstructedValue.toStackInfoArray(derivedargs));
+		}
+		return new AsmStackReconstructedValue(firstins, ins.getNext(), stackinfo, resultobj);
 	}
 
 	@Override

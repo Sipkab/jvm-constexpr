@@ -1,5 +1,8 @@
 package sipka.jvm.constexpr.tool.log;
 
+import sipka.jvm.constexpr.tool.Utils;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
+
 public class FieldNotFoundLogContextInfo extends BaseLogContextInfo {
 	private final String className;
 	private final String fieldName;
@@ -27,7 +30,10 @@ public class FieldNotFoundLogContextInfo extends BaseLogContextInfo {
 
 	@Override
 	public String getMessage() {
-		return "Field not found: " + className + "." + fieldName + " with descriptor: " + fieldDescriptor;
+		StringBuilder sb = new StringBuilder();
+		sb.append("Field not found: ");
+		Utils.appendMemberDescriptorPretty(sb, Type.getType(fieldDescriptor), Type.getObjectType(className), fieldName);
+		return sb.toString();
 	}
 
 	@Override

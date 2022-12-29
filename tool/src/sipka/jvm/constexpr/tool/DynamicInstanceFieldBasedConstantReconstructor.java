@@ -67,7 +67,10 @@ class DynamicInstanceFieldBasedConstantReconstructor implements ConstantReconstr
 				throw context.newFieldAccessFailureReconstructionException(e, ins, fieldOwnerInternalName, fieldName,
 						fieldDescriptor, instanceval);
 			}
-			return new AsmStackReconstructedValue(instanceval.getFirstIns(), ins.getNext(), fieldval);
+			return new AsmStackReconstructedValue(instanceval.getFirstIns(), ins.getNext(),
+					AsmStackInfo.createField(Type.getType(field.getDeclaringClass()), field.getName(),
+							Type.getType(field.getType()), instanceval.getStackInfo()),
+					fieldval);
 		}
 
 		if (notfoundexc == null) {

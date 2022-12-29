@@ -1,7 +1,6 @@
 package sipka.jvm.constexpr.tool;
 
 import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Opcodes;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
@@ -64,7 +63,10 @@ final class ConstructorBasedConstantReconstructor implements ConstantReconstruct
 			throw context.newMethodInvocationFailureReconstructionException(e, ins, typeInternalName,
 					Utils.CONSTRUCTOR_METHOD_NAME, Type.getConstructorDescriptor(constructor), null, args);
 		}
-		return new AsmStackReconstructedValue(typeins, ins.getNext(), instance);
+		return new AsmStackReconstructedValue(typeins, ins.getNext(),
+				AsmStackInfo.createConstructor(Type.getObjectType(typeInternalName), Type.getType(constructor),
+						AsmStackReconstructedValue.toStackInfoArray(derivedargs)),
+				instance);
 	}
 
 	@Override

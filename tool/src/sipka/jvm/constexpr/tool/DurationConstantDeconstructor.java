@@ -3,7 +3,6 @@ package sipka.jvm.constexpr.tool;
 import java.time.Duration;
 
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
-import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.InsnList;
 
 /**
  * {@link ConstantDeconstructor} for the {@link Duration} class.
@@ -35,7 +34,7 @@ final class DurationConstantDeconstructor implements ConstantDeconstructor {
 	}
 
 	@Override
-	public InsnList deconstructValue(ConstantExpressionInliner context, TransformedClass transclass, Object value) {
+	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass, Object value) {
 		//if the nanos part of the Duration is 0, then we can use the ofSeconds(long) method instead of ofSeconds(long,long)
 		//for deconstruction
 		Duration dur = (Duration) value;

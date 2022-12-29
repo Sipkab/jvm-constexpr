@@ -39,7 +39,7 @@ final class LocalTimeConstantDeconstructor implements ConstantDeconstructor {
 	}
 
 	@Override
-	public InsnList deconstructValue(ConstantExpressionInliner context, TransformedClass transclass, Object value) {
+	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass, Object value) {
 		LocalTime lt = (LocalTime) value;
 		if (lt.getNano() == 0) {
 			if (lt.getSecond() == 0) {

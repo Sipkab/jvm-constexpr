@@ -85,26 +85,10 @@ public class TestUtils {
 		InlinerOptions opts = new InlinerOptions();
 		opts.setLogger(new AbstractSimpleToolLogger() {
 			@Override
-			public void log(ReconstructionFailureLogEntry logentry) {
-				List<LogContextInfo> contextstack = logentry.getContextStack();
-				for (ListIterator<LogContextInfo> it = contextstack.listIterator(contextstack.size()); it
-						.hasPrevious();) {
-					LogContextInfo info = it.previous();
-					System.err.println(info.getMessage());
-					System.err.println("\tin " + info.getBytecodeLocation());
-				}
-				Throwable rc = logentry.getRootCause();
-				if (rc != null) {
-					System.err.print("Caused by: ");
-					rc.printStackTrace();
-				}
-				System.err.println();
-			}
-
-			@Override
 			protected void log(LogEntry entry) {
 				// TODO Auto-generated method stub
-				System.out.println(entry);
+				System.err.println(entry.getMessage().trim());
+				System.err.println();
 			}
 		});
 		opts.setInputs(createInputsForClasses(classes));

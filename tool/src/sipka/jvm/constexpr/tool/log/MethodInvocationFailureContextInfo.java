@@ -3,6 +3,7 @@ package sipka.jvm.constexpr.tool.log;
 import java.util.Arrays;
 
 import sipka.jvm.constexpr.tool.Utils;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 
 public class MethodInvocationFailureContextInfo extends BaseLogContextInfo {
 	private final String className;
@@ -49,17 +50,17 @@ public class MethodInvocationFailureContextInfo extends BaseLogContextInfo {
 		} else {
 			sb.append("Failed to invoke method: ");
 		}
-		sb.append(className);
-		sb.append(".");
-		sb.append(methodName);
-		sb.append(methodDescriptor);
+
+		Utils.appendMemberDescriptorPretty(sb, Type.getType(methodDescriptor), Type.getObjectType(className),
+				methodName);
+		String ls = System.lineSeparator();
 		if (instance != null) {
-			sb.append(System.lineSeparator());
+			sb.append(ls);
 			sb.append("\t\ton instance: ");
 			sb.append(instance);
 		}
 		for (int i = 0; i < arguments.length; i++) {
-			sb.append(System.lineSeparator());
+			sb.append(ls);
 			sb.append("\t\targument[");
 			sb.append(i);
 			sb.append("]");

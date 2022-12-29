@@ -17,12 +17,20 @@ class AsmStackReconstructedValue {
 	 * Exclusive to the instruction to remove.
 	 */
 	protected AbstractInsnNode lastIns;
+	private final AsmStackInfo stackInfo;
 	private final Object value;
 
-	public AsmStackReconstructedValue(AbstractInsnNode firstIns, AbstractInsnNode lastIns, Object value) {
+	public AsmStackReconstructedValue(AbstractInsnNode firstIns, AbstractInsnNode lastIns, AsmStackInfo stackInfo,
+			Object value) {
 		this.firstIns = firstIns;
 		this.lastIns = lastIns;
+		this.stackInfo = stackInfo;
 		this.value = value;
+	}
+
+	public static AsmStackReconstructedValue createConstant(AbstractInsnNode firstIns, AbstractInsnNode lastIns,
+			Object value) {
+		return new AsmStackReconstructedValue(firstIns, lastIns, AsmStackInfo.createConstant(value), value);
 	}
 
 	public AbstractInsnNode getFirstIns() {
@@ -33,8 +41,16 @@ class AsmStackReconstructedValue {
 		return lastIns;
 	}
 
+	public AsmStackInfo getStackInfo() {
+		return stackInfo;
+	}
+
 	public Object getValue() {
 		return value;
+	}
+
+	public AsmStackReconstructedValue replaceValue(Object value) {
+		return new AsmStackReconstructedValue(firstIns, lastIns, stackInfo, value);
 	}
 
 	public void removeInstructions(InsnList instructions) {
@@ -57,24 +73,27 @@ class AsmStackReconstructedValue {
 
 	@Override
 	public String toString() {
-		StringBuilder builder = new StringBuilder();
-		builder.append("AsmStackReconstructedValue[");
-		if (value != null) {
-			builder.append("value=");
-			builder.append(value);
-			builder.append(", ");
-		}
-		if (firstIns != null) {
-			builder.append("firstIns=");
-			builder.append(firstIns);
-			builder.append(", ");
-		}
-		if (lastIns != null) {
-			builder.append("lastIns=");
-			builder.append(lastIns);
-		}
+		StringBuilder builder = new StringBuilder(getClass().getSimpleName());
+		builder.append("[firstIns=");
+		builder.append(firstIns);
+		builder.append(", lastIns=");
+		builder.append(lastIns);
+		builder.append(", stackInfo=");
+		builder.append(stackInfo);
+		builder.append(", value=");
+		builder.append(value);
 		builder.append("]");
 		return builder.toString();
 	}
 
+	public static AsmStackInfo[] toStackInfoArray(AsmStackReconstructedValue[] vals) {
+		if (vals == null) {
+			return null;
+		}
+		AsmStackInfo[] result = new AsmStackInfo[vals.length];
+		for (int i = 0; i < result.length; i++) {
+			result[i] = vals[i].stackInfo;
+		}
+		return result;
+	}
 }

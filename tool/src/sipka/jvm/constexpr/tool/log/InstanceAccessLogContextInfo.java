@@ -1,5 +1,6 @@
 package sipka.jvm.constexpr.tool.log;
 
+import sipka.jvm.constexpr.tool.Utils;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 
 public class InstanceAccessLogContextInfo extends BaseLogContextInfo {
@@ -30,13 +31,15 @@ public class InstanceAccessLogContextInfo extends BaseLogContextInfo {
 
 	@Override
 	public String getMessage() {
-		Type type = Type.getType(memberDescriptor);
-		if (type.getSort() == Type.METHOD) {
-			return "When trying to reconstruct instance for method call: " + className + "." + memberName
-					+ memberDescriptor;
+		Type membertypedesc = Type.getType(memberDescriptor);
+		StringBuilder sb = new StringBuilder();
+		if (membertypedesc.getSort() == Type.METHOD) {
+			sb.append("When trying to reconstruct instance for method call: ");
+		} else {
+			sb.append("When trying to reconstruct instance for field access: ");
 		}
-		return "When trying to reconstruct instance for field access: " + className + "." + memberName
-				+ " with descriptor: " + memberDescriptor;
+		Utils.appendMemberDescriptorPretty(sb, membertypedesc, Type.getObjectType(className), memberName);
+		return sb.toString();
 	}
 
 	@Override

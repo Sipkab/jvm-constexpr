@@ -4,42 +4,24 @@ import java.util.Arrays;
 
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 
-public final class StaticMethodDeconstructorConfiguration extends DeconstructorConfiguration {
+public final class StaticMethodDeconstructorConfiguration extends ExecutableDeconstructorConfiguration {
 	protected final Type executableReturnType;
-	protected final Type[] executableParameterTypes;
-	protected final String[] getterMethodNames;
 
-	StaticMethodDeconstructorConfiguration(Type executableOwner, String executableName,
-			Type executableReturnType, Type[] executableParameterTypes, String[] getterMethodNames) {
-		super(executableOwner, executableName);
-		if (executableParameterTypes.length != getterMethodNames.length) {
-			throw new IllegalArgumentException("Mismatch between reconstructor method parameter type count: "
-					+ executableParameterTypes.length + " and getter method count: " + getterMethodNames.length);
-		}
+	StaticMethodDeconstructorConfiguration(Type executableOwner, String executableName, Type executableReturnType,
+			Type[] executableParameterTypes, String[] getterMethodNames) {
+		super(executableOwner, executableName, executableParameterTypes, getterMethodNames);
 		this.executableReturnType = executableReturnType;
-		this.executableParameterTypes = executableParameterTypes;
-		this.getterMethodNames = getterMethodNames;
 	}
 
 	public Type getExecutableReturnType() {
 		return executableReturnType;
 	}
 
-	public Type[] getExecutableParameterTypes() {
-		return executableParameterTypes;
-	}
-
-	public String[] getGetterMethodNames() {
-		return getterMethodNames;
-	}
-
 	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = super.hashCode();
-		result = prime * result + Arrays.hashCode(executableParameterTypes);
 		result = prime * result + ((executableReturnType == null) ? 0 : executableReturnType.hashCode());
-		result = prime * result + Arrays.hashCode(getterMethodNames);
 		return result;
 	}
 
@@ -52,14 +34,10 @@ public final class StaticMethodDeconstructorConfiguration extends DeconstructorC
 		if (getClass() != obj.getClass())
 			return false;
 		StaticMethodDeconstructorConfiguration other = (StaticMethodDeconstructorConfiguration) obj;
-		if (!Arrays.equals(executableParameterTypes, other.executableParameterTypes))
-			return false;
 		if (executableReturnType == null) {
 			if (other.executableReturnType != null)
 				return false;
 		} else if (!executableReturnType.equals(other.executableReturnType))
-			return false;
-		if (!Arrays.equals(getterMethodNames, other.getterMethodNames))
 			return false;
 		return true;
 	}

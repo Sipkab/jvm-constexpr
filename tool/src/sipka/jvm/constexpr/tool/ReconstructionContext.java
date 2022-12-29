@@ -165,9 +165,7 @@ class ReconstructionContext {
 	}
 
 	private BytecodeLocation getBytecodeLocation(AbstractInsnNode locationins) {
-		int line = Utils.getLineNumber(methodNode, locationins);
-		return new BytecodeLocation(transformedClass.input, transformedClass.classNode.name, methodNode.name,
-				methodNode.desc, line);
+		return Utils.getBytecodeLocation(transformedClass, methodNode, locationins);
 	}
 
 //	public ReconstructionException newReconstructionException(LogContextInfo contextinfo, Throwable rootcause,

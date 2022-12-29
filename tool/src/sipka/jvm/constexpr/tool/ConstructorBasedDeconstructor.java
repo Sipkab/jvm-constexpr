@@ -31,10 +31,12 @@ final class ConstructorBasedDeconstructor implements ConstantDeconstructor {
 	}
 
 	@Override
-	public InsnList deconstructValue(ConstantExpressionInliner context, TransformedClass transclass, Object value) {
+	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass,
+			Object value) {
 		try {
-
 			InsnList insnlist = new InsnList();
+			AsmStackInfo[] argumentstackinfos = new AsmStackInfo[methodsNames.length];
+
 			TypeInsnNode newins = new TypeInsnNode(Opcodes.NEW, typeInternalName);
 			InsnNode dup = new InsnNode(Opcodes.DUP);
 
@@ -49,19 +51,22 @@ final class ConstructorBasedDeconstructor implements ConstantDeconstructor {
 					argasmtype = Type.getType(method.getReturnType());
 					asmArgTypes[i] = argasmtype;
 				}
-				InsnList deconstructedinstructions = context.deconstructValue(transclass, arg, argasmtype);
-				if (deconstructedinstructions == null) {
+				DeconstructionResult argdeconresult = context.deconstructValue(transclass, arg, argasmtype);
+				if (argdeconresult == null) {
 					return null;
 				}
-				insnlist.add(deconstructedinstructions);
+				argumentstackinfos[i] = argdeconresult.getStackInfo();
+				insnlist.add(argdeconresult.getInstructions());
 			}
 			//every argument has been deconstructed, add the invokespecial
 
+			String methoddescriptor = Type.getMethodDescriptor(Type.VOID_TYPE, asmArgTypes);
 			MethodInsnNode initins = new MethodInsnNode(Opcodes.INVOKESPECIAL, typeInternalName,
-					Utils.CONSTRUCTOR_METHOD_NAME, Type.getMethodDescriptor(Type.VOID_TYPE, asmArgTypes));
+					Utils.CONSTRUCTOR_METHOD_NAME, methoddescriptor);
 			insnlist.add(initins);
 
-			return insnlist;
+			return DeconstructionResult.createConstructor(insnlist, Type.getObjectType(typeInternalName),
+					Type.getType(methoddescriptor), argumentstackinfos);
 		} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException
 				| SecurityException e) {
 			// TODO Auto-generated catch block

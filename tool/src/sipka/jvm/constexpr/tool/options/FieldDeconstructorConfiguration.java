@@ -3,7 +3,7 @@ package sipka.jvm.constexpr.tool.options;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 
 public final class FieldDeconstructorConfiguration extends DeconstructorConfiguration {
-	private Type descriptor;
+	protected final Type descriptor;
 
 	FieldDeconstructorConfiguration(Type fieldOwner, String fieldname, Type descriptor) {
 		super(fieldOwner, fieldname);

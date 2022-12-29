@@ -25,7 +25,8 @@ class FieldBasedConstantReconstructor implements ConstantReconstructor {
 						Type.getInternalName(field.getDeclaringClass()), field.getName(),
 						Type.getDescriptor(field.getType()), null);
 			}
-			return new AsmStackReconstructedValue(ins, ins.getNext(), fieldval);
+			return new AsmStackReconstructedValue(ins, ins.getNext(), AsmStackInfo.createStaticField(
+					Type.getType(field.getDeclaringClass()), field.getName(), Type.getType(field.getType())), fieldval);
 		}
 		//get from an instance
 		AsmStackReconstructedValue instanceval;
@@ -48,7 +49,10 @@ class FieldBasedConstantReconstructor implements ConstantReconstructor {
 					Type.getInternalName(field.getDeclaringClass()), field.getName(),
 					Type.getDescriptor(field.getType()), instanceval);
 		}
-		return new AsmStackReconstructedValue(instanceval.getFirstIns(), ins.getNext(), fieldval);
+		return new AsmStackReconstructedValue(instanceval.getFirstIns(), ins.getNext(),
+				AsmStackInfo.createField(Type.getType(field.getDeclaringClass()), field.getName(),
+						Type.getType(field.getType()), instanceval.getStackInfo()),
+				fieldval);
 	}
 
 	@Override

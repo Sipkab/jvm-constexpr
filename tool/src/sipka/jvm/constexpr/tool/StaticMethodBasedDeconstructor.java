@@ -32,9 +32,11 @@ final class StaticMethodBasedDeconstructor implements ConstantDeconstructor {
 	}
 
 	@Override
-	public InsnList deconstructValue(ConstantExpressionInliner context, TransformedClass transclass, Object value) {
+	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass,
+			Object value) {
 		try {
 			InsnList insnlist = new InsnList();
+			AsmStackInfo[] arginfos = new AsmStackInfo[methodsNames.length];
 			for (int i = 0; i < methodsNames.length; i++) {
 				Method method = value.getClass().getMethod(methodsNames[i]);
 				Object arg = method.invoke(value);
@@ -43,11 +45,12 @@ final class StaticMethodBasedDeconstructor implements ConstantDeconstructor {
 					argasmtype = Type.getType(method.getReturnType());
 					asmArgTypes[i] = argasmtype;
 				}
-				InsnList deconstructedinstructions = context.deconstructValue(transclass, arg, argasmtype);
-				if (deconstructedinstructions == null) {
+				DeconstructionResult argdecon = context.deconstructValue(transclass, arg, argasmtype);
+				if (argdecon == null) {
 					return null;
 				}
-				insnlist.add(deconstructedinstructions);
+				arginfos[i] = argdecon.getStackInfo();
+				insnlist.add(argdecon.getInstructions());
 			}
 			//arguments everything has been deconstructed, add the invokespecial
 
@@ -55,7 +58,8 @@ final class StaticMethodBasedDeconstructor implements ConstantDeconstructor {
 					Type.getMethodDescriptor(valueType, asmArgTypes));
 			insnlist.add(initins);
 
-			return insnlist;
+			return DeconstructionResult.createStaticMethod(insnlist, Type.getObjectType(methodOwnerTypeInternalName),
+					methodName, Type.getType(initins.desc), arginfos);
 		} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException
 				| SecurityException e) {
 			// TODO Auto-generated catch block

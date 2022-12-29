@@ -21,6 +21,7 @@ import java.util.TreeMap;
 
 import sipka.jvm.constexpr.tool.TransformedClass.TransformedField;
 import sipka.jvm.constexpr.tool.log.BytecodeLocation;
+import sipka.jvm.constexpr.tool.log.InstructionReplacementLogEntry;
 import sipka.jvm.constexpr.tool.log.LogContextInfo;
 import sipka.jvm.constexpr.tool.log.ReconstructionFailureLogEntry;
 import sipka.jvm.constexpr.tool.log.ToolLogger;
@@ -44,6 +45,7 @@ import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.LabelNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.LdcInsnNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodInsnNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodNode;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.TypeInsnNode;
 
 public class ConstantExpressionInliner {
 	public static final int ASM_API = Opcodes.ASM9;
@@ -315,7 +317,7 @@ public class ConstantExpressionInliner {
 							context.newClassNotFoundReconstructionException(e, argit, typeval.getInternalName()), ins,
 							paramindex);
 				}
-				argval = new AsmStackReconstructedValue(argval.getFirstIns(), argval.getLastIns(), c);
+				argval = argval.replaceValue(c);
 				val = c;
 			}
 			outderivedargs[paramindex] = argval;
@@ -451,7 +453,8 @@ public class ConstantExpressionInliner {
 		ReconstructionContext componentcontext = context.withReceiverType(componenttype);
 		ReconstructionContext intreceivercontext = context.withReceiverType(int.class);
 
-		List<Entry<Integer, Object>> elements = new ArrayList<>();
+		//index to element
+		List<Entry<AsmStackReconstructedValue, AsmStackReconstructedValue>> elements = new ArrayList<>();
 
 		for (AbstractInsnNode insit = ins; insit != null;) {
 			AsmStackReconstructedValue elementval;
@@ -480,10 +483,7 @@ public class ConstantExpressionInliner {
 				//expected DUP for the array reference
 				return null;
 			}
-			int index = ((Number) idxval.getValue()).intValue();
-			Object elemval = elementval.getValue();
-
-			elements.add(new AbstractMap.SimpleEntry<>(index, elemval));
+			elements.add(new AbstractMap.SimpleEntry<>(idxval, elementval));
 
 			AbstractInsnNode previns = idxprev.getPrevious();
 			if (previns == null) {
@@ -522,11 +522,23 @@ public class ConstantExpressionInliner {
 		//replace with the actual component type so it is casted correctly when setting the value
 		componenttype = arrayclass.getComponentType();
 
-		for (ListIterator<Entry<Integer, Object>> it = elements.listIterator(elements.size()); it.hasPrevious();) {
-			Entry<Integer, Object> entry = it.previous();
-			Array.set(arrayobj, entry.getKey(), Utils.asmCastValueToReceiverType(entry.getValue(), componenttype));
+		AsmStackInfo stackinfo = createarrayval.getStackInfo();
+		for (ListIterator<Entry<AsmStackReconstructedValue, AsmStackReconstructedValue>> it = elements
+				.listIterator(elements.size()); it.hasPrevious();) {
+			Entry<AsmStackReconstructedValue, AsmStackReconstructedValue> entry = it.previous();
+			AsmStackReconstructedValue idxval = entry.getKey();
+			AsmStackReconstructedValue elementval = entry.getValue();
+
+			int index = ((Number) idxval.getValue()).intValue();
+			Object element = elementval.getValue();
+			Array.set(arrayobj, index, Utils.asmCastValueToReceiverType(element, componenttype));
+
+			AsmStackInfo[] stackinfoelems = stackinfo.getElements().clone();
+			stackinfoelems[index] = elementval.getStackInfo();
+			stackinfo = AsmStackInfo.createArray(stackinfo.getType(), (AsmStackInfo) stackinfo.getObject(),
+					stackinfoelems);
 		}
-		return new AsmStackReconstructedValue(createarrayval.getFirstIns(), ins.getNext(), arrayobj);
+		return new AsmStackReconstructedValue(createarrayval.getFirstIns(), ins.getNext(), stackinfo, arrayobj);
 	}
 
 	/**
@@ -555,45 +567,45 @@ public class ConstantExpressionInliner {
 			switch (opcode) {
 				case Opcodes.LDC: {
 					LdcInsnNode ldc = (LdcInsnNode) ins;
-					return new AsmStackReconstructedValue(ins, endins,
+					return AsmStackReconstructedValue.createConstant(ins, endins,
 							Utils.asmCastValueToReceiverType(ldc.cst, receivertype));
 				}
 				case Opcodes.BIPUSH:
 				case Opcodes.SIPUSH: {
 					IntInsnNode intinsn = (IntInsnNode) ins;
-					return new AsmStackReconstructedValue(ins, endins,
+					return AsmStackReconstructedValue.createConstant(ins, endins,
 							Utils.asmCastValueToReceiverType(intinsn.operand, receivertype));
 				}
 				case Opcodes.ICONST_M1:
-					return new AsmStackReconstructedValue(ins, endins, -1);
+					return AsmStackReconstructedValue.createConstant(ins, endins, -1);
 				case Opcodes.ICONST_0:
-					return new AsmStackReconstructedValue(ins, endins, 0);
+					return AsmStackReconstructedValue.createConstant(ins, endins, 0);
 				case Opcodes.ICONST_1:
-					return new AsmStackReconstructedValue(ins, endins, 1);
+					return AsmStackReconstructedValue.createConstant(ins, endins, 1);
 				case Opcodes.ICONST_2:
-					return new AsmStackReconstructedValue(ins, endins, 2);
+					return AsmStackReconstructedValue.createConstant(ins, endins, 2);
 				case Opcodes.ICONST_3:
-					return new AsmStackReconstructedValue(ins, endins, 3);
+					return AsmStackReconstructedValue.createConstant(ins, endins, 3);
 				case Opcodes.ICONST_4:
-					return new AsmStackReconstructedValue(ins, endins, 4);
+					return AsmStackReconstructedValue.createConstant(ins, endins, 4);
 				case Opcodes.ICONST_5:
-					return new AsmStackReconstructedValue(ins, endins, 5);
+					return AsmStackReconstructedValue.createConstant(ins, endins, 5);
 				case Opcodes.LCONST_0:
-					return new AsmStackReconstructedValue(ins, endins, 0L);
+					return AsmStackReconstructedValue.createConstant(ins, endins, 0L);
 				case Opcodes.LCONST_1:
-					return new AsmStackReconstructedValue(ins, endins, 1L);
+					return AsmStackReconstructedValue.createConstant(ins, endins, 1L);
 				case Opcodes.FCONST_0:
-					return new AsmStackReconstructedValue(ins, endins, 0f);
+					return AsmStackReconstructedValue.createConstant(ins, endins, 0f);
 				case Opcodes.FCONST_1:
-					return new AsmStackReconstructedValue(ins, endins, 1f);
+					return AsmStackReconstructedValue.createConstant(ins, endins, 1f);
 				case Opcodes.FCONST_2:
-					return new AsmStackReconstructedValue(ins, endins, 2f);
+					return AsmStackReconstructedValue.createConstant(ins, endins, 2f);
 				case Opcodes.DCONST_0:
-					return new AsmStackReconstructedValue(ins, endins, 0d);
+					return AsmStackReconstructedValue.createConstant(ins, endins, 0d);
 				case Opcodes.DCONST_1:
-					return new AsmStackReconstructedValue(ins, endins, 1d);
+					return AsmStackReconstructedValue.createConstant(ins, endins, 1d);
 				case Opcodes.ACONST_NULL:
-					return new AsmStackReconstructedValue(ins, endins, null);
+					return new AsmStackReconstructedValue(ins, endins, AsmStackInfo.createNull(), null);
 
 				case Opcodes.CHECKCAST: {
 					return reconstructUnaryOperator(context, ins, endins, opcode);
@@ -667,10 +679,13 @@ public class ConstantExpressionInliner {
 					int size = ((Number) sizeval.getValue()).intValue();
 
 					Object array = Utils.createAsmArray(size, intins.operand);
-					return new AsmStackReconstructedValue(sizeval.getFirstIns(), endins, array);
+					return new AsmStackReconstructedValue(sizeval.getFirstIns(), endins,
+							AsmStackInfo.createArray(Type.getType(array.getClass().getComponentType()),
+									sizeval.getStackInfo(), new AsmStackInfo[size]),
+							array);
 				}
 				case Opcodes.ANEWARRAY: {
-					//TypeInsnNode typeins = (TypeInsnNode) ins;
+					TypeInsnNode typeins = (TypeInsnNode) ins;
 					if (receivertype == null) {
 						//the receiver type should be available
 						//TODO log?
@@ -699,7 +714,8 @@ public class ConstantExpressionInliner {
 					Class<?> receivercomponenttyle = receivertype.getComponentType();
 					Object array = Array.newInstance(receivercomponenttyle, size);
 
-					return new AsmStackReconstructedValue(sizeval.firstIns, endins, array);
+					return new AsmStackReconstructedValue(sizeval.firstIns, endins, AsmStackInfo.createArray(
+							Type.getObjectType(typeins.desc), sizeval.getStackInfo(), new AsmStackInfo[size]), array);
 				}
 				case Opcodes.BASTORE:
 				case Opcodes.SASTORE:
@@ -742,7 +758,8 @@ public class ConstantExpressionInliner {
 						return null;
 					}
 					Object element = Array.get(arrayval.getValue(), ((Number) idxval.getValue()).intValue());
-					return new AsmStackReconstructedValue(arrayval.getFirstIns(), ins.getNext(), element);
+					return new AsmStackReconstructedValue(arrayval.getFirstIns(), ins.getNext(),
+							AsmStackInfo.createArrayLoad(arrayval.getStackInfo(), idxval.getStackInfo()), element);
 				}
 
 				case Opcodes.INVOKESTATIC:
@@ -863,7 +880,11 @@ public class ConstantExpressionInliner {
 		}
 
 		return new AsmStackReconstructedValue(derivedargs.length == 0 ? dynins : derivedargs[0].getFirstIns(),
-				dynins.getNext(), sb.toString());
+				dynins.getNext(),
+				AsmStackInfo.createStaticMethod(Type.getObjectType(bootstraphandle.getOwner()),
+						bootstraphandle.getName(), Type.getMethodType(bootstraphandle.getDesc()),
+						AsmStackReconstructedValue.toStackInfoArray(derivedargs)),
+				sb.toString());
 	}
 
 	private AsmStackReconstructedValue reconstructBinaryOperator(ReconstructionContext operandcontext,
@@ -890,7 +911,8 @@ public class ConstantExpressionInliner {
 		if (value == null) {
 			return null;
 		}
-		return new AsmStackReconstructedValue(leftop.getFirstIns(), endins, value);
+		return new AsmStackReconstructedValue(leftop.getFirstIns(), endins, AsmStackInfo.createOperator(opcode, null,
+				new AsmStackInfo[] { leftop.getStackInfo(), rightop.getStackInfo() }), value);
 	}
 
 	private AsmStackReconstructedValue reconstructUnaryOperator(ReconstructionContext operandcontext,
@@ -910,10 +932,18 @@ public class ConstantExpressionInliner {
 			//failed to apply operand on a non-null
 			return null;
 		}
-		return new AsmStackReconstructedValue(val.firstIns, endins, nval);
+		Type checkcasttype;
+		if (opcode == Opcodes.CHECKCAST) {
+			TypeInsnNode typeins = (TypeInsnNode) ins;
+			checkcasttype = Type.getObjectType(typeins.desc);
+		} else {
+			checkcasttype = null;
+		}
+		return new AsmStackReconstructedValue(val.firstIns, endins,
+				AsmStackInfo.createOperator(opcode, checkcasttype, new AsmStackInfo[] { val.getStackInfo() }), nval);
 	}
 
-	private static boolean inlineFieldValue(TransformedClass fieldowner, TransformedField transfield,
+	private boolean inlineFieldValue(TransformedClass fieldowner, TransformedField transfield,
 			TransformedClass transclass) {
 		Object val = transfield.calculatedConstantValue.orElse(null);
 		if (!Utils.isConstantValue(val)) {
@@ -937,13 +967,25 @@ public class ConstantExpressionInliner {
 							break;
 						}
 						AbstractInsnNode addins;
+						AsmStackInfo replacementinfo;
 						if (val == null) {
 							addins = new InsnNode(Opcodes.ACONST_NULL);
+							replacementinfo = AsmStackInfo.createNull();
 						} else {
 							addins = new LdcInsnNode(val);
+							replacementinfo = AsmStackInfo.createConstant(val);
 						}
 						instructions.insert(ins, addins);
 						instructions.remove(ins);
+
+						if (logger != null) {
+							logger.log(new InstructionReplacementLogEntry(
+									Utils.getBytecodeLocation(transclass, mn, addins),
+									AsmStackInfo.createStaticField(Type.getObjectType(fieldins.owner), fieldins.name,
+											Type.getType(fieldins.desc)),
+									replacementinfo, val));
+						}
+
 						any = true;
 						break;
 					}
@@ -977,28 +1019,39 @@ public class ConstantExpressionInliner {
 		if (nvalues == null) {
 			return false;
 		}
-		Object derivedval = nvalues.iterator().next().getValue();
-		InsnList deconinstructions = null;
-		if (transfield.setCalculatedConstantValue(derivedval)) {
+		AsmStackReconstructedValue reconstructedval = nvalues.iterator().next();
+		Object constantval = reconstructedval.getValue();
+		DeconstructionResult deconsresult = null;
+		if (transfield.setCalculatedConstantValue(constantval)) {
 			//ok, no deconstruction necessary
+
+			if (logger != null) {
+				logger.log(new InstructionReplacementLogEntry(
+						new BytecodeLocation(transclass.input, transclass.classNode.name, fieldnode.name,
+								fieldnode.desc, -1),
+						reconstructedval.getStackInfo(),
+						AsmStackInfo.createStaticField(Type.getObjectType(transclass.classNode.name), fieldnode.name,
+								Type.getType(fieldnode.desc)),
+						constantval));
+			}
 		} else {
-			ConstantDeconstructor deconstructor = getConstantDeconstructor(derivedval);
+			ConstantDeconstructor deconstructor = getConstantDeconstructor(constantval);
 			if (deconstructor == null) {
 				//return true, as even if we failed to deconstruct the value, we still assigned it to the constant value
 				// of the transformed field
 				return true;
 			}
-			deconinstructions = deconstructor.deconstructValue(this, transclass, derivedval);
+			deconsresult = deconstructor.deconstructValue(this, transclass, constantval);
 		}
 
 		InsnList instructions = clinitmethodnode.instructions;
 
 		for (AsmStackReconstructedValue val : nvalues) {
 			val.removeInstructions(instructions);
-			if (deconinstructions != null) {
+			if (deconsresult != null) {
 				//the deconstructed instructions list is cleared, but its okay, because only inserted once
 				//insert before the PUTSTATIC instruction
-				instructions.insertBefore(val.getLastIns(), deconinstructions);
+				instructions.insertBefore(val.getLastIns(), deconsresult.getInstructions());
 			} else {
 				//remove the PUTSTATIC as well
 				instructions.remove(val.getLastIns());
@@ -1083,7 +1136,7 @@ public class ConstantExpressionInliner {
 	 *            The target type on the stack.
 	 * @return The deconstructed instructions or <code>null</code> if the deconstruction failed.
 	 */
-	InsnList deconstructValue(TransformedClass transclass, Object val, Type type) {
+	DeconstructionResult deconstructValue(TransformedClass transclass, Object val, Type type) {
 		switch (type.getSort()) {
 			case Type.VOID:
 			case Type.BOOLEAN:
@@ -1097,20 +1150,21 @@ public class ConstantExpressionInliner {
 				//no boxing needed
 				InsnList result = new InsnList();
 				//cast it, so in case of long, double, etc... the proper constant is loaded
-				result.add(new LdcInsnNode(castValueFromAsm(type, val)));
-				return result;
+				Object cval = castValueFromAsm(type, val);
+				result.add(new LdcInsnNode(cval));
+				return DeconstructionResult.createConstant(result, cval);
 			}
 			case Type.OBJECT:
 			case Type.ARRAY: {
 				if (val == null) {
 					InsnList result = new InsnList();
 					result.add(new InsnNode(Opcodes.ACONST_NULL));
-					return result;
+					return DeconstructionResult.createNull(result);
 				}
 				if (val instanceof Class) {
 					InsnList result = new InsnList();
 					result.add(new LdcInsnNode(Type.getType((Class<?>) val)));
-					return result;
+					return DeconstructionResult.createConstant(result, val);
 				}
 				ConstantDeconstructor deconstructor = getConstantDeconstructor(val);
 				if (deconstructor == null) {
@@ -1166,11 +1220,12 @@ public class ConstantExpressionInliner {
 					}
 					Object inlineval = reconstructedval.getValue();
 
-					InsnList deconstructedinstructions = deconstructValue(transclass, inlineval, rettype);
-					if (deconstructedinstructions == null) {
+					DeconstructionResult deconsresult = deconstructValue(transclass, inlineval, rettype);
+					if (deconsresult == null) {
 						//failed to deconstruct
 						break;
 					}
+					InsnList deconstructedinstructions = deconsresult.getInstructions();
 					AbstractInsnNode lastdeconins = deconstructedinstructions.getLast();
 					if (Utils.isSameInsruction(methodins, lastdeconins)) {
 						//the reconstructed instruction is the same as the one we're processing
@@ -1184,6 +1239,12 @@ public class ConstantExpressionInliner {
 					reconstructedval.removeInstructions(instructions);
 
 					transclass.inlinedInstructions.add(lastdeconins);
+
+					if (logger != null) {
+						logger.log(new InstructionReplacementLogEntry(
+								Utils.getBytecodeLocation(transclass, methodnode, lastdeconins),
+								reconstructedval.getStackInfo(), deconsresult.getStackInfo(), inlineval));
+					}
 					break;
 				}
 				default: {
@@ -1272,7 +1333,9 @@ public class ConstantExpressionInliner {
 								|| optionsConstantFields.containsKey(fieldkey)) {
 							//only return if the type of the value is a constant type, otherwise it might get modified by other code
 							//and thus result in us using different values
-							return new SimpleConstantReconstructor(constval).reconstructValue(context, ins);
+							return new SimpleConstantReconstructor(constval, AsmStackInfo.createStaticField(
+									Type.getObjectType(fieldins.owner), fieldins.name, Type.getType(fieldins.desc)))
+											.reconstructValue(context, ins);
 						}
 					} else {
 						//TODO log if null?

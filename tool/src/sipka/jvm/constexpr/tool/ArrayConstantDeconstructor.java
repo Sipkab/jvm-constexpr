@@ -17,7 +17,8 @@ class ArrayConstantDeconstructor implements ConstantDeconstructor {
 	public static final ArrayConstantDeconstructor INSTANCE = new ArrayConstantDeconstructor();
 
 	@Override
-	public InsnList deconstructValue(ConstantExpressionInliner context, TransformedClass transclass, Object value) {
+	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass,
+			Object value) {
 		if (value == null) {
 			//shouldn't happen
 			throw new NullPointerException("Attempting to deconstruct null value as an array.");
@@ -29,6 +30,7 @@ class ArrayConstantDeconstructor implements ConstantDeconstructor {
 		}
 		InsnList result = new InsnList();
 		int length = Array.getLength(value);
+		AsmStackInfo[] elementinfos = new AsmStackInfo[length];
 
 		result.add(new LdcInsnNode(length));
 
@@ -44,16 +46,19 @@ class ArrayConstantDeconstructor implements ConstantDeconstructor {
 		for (int i = 0; i < length; i++) {
 			result.add(new InsnNode(Opcodes.DUP));
 			result.add(new LdcInsnNode(i));
-			InsnList deconstructed = context.deconstructValue(transclass, Array.get(value, i), componentasmtype);
+			DeconstructionResult deconstructed = context.deconstructValue(transclass, Array.get(value, i),
+					componentasmtype);
 			if (deconstructed == null) {
 				//failed to deconstruct this element
 				//TODO log
 				return null;
 			}
-			result.add(deconstructed);
+			result.add(deconstructed.getInstructions());
 			result.add(new InsnNode(storeopcode)); // TODO opcode
+			elementinfos[i] = deconstructed.getStackInfo();
 		}
-		return result;
+		return DeconstructionResult.createArray(result, componentasmtype, AsmStackInfo.createConstant(length),
+				elementinfos);
 	}
 
 }
