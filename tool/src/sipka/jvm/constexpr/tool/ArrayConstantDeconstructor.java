@@ -50,11 +50,10 @@ class ArrayConstantDeconstructor implements ConstantDeconstructor {
 					componentasmtype);
 			if (deconstructed == null) {
 				//failed to deconstruct this element
-				//TODO log
 				return null;
 			}
 			result.add(deconstructed.getInstructions());
-			result.add(new InsnNode(storeopcode)); // TODO opcode
+			result.add(new InsnNode(storeopcode));
 			elementinfos[i] = deconstructed.getStackInfo();
 		}
 		return DeconstructionResult.createArray(result, componentasmtype, AsmStackInfo.createConstant(length),
