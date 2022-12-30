@@ -5,6 +5,7 @@ import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Opcodes;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.InsnList;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodInsnNode;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodNode;
 
 /**
  * {@link ConstantDeconstructor} that uses a static method to deconstruct the value.
@@ -29,7 +30,7 @@ final class StaticMethodBasedDeconstructor implements ConstantDeconstructor {
 
 	@Override
 	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass,
-			Object value) {
+			MethodNode methodnode, Object value) {
 		InsnList insnlist = new InsnList();
 		AsmStackInfo[] arginfos = new AsmStackInfo[dataAccessors.length];
 
@@ -46,7 +47,7 @@ final class StaticMethodBasedDeconstructor implements ConstantDeconstructor {
 			Object arg = deconstructeddata.getData();
 			Type argasmtype = Type.getType(deconstructeddata.getReceiverType());
 			asmargtypes[i] = argasmtype;
-			DeconstructionResult argdecon = context.deconstructValue(transclass, arg, argasmtype);
+			DeconstructionResult argdecon = context.deconstructValue(transclass, methodnode, arg, argasmtype);
 			if (argdecon == null) {
 				return null;
 			}

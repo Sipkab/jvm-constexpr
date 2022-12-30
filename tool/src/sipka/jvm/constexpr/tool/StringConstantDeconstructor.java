@@ -2,6 +2,7 @@ package sipka.jvm.constexpr.tool;
 
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.InsnList;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.LdcInsnNode;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodNode;
 
 /**
  * {@link ConstantDeconstructor} for the {@link String} class.
@@ -13,7 +14,7 @@ final class StringConstantDeconstructor implements ConstantDeconstructor {
 
 	@Override
 	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass,
-			Object val) {
+			MethodNode methodnode, Object val) {
 		InsnList instructions = new InsnList();
 		//cast to String just to be safe
 		instructions.add(new LdcInsnNode((String) val));

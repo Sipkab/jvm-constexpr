@@ -23,6 +23,9 @@ import sipka.jvm.constexpr.tool.log.ToolLogger;
  * Options for the constant inliner tool.
  * <p>
  * Use with {@link ConstantExpressionInliner#run(InlinerOptions)}.
+ * <p>
+ * Modifications to the backing collections of the options instance may or may not propagate back. This is an
+ * unspecified implementation detail that may change in the future. The returned collections may also be immutable.
  */
 public final class InlinerOptions {
 	protected Collection<ToolInput<?>> inputs = new ArrayList<>();

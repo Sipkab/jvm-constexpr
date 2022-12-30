@@ -1062,7 +1062,17 @@ public class ConstantExpressionInliner {
 				// of the transformed field
 				return true;
 			}
-			deconsresult = deconstructor.deconstructValue(this, transclass, constantval);
+			deconsresult = deconstructor.deconstructValue(this, transclass, clinitmethodnode, constantval);
+			if (deconsresult == null) {
+				//did not deconstruct the value, so we can't replace the instructions in the static initializer
+				return true;
+			}
+
+			if (logger != null) {
+				logger.log(new InstructionReplacementLogEntry(
+						Utils.getBytecodeLocation(transclass, clinitmethodnode, reconstructedval.getLastIns()),
+						reconstructedval.getStackInfo(), deconsresult.getStackInfo(), constantval));
+			}
 		}
 
 		InsnList instructions = clinitmethodnode.instructions;
@@ -1153,11 +1163,13 @@ public class ConstantExpressionInliner {
 	 *            The transformed class.
 	 * @param val
 	 *            The value to deconstruct.
+	 * @param methodnode
+	 *            The method in which the deconstruction is happening.
 	 * @param type
 	 *            The target type on the stack.
 	 * @return The deconstructed instructions or <code>null</code> if the deconstruction failed.
 	 */
-	DeconstructionResult deconstructValue(TransformedClass transclass, Object val, Type type) {
+	DeconstructionResult deconstructValue(TransformedClass transclass, MethodNode methodnode, Object val, Type type) {
 		switch (type.getSort()) {
 			case Type.VOID:
 			case Type.BOOLEAN:
@@ -1197,7 +1209,7 @@ public class ConstantExpressionInliner {
 					}
 					return null;
 				}
-				return deconstructor.deconstructValue(this, transclass, val);
+				return deconstructor.deconstructValue(this, transclass, methodnode, val);
 			}
 			default:
 				throw new AssertionError(type);
@@ -1244,7 +1256,7 @@ public class ConstantExpressionInliner {
 					}
 					Object inlineval = reconstructedval.getValue();
 
-					DeconstructionResult deconsresult = deconstructValue(transclass, inlineval, rettype);
+					DeconstructionResult deconsresult = deconstructValue(transclass, methodnode, inlineval, rettype);
 					if (deconsresult == null) {
 						//failed to deconstruct
 						//mark the instruction as inlined, so we don't process it again

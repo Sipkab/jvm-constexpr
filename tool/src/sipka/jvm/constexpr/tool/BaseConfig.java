@@ -44,6 +44,7 @@ import javax.lang.model.SourceVersion;
 import sipka.jvm.constexpr.tool.options.DeconstructionDataAccessor;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.AbstractInsnNode;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodNode;
 
 /**
  * Contains the default configurations for the inliner tool.
@@ -772,7 +773,7 @@ class BaseConfig {
 
 		@Override
 		public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass,
-				Object value) {
+				MethodNode methodnode, Object value) {
 			context.logConfigClassMemberNotAvailable(classInternalName, methodName, methodDescr, e);
 			return null;
 		}

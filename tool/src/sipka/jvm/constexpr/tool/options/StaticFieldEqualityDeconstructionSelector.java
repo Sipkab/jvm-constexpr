@@ -2,6 +2,9 @@ package sipka.jvm.constexpr.tool.options;
 
 import java.lang.reflect.Field;
 
+import sipka.jvm.constexpr.tool.Utils;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
+
 final class StaticFieldEqualityDeconstructionSelector implements DeconstructionSelector {
 	private final DeconstructionSelector delegate;
 	private final Field[] fields;
@@ -12,8 +15,15 @@ final class StaticFieldEqualityDeconstructionSelector implements DeconstructionS
 	}
 
 	@Override
-	public DeconstructorConfiguration chooseDeconstructorConfiguration(Object value) {
+	public DeconstructorConfiguration chooseDeconstructorConfiguration(MemberReference optimizedmethod, Object value) {
+		boolean inclinit = Utils.STATIC_INITIALIZER_METHOD_NAME.equals(optimizedmethod.getMemberName());
 		for (Field field : fields) {
+			if (inclinit
+					&& Type.getInternalName(field.getDeclaringClass()).equals(optimizedmethod.getOwnerInternalName())) {
+				//ignore this one, as we're currently deconstructing in the static initializer of the
+				//field declaring class
+				continue;
+			}
 			try {
 				if (value.equals(field.get(null))) {
 					return DeconstructorConfiguration.createStaticField(field);
@@ -26,7 +36,7 @@ final class StaticFieldEqualityDeconstructionSelector implements DeconstructionS
 		if (delegate == null) {
 			return null;
 		}
-		return delegate.chooseDeconstructorConfiguration(value);
+		return delegate.chooseDeconstructorConfiguration(optimizedmethod, value);
 	}
 
 }

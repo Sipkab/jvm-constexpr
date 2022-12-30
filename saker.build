@@ -244,6 +244,14 @@ test_on_jdk(
 		TestInvokerParameters: {
 			TimeoutMillis: 60000,
 		},
+		IgnoreFileChanges: [
+			std.file.place(test/build),
+		],
+		TestClassParameters: {
+			"**.cli.**": {
+				TestsBaseBuildDirectory: std.file.mirror.path(std.file.place(test/build)),
+			}
+		},
 		MaxJVMCount: 1,
 		FailFast: true,
 		AbortOnFail: true,

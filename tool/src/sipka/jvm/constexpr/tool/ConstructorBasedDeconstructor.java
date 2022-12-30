@@ -6,6 +6,7 @@ import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.InsnList;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.InsnNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodInsnNode;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.TypeInsnNode;
 
 /**
@@ -27,7 +28,7 @@ final class ConstructorBasedDeconstructor implements ConstantDeconstructor {
 
 	@Override
 	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass,
-			Object value) {
+			MethodNode methodnode, Object value) {
 		InsnList insnlist = new InsnList();
 		AsmStackInfo[] argumentstackinfos = new AsmStackInfo[dataAccessors.length];
 
@@ -50,7 +51,7 @@ final class ConstructorBasedDeconstructor implements ConstantDeconstructor {
 			Object arg = deconstructeddata.getData();
 			Type argasmtype = Type.getType(deconstructeddata.getReceiverType());
 			asmargtypes[i] = argasmtype;
-			DeconstructionResult argdeconresult = context.deconstructValue(transclass, arg, argasmtype);
+			DeconstructionResult argdeconresult = context.deconstructValue(transclass, methodnode, arg, argasmtype);
 			if (argdeconresult == null) {
 				return null;
 			}

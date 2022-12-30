@@ -1,8 +1,13 @@
 package testing.sipka.jvm.constexpr;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -12,11 +17,15 @@ import java.util.NavigableMap;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.jar.JarInputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import saker.build.thirdparty.saker.util.ObjectUtils;
 import saker.build.thirdparty.saker.util.ReflectUtils;
 import saker.build.thirdparty.saker.util.classloader.MultiDataClassLoader;
 import saker.build.thirdparty.saker.util.io.ByteArrayRegion;
+import saker.build.thirdparty.saker.util.io.StreamUtils;
 import sipka.jvm.constexpr.tool.ConstantExpressionInliner;
 import sipka.jvm.constexpr.tool.OutputConsumer;
 import sipka.jvm.constexpr.tool.Utils;
@@ -198,6 +207,34 @@ public class TestUtils {
 		return loadedclass;
 	}
 
+	public static ClassLoader createJarClassLoader(Path jar) throws NullPointerException, IOException {
+		Map<String, ByteArrayRegion> resourceBytes = new TreeMap<>();
+		try (InputStream is = Files.newInputStream(jar);
+				JarInputStream jis = new JarInputStream(is)) {
+			for (ZipEntry ze; (ze = jis.getNextEntry()) != null;) {
+				resourceBytes.put(ze.getName(), StreamUtils.readStreamFully(jis));
+			}
+		}
+		return new MultiDataClassLoader(ClassLoader.getSystemClassLoader(),
+				new MemoryClassLoaderDataFinder(resourceBytes));
+	}
+
+	public static ClassNode loadClassNodeFromJar(Path jar, String classname) throws IOException {
+		String searchname = classname.replace('.', '/') + ".class";
+		try (InputStream is = Files.newInputStream(jar);
+				JarInputStream jis = new JarInputStream(is)) {
+			for (ZipEntry ze; (ze = jis.getNextEntry()) != null;) {
+				if (ze.getName().equals(searchname)) {
+					ClassReader cr = new ClassReader(jis);
+					ClassNode cn = new ClassNode(ConstantExpressionInliner.ASM_API);
+					cr.accept(cn, ClassReader.EXPAND_FRAMES);
+					return cn;
+				}
+			}
+		}
+		throw new NoSuchFileException(searchname);
+	}
+
 	public static ClassLoader createClassLoader(Object... nodesorclasses) {
 		return createClassLoader(ClassLoader.getSystemClassLoader(), nodesorclasses);
 	}
@@ -316,5 +353,34 @@ public class TestUtils {
 			result[i] = ReflectUtils.getFieldAssert(type, fields[i]);
 		}
 		return result;
+	}
+
+	public static void writeJar(Path path, Class<?>... classes) throws IOException {
+		Files.createDirectories(path.getParent());
+		try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+			try (ZipOutputStream zos = new ZipOutputStream(baos)) {
+				for (int i = 0; i < classes.length; i++) {
+					Class<?> c = classes[i];
+					ZipEntry ze = new ZipEntry(Type.getInternalName(c) + ".class");
+					ze.setTime(0);
+					zos.putNextEntry(ze);
+					zos.write(ReflectUtils.getClassBytesUsingClassLoader(c).copyOptionally());
+					zos.closeEntry();
+				}
+			}
+			byte[] zipbytes = baos.toByteArray();
+			try {
+				//only write if changed, dont need to unnecessarily write the disk for test cases
+				if (Arrays.equals(zipbytes, Files.readAllBytes(path))) {
+					return;
+				}
+			} catch (Exception e) {
+			}
+			try {
+				Files.write(path, zipbytes);
+			} catch (Exception e) {
+				throw e;
+			}
+		}
 	}
 }

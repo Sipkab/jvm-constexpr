@@ -8,6 +8,7 @@ import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.InsnList;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.InsnNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.IntInsnNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.LdcInsnNode;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.TypeInsnNode;
 
 /**
@@ -18,7 +19,7 @@ class ArrayConstantDeconstructor implements ConstantDeconstructor {
 
 	@Override
 	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass,
-			Object value) {
+			MethodNode methodnode, Object value) {
 		if (value == null) {
 			//shouldn't happen
 			throw new NullPointerException("Attempting to deconstruct null value as an array.");
@@ -46,7 +47,7 @@ class ArrayConstantDeconstructor implements ConstantDeconstructor {
 		for (int i = 0; i < length; i++) {
 			result.add(new InsnNode(Opcodes.DUP));
 			result.add(new LdcInsnNode(i));
-			DeconstructionResult deconstructed = context.deconstructValue(transclass, Array.get(value, i),
+			DeconstructionResult deconstructed = context.deconstructValue(transclass, methodnode, Array.get(value, i),
 					componentasmtype);
 			if (deconstructed == null) {
 				//failed to deconstruct this element

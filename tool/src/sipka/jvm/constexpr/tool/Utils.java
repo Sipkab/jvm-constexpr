@@ -30,11 +30,13 @@ import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodInsnNode
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodNode;
 
 public class Utils {
+
 	private Utils() {
 		throw new UnsupportedOperationException();
 	}
 
 	public static final String CONSTRUCTOR_METHOD_NAME = "<init>";
+	public static final String STATIC_INITIALIZER_METHOD_NAME = "<clinit>";
 
 	public static final String JAVA_LANG_STRING_INTERNAL_NAME = Type.getInternalName(String.class);
 	public static final String JAVA_LANG_OBJECT_INTERNAL_NAME = Type.getInternalName(Object.class);

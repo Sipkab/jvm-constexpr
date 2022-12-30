@@ -4,7 +4,9 @@ import sipka.jvm.constexpr.tool.options.ConstructorDeconstructorConfiguration;
 import sipka.jvm.constexpr.tool.options.DeconstructionSelector;
 import sipka.jvm.constexpr.tool.options.DeconstructorConfiguration;
 import sipka.jvm.constexpr.tool.options.FieldDeconstructorConfiguration;
+import sipka.jvm.constexpr.tool.options.MemberReference;
 import sipka.jvm.constexpr.tool.options.StaticMethodDeconstructorConfiguration;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodNode;
 
 final class ConfigSelectorConstantDeconstructor implements ConstantDeconstructor {
 	private final DeconstructionSelector selector;
@@ -15,8 +17,9 @@ final class ConfigSelectorConstantDeconstructor implements ConstantDeconstructor
 
 	@Override
 	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass,
-			Object value) {
-		DeconstructorConfiguration config = selector.chooseDeconstructorConfiguration(value);
+			MethodNode methodnode, Object value) {
+		DeconstructorConfiguration config = selector.chooseDeconstructorConfiguration(
+				new MemberReference(transclass.classNode.name, methodnode.name, methodnode.desc), value);
 		if (config == null) {
 			return null;
 		}
@@ -40,6 +43,6 @@ final class ConfigSelectorConstantDeconstructor implements ConstantDeconstructor
 			throw new IllegalArgumentException("Unrecognized " + DeconstructorConfiguration.class.getSimpleName()
 					+ " subclass: " + config.getClass());
 		}
-		return deconstructor.deconstructValue(context, transclass, value);
+		return deconstructor.deconstructValue(context, transclass, methodnode, value);
 	}
 }

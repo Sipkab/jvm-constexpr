@@ -91,7 +91,7 @@ class TransformedClass {
 					}
 				}
 			}
-			if ("<clinit>".equals(mn.name)) {
+			if (Utils.STATIC_INITIALIZER_METHOD_NAME.equals(mn.name)) {
 				if (clinitMethod != null) {
 					throw new IllegalArgumentException("Multiple <clinit> methods in class: " + classNode.name);
 				}

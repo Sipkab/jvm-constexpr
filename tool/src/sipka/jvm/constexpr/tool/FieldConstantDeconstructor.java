@@ -4,6 +4,7 @@ import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Opcodes;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.FieldInsnNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.InsnList;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodNode;
 
 /**
  * {@link ConstantDeconstructor} that places a {@link Opcodes#GETSTATIC GETSTATIC} instruction for the inlined value.
@@ -26,7 +27,7 @@ final class FieldConstantDeconstructor implements ConstantDeconstructor {
 
 	@Override
 	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass,
-			Object value) {
+			MethodNode methodnode, Object value) {
 		InsnList result = new InsnList();
 		result.add(new FieldInsnNode(Opcodes.GETSTATIC, ownerInternalName, fieldName, fieldDescriptor));
 		return DeconstructionResult.createField(result, Type.getObjectType(ownerInternalName), fieldName,

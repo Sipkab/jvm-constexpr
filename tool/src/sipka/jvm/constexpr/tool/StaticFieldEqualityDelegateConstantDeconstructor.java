@@ -6,6 +6,7 @@ import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Opcodes;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.FieldInsnNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.InsnList;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodNode;
 
 /**
  * {@link ConstantDeconstructor} that searches the given type with an equal static field to the inlined value. If found,
@@ -28,7 +29,7 @@ final class StaticFieldEqualityDelegateConstantDeconstructor implements Constant
 
 	@Override
 	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass,
-			Object value) {
+			MethodNode methodnode, Object value) {
 		DeconstructionResult fielddeconstruct = tryDeconstructEqualStaticField(context, transclass, type, value,
 				fieldNames);
 		if (fielddeconstruct != null) {
@@ -39,7 +40,7 @@ final class StaticFieldEqualityDelegateConstantDeconstructor implements Constant
 			return null;
 		}
 
-		return delegate.deconstructValue(context, transclass, value);
+		return delegate.deconstructValue(context, transclass, methodnode, value);
 	}
 
 	private static DeconstructionResult tryDeconstructEqualStaticField(ConstantExpressionInliner context,

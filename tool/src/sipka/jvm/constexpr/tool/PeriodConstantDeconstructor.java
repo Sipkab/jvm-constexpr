@@ -3,6 +3,7 @@ package sipka.jvm.constexpr.tool;
 import java.time.Period;
 
 import sipka.jvm.constexpr.tool.options.DeconstructionDataAccessor;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodNode;
 
 /**
  * {@link ConstantDeconstructor} for the {@link Period} class.
@@ -45,20 +46,20 @@ final class PeriodConstantDeconstructor implements ConstantDeconstructor {
 
 	@Override
 	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass,
-			Object value) {
+			MethodNode methodnode, Object value) {
 		Period period = (Period) value;
 		int y = period.getYears();
 		int m = period.getMonths();
 		int d = period.getDays();
 		if (y == 0 && m == 0) {
-			return daysDecon.deconstructValue(context, transclass, value);
+			return daysDecon.deconstructValue(context, transclass, methodnode, value);
 		}
 		if (y == 0 && d == 0) {
-			return monthsDecon.deconstructValue(context, transclass, value);
+			return monthsDecon.deconstructValue(context, transclass, methodnode, value);
 		}
 		if (m == 0 && d == 0) {
-			return yearsDecon.deconstructValue(context, transclass, value);
+			return yearsDecon.deconstructValue(context, transclass, methodnode, value);
 		}
-		return allDecon.deconstructValue(context, transclass, value);
+		return allDecon.deconstructValue(context, transclass, methodnode, value);
 	}
 }

@@ -20,7 +20,6 @@ import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -116,8 +115,6 @@ public class RunCommand {
 	@Parameter(value = { "-output" })
 	public String output;
 
-	private InlinerOptions options = new InlinerOptions();
-
 	private boolean outputZip;
 	private boolean outputDir;
 
@@ -181,12 +178,14 @@ public class RunCommand {
 		}
 		URLClassLoader cl = URLClassLoader.newInstance(classloaderurls.toArray(new URL[0]), getParentClassLoader());
 
+		InlinerOptions options = new InlinerOptions();
+
 		//scan the complete classpath for annotations
 		for (URL url : classpathurls) {
-			scanClasspath(url, cl, false);
+			scanClasspath(options, url, cl, false);
 		}
 		for (URL url : inputurls) {
-			scanClasspath(url, cl, true);
+			scanClasspath(options, url, cl, true);
 		}
 
 		options.setLogger(new AbstractSimpleToolLogger() {
@@ -269,7 +268,7 @@ public class RunCommand {
 		}
 	}
 
-	private void scanClasspath(URL url, URLClassLoader cl, boolean input) throws Exception {
+	private void scanClasspath(InlinerOptions options, URL url, URLClassLoader cl, boolean input) throws Exception {
 		if (!"file".equals(url.getProtocol())) {
 			throw new IllegalArgumentException("Unsupported URL protocol: " + url);
 		}
@@ -284,7 +283,7 @@ public class RunCommand {
 				for (Iterator<Path> it = walkstream.iterator(); it.hasNext();) {
 					Path p = it.next();
 					byte[] bytes = Files.readAllBytes(p);
-					if (outputZip) {
+					if (input && outputZip) {
 						ZipEntry ze = new ZipEntry(path.relativize(p).toString());
 						ze.setLastModifiedTime(Files.getLastModifiedTime(p));
 						outputZipEntryBytes.put(ze.getName(), new ZipEntryBytes(ze, bytes));
@@ -292,9 +291,9 @@ public class RunCommand {
 					if (p.getFileName().toString().endsWith(".class")) {
 						AnalyzerClassVisitor analyzer;
 						try {
-							analyzer = analyzeClassFile(bytes, cl);
+							analyzer = analyzeClassFile(options, bytes, cl);
 						} catch (Exception e) {
-							throw new RuntimeException("Failed to analyze " + path, e);
+							throw new RuntimeException("Failed to analyze " + p, e);
 						}
 						if (input) {
 							OutputHandler handler;
@@ -316,16 +315,16 @@ public class RunCommand {
 				byte[] bytes = Files.readAllBytes(path);
 				AnalyzerClassVisitor analyzer;
 				try {
-					analyzer = analyzeClassFile(bytes, cl);
+					analyzer = analyzeClassFile(options, bytes, cl);
 				} catch (Exception e) {
 					throw new RuntimeException("Failed to analyze " + path, e);
 				}
-				if (outputZip) {
-					ZipEntry ze = new ZipEntry(analyzer.classInternalName + ".class");
-					ze.setLastModifiedTime(Files.getLastModifiedTime(path));
-					outputZipEntryBytes.put(ze.getName(), new ZipEntryBytes(ze, bytes));
-				}
 				if (input) {
+					if (outputZip) {
+						ZipEntry ze = new ZipEntry(analyzer.classInternalName + ".class");
+						ze.setLastModifiedTime(Files.getLastModifiedTime(path));
+						outputZipEntryBytes.put(ze.getName(), new ZipEntryBytes(ze, bytes));
+					}
 					OutputHandler handler;
 					if (overwrite) {
 						handler = new ClassFileOutputHandler(path);
@@ -338,19 +337,21 @@ public class RunCommand {
 				try (InputStream is = Files.newInputStream(path);
 						ZipInputStream zis = pathfilename.endsWith(".jar") ? new JarInputStream(is)
 								: new ZipInputStream(is)) {
-					if (overwrite) {
-						overwriteZipFileOutputBytes.put(path, new HashMap<>());
+					if (input && overwrite) {
+						//init the output map of the overwriting archive
+						//use linked map to keep the entry order
+						overwriteZipFileOutputBytes.put(path, new LinkedHashMap<>());
 					}
 					for (ZipEntry ze; (ze = zis.getNextEntry()) != null;) {
 						byte[] bytes = Utils.readStream(zis);
 
-						if (outputZip) {
+						if (input && outputZip) {
 							outputZipEntryBytes.put(ze.getName(), new ZipEntryBytes(cloneZipEntry(ze), bytes));
 						}
 						if (ze.getName().endsWith(".class")) {
 							AnalyzerClassVisitor analyzer;
 							try {
-								analyzer = analyzeClassFile(bytes, cl);
+								analyzer = analyzeClassFile(options, bytes, cl);
 							} catch (Exception e) {
 								throw new RuntimeException("Failed to analyze " + ze.getName() + " in " + path, e);
 							}
@@ -453,12 +454,9 @@ public class RunCommand {
 		public void handle(byte[] bytes);
 	}
 
-	private AnalyzerClassVisitor analyzeClassFile(byte[] bytes, URLClassLoader cl) throws Exception {
+	private AnalyzerClassVisitor analyzeClassFile(InlinerOptions options, byte[] bytes, URLClassLoader cl)
+			throws Exception {
 		ClassReader cr = new ClassReader(bytes);
-		return analyzeClassReader(cr, cl);
-	}
-
-	private AnalyzerClassVisitor analyzeClassReader(ClassReader cr, URLClassLoader cl) throws Exception {
 		AnalyzerClassVisitor analyzer = new AnalyzerClassVisitor(ConstantExpressionInliner.ASM_API);
 		cr.accept(analyzer, ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
 		if (!analyzer.isAnyConstantRelatedSettings()) {
@@ -485,8 +483,8 @@ public class RunCommand {
 			}
 		}
 		for (NameDescriptor namedescriptor : analyzer.constantExpressionMethods) {
-			Method member = Utils.getMethodForMethodDescriptor(type, analyzer.classInternalName, namedescriptor.name,
-					namedescriptor.descriptor);
+			Method member = Utils.getMethodForMethodDescriptor(type, analyzer.classInternalName,
+					namedescriptor.descriptor, namedescriptor.name);
 			options.getConstantReconstructors().add(member);
 		}
 		List<Field> equalityfields = new ArrayList<>(analyzer.deconstructorFields.size());
@@ -644,14 +642,14 @@ public class RunCommand {
 				String[] exceptions) {
 			return new MethodVisitor(api, super.visitMethod(access, name, descriptor, signature, exceptions)) {
 				@Override
-				public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
-					if (CONSTANTEXPRESSION_DESCRIPTOR.equals(descriptor)) {
+				public AnnotationVisitor visitAnnotation(String annotdescriptor, boolean visible) {
+					if (CONSTANTEXPRESSION_DESCRIPTOR.equals(annotdescriptor)) {
 						constantExpressionMethods.add(new NameDescriptor(name, descriptor));
 					}
-					if (DECONSTRUCTOR_DESCRIPTOR.equals(descriptor)) {
+					if (DECONSTRUCTOR_DESCRIPTOR.equals(annotdescriptor)) {
 						deconstructorMethods.add(new NameDescriptor(name, descriptor));
 					}
-					return super.visitAnnotation(descriptor, visible);
+					return super.visitAnnotation(annotdescriptor, visible);
 				}
 			};
 		}
@@ -660,14 +658,14 @@ public class RunCommand {
 		public FieldVisitor visitField(int access, String name, String descriptor, String signature, Object value) {
 			return new FieldVisitor(api, super.visitField(access, name, descriptor, signature, value)) {
 				@Override
-				public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
-					if (CONSTANTEXPRESSION_DESCRIPTOR.equals(descriptor)) {
+				public AnnotationVisitor visitAnnotation(String annotdescriptor, boolean visible) {
+					if (CONSTANTEXPRESSION_DESCRIPTOR.equals(annotdescriptor)) {
 						constantExpressionFields.add(new NameDescriptor(name, descriptor));
 					}
-					if (DECONSTRUCTOR_DESCRIPTOR.equals(descriptor)) {
+					if (DECONSTRUCTOR_DESCRIPTOR.equals(annotdescriptor)) {
 						deconstructorFields.add(new NameDescriptor(name, descriptor));
 					}
-					return super.visitAnnotation(descriptor, visible);
+					return super.visitAnnotation(annotdescriptor, visible);
 				}
 			};
 		}

@@ -16,11 +16,13 @@ public interface DeconstructionSelector {
 	/**
 	 * Chooses the actual deconstructor configuration for the given value.
 	 * 
+	 * @param optimizedmethod
+	 *            The currently optimized method where the deconstruction is taking place.
 	 * @param value
 	 *            The constant value. Never <code>null</code>
 	 * @return The deconstructor configuration. May be <code>null</code> if the value cannot be deconstructed.
 	 */
-	public DeconstructorConfiguration chooseDeconstructorConfiguration(Object value);
+	public DeconstructorConfiguration chooseDeconstructorConfiguration(MemberReference optimizedmethod, Object value);
 
 	/**
 	 * Creates a new instance that always returns the argument configuration regardless of the value.

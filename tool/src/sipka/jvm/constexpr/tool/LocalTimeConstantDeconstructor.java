@@ -3,6 +3,7 @@ package sipka.jvm.constexpr.tool;
 import java.time.LocalTime;
 
 import sipka.jvm.constexpr.tool.options.DeconstructionDataAccessor;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodNode;
 
 /**
  * {@link ConstantDeconstructor} for the {@link LocalTime} class.
@@ -46,14 +47,14 @@ final class LocalTimeConstantDeconstructor implements ConstantDeconstructor {
 
 	@Override
 	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass,
-			Object value) {
+			MethodNode methodnode, Object value) {
 		LocalTime lt = (LocalTime) value;
 		if (lt.getNano() == 0) {
 			if (lt.getSecond() == 0) {
-				return hourMinDecon.deconstructValue(context, transclass, value);
+				return hourMinDecon.deconstructValue(context, transclass, methodnode, value);
 			}
-			return hourMinSecDecon.deconstructValue(context, transclass, value);
+			return hourMinSecDecon.deconstructValue(context, transclass, methodnode, value);
 		}
-		return allDecon.deconstructValue(context, transclass, value);
+		return allDecon.deconstructValue(context, transclass, methodnode, value);
 	}
 }
