@@ -303,10 +303,24 @@ public final class InlinerOptions {
 		return constantReconstructors;
 	}
 
+	/**
+	 * Sets the logger for the tool invocation.
+	 * <p>
+	 * The given logger will be called as the tool is processing the inputs.
+	 * 
+	 * @param logger
+	 *            The logger.
+	 */
 	public void setLogger(ToolLogger logger) {
 		this.logger = logger;
 	}
 
+	/**
+	 * Gets the logger.
+	 * 
+	 * @return The logger, may be <code>null</code> if not set.
+	 * @see #setLogger(ToolLogger)
+	 */
 	public ToolLogger getLogger() {
 		return logger;
 	}
