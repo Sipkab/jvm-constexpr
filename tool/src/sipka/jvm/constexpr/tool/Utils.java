@@ -1072,12 +1072,15 @@ public class Utils {
 		if (value == null) {
 			return "null";
 		}
-		if (value instanceof Byte)
+		if (value instanceof Byte) {
 			return String.format("(byte)0x%02x", (byte) value);
-		if (value instanceof Short)
+		}
+		if (value instanceof Short) {
 			return String.format("(short)%d", (short) value);
-		if (value instanceof Long)
+		}
+		if (value instanceof Long) {
 			return ((long) value) + "L";
+		}
 		if (value instanceof Float) {
 			float f = (float) value;
 
@@ -1102,8 +1105,12 @@ public class Utils {
 			String s = (String) value;
 			return '\"' + quote(s) + '\"';
 		}
-		if (value instanceof Integer || value instanceof Boolean)
+		if (value instanceof Integer || value instanceof Boolean) {
 			return value.toString();
+		}
+		if (value instanceof Type) {
+			return ((Type) value).getClassName() + ".class";
+		}
 		return value.toString();
 	}
 

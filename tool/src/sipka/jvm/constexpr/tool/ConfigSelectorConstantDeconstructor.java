@@ -37,8 +37,8 @@ final class ConfigSelectorConstantDeconstructor implements ConstantDeconstructor
 					fieldconfig.getMemberOwner().getInternalName(), config.getMemberName(),
 					fieldconfig.getFieldDescriptor().getDescriptor());
 		} else {
-			throw new IllegalArgumentException(
-					"Unrecognized " + ConstantDeconstructor.class.getSimpleName() + " subclass: " + config.getClass());
+			throw new IllegalArgumentException("Unrecognized " + DeconstructorConfiguration.class.getSimpleName()
+					+ " subclass: " + config.getClass());
 		}
 		return deconstructor.deconstructValue(context, transclass, value);
 	}
