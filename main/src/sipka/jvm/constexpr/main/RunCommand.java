@@ -523,11 +523,11 @@ public class RunCommand {
 				//search getter for paramname, that has a return type of paramtype
 				Collection<? extends Method> getters = searchGetter(type, paramtype, paramname);
 				if (getters.isEmpty()) {
-					throw new IllegalArgumentException("Getter not found for method deconstructor: " + e
-							+ " with parameter[" + i + "] " + paramtype + " " + paramname);
+					throw new IllegalArgumentException("Getter not found for deconstructor: " + e + " with parameter["
+							+ i + "] " + paramtype + " " + paramname);
 				}
 				if (getters.size() != 1) {
-					throw new IllegalArgumentException("Multiple getters found for method deconstructor: " + e
+					throw new IllegalArgumentException("Multiple getters found for deconstructor: " + e
 							+ " with parameter[" + i + "] " + paramtype + " " + paramname + ": " + getters);
 				}
 				Method gettermethod = getters.iterator().next();
@@ -556,14 +556,14 @@ public class RunCommand {
 			return;
 		}
 		for (Method m : type.getDeclaredMethods()) {
-			if (m.getReturnType() != paramtype) {
+			if (m.getReturnType() != paramtype || m.getParameterCount() != 0) {
 				continue;
 			}
 			String methodnamelowercase = m.getName().toLowerCase(Locale.ROOT);
 			if (!methodnamelowercase.contains(paramname)) {
 				continue;
 			}
-			if (methodnamelowercase.equals(paramname) || ("get" + methodnamelowercase).equals(paramname)) {
+			if (methodnamelowercase.equals(paramname) || methodnamelowercase.equals("get" + paramname)) {
 				methods.putIfAbsent(new NameDescriptor(m.getName(), Type.getMethodDescriptor(m)), m);
 			}
 		}

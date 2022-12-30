@@ -23,6 +23,7 @@ import sipka.jvm.constexpr.tool.log.BytecodeLocation;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Opcodes;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.AbstractInsnNode;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.FieldInsnNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.IntInsnNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.LabelNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.LineNumberNode;
@@ -798,7 +799,7 @@ public class Utils {
 			throws NoSuchMethodException {
 		if (CONSTRUCTOR_METHOD_NAME.equals(name)) {
 			String typeinternalname = Type.getInternalName(type);
-			if (typeinternalname.equals(owner)) {
+			if (!typeinternalname.equals(owner)) {
 				throw new NoSuchMethodException(
 						"Constructor not found in type: " + typeinternalname + " with owner: " + owner);
 			}
@@ -1003,6 +1004,50 @@ public class Utils {
 			}
 		}
 		return -1;
+	}
+
+	public static boolean isSameInsruction(AbstractInsnNode l, AbstractInsnNode r) {
+		if (l == null) {
+			return r == null;
+		}
+		switch (l.getOpcode()) {
+			case Opcodes.GETSTATIC:
+			case Opcodes.GETFIELD:
+			case Opcodes.PUTSTATIC:
+			case Opcodes.PUTFIELD:
+				return isSameInsruction((FieldInsnNode) l, r);
+			case Opcodes.INVOKEVIRTUAL:
+			case Opcodes.INVOKEINTERFACE:
+			case Opcodes.INVOKESTATIC:
+			case Opcodes.INVOKESPECIAL:
+				return isSameInsruction((MethodInsnNode) l, r);
+			default: {
+				throw new UnsupportedOperationException(Integer.toString(l.getOpcode()));
+			}
+		}
+	}
+
+	public static boolean isSameInsruction(FieldInsnNode l, AbstractInsnNode r) {
+		if (l == null) {
+			return r == null;
+		}
+		if (r == null) {
+			return false;
+		}
+		if (l.getOpcode() != r.getOpcode()) {
+			return false;
+		}
+		FieldInsnNode rn = (FieldInsnNode) r;
+		if (!l.owner.equals(rn.owner)) {
+			return false;
+		}
+		if (!l.name.equals(rn.name)) {
+			return false;
+		}
+		if (!l.desc.equals(rn.desc)) {
+			return false;
+		}
+		return true;
 	}
 
 	public static boolean isSameInsruction(MethodInsnNode l, AbstractInsnNode r) {

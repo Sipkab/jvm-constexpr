@@ -1047,13 +1047,16 @@ public class ConstantExpressionInliner {
 			//ok, no deconstruction necessary
 
 			if (logger != null) {
-				logger.log(new InstructionReplacementLogEntry(
-						new BytecodeLocation(transclass.input, transclass.classNode.name, fieldnode.name,
-								fieldnode.desc, -1),
-						reconstructedval.getStackInfo(),
-						AsmStackInfo.createStaticField(Type.getObjectType(transclass.classNode.name), fieldnode.name,
-								Type.getType(fieldnode.desc)),
-						constantval));
+				//log for all locations that were updated
+				AsmStackInfo fieldasminfo = AsmStackInfo.createStaticField(
+						Type.getObjectType(transclass.classNode.name), fieldnode.name, Type.getType(fieldnode.desc));
+
+				BytecodeLocation bytecodelocation = new BytecodeLocation(transclass.input, transclass.classNode.name,
+						fieldnode.name, fieldnode.desc, -1);
+				for (AsmStackReconstructedValue val : nvalues) {
+					logger.log(new InstructionReplacementLogEntry(bytecodelocation, val.getStackInfo(), fieldasminfo,
+							constantval));
+				}
 			}
 		} else {
 			ConstantDeconstructor deconstructor = getConstantDeconstructor(constantval);
@@ -1068,10 +1071,15 @@ public class ConstantExpressionInliner {
 				return true;
 			}
 
+			//TODO don't modify the instructions if the deconstructed instructions are the same as the ones already present
+
 			if (logger != null) {
-				logger.log(new InstructionReplacementLogEntry(
-						Utils.getBytecodeLocation(transclass, clinitmethodnode, reconstructedval.getLastIns()),
-						reconstructedval.getStackInfo(), deconsresult.getStackInfo(), constantval));
+				//log for all locations that were updated
+				for (AsmStackReconstructedValue val : nvalues) {
+					logger.log(new InstructionReplacementLogEntry(
+							Utils.getBytecodeLocation(transclass, clinitmethodnode, val.getLastIns()),
+							val.getStackInfo(), deconsresult.getStackInfo(), constantval));
+				}
 			}
 		}
 
