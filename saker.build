@@ -17,7 +17,10 @@ compile(
 		Identifier: annotations
 	)
 	$tooljavac = saker.java.compile(
-		tool/src/,
+		[
+			tool/src/,
+			thirdparty/asm/src/,
+		],
 		Identifier: tool
 	)
 	$mainjavac = saker.java.compile(
@@ -175,6 +178,7 @@ export(
 					annotations/src/
 					tool/src/
 					main/src/
+					thirdparty/asm/src/
 					$compile[annotationsjavac][SourceGenDirectory]
 					$compile[tooljavac][SourceGenDirectory]
 					$compile[mainjavac][SourceGenDirectory]
@@ -233,7 +237,9 @@ test_on_jdk(
 		TestClasses: [
 			testing.sipka.**.*Test
 		],
-		#ProcessJVMParameters: [ "-agentlib:jdwp=transport=dt_socket,address=localhost:5432,server=y,suspend=y,quiet=y" ],
+		ProcessJVMParameters: [ 
+			#"-agentlib:jdwp=transport=dt_socket,address=localhost:5432,server=y,suspend=y,quiet=y" 
+		],
 		NonDeterministicTests: **,
 		TestInvokerParameters: {
 			TimeoutMillis: 60000,
