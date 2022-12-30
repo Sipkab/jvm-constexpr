@@ -15,12 +15,21 @@ public class BoxedPrimitivesInlineTest extends SakerTestCase {
 
 	@Override
 	public void runTest(Map<String, String> parameters) throws Throwable {
-		NavigableMap<String, ClassNode> outputs = TestUtils.performInliningClassNodes(Constants.class);
-		assertEquals(outputs.size(), 1); // testing a single class
+		{
+			NavigableMap<String, ClassNode> outputs = TestUtils.performInliningClassNodes(Constants.class);
+			assertEquals(outputs.size(), 1); // testing a single class
 
-		ClassNode classnode = outputs.firstEntry().getValue();
-		TestUtils.assertSameStaticFieldValues(classnode, Constants.class);
-		assertNull(TestUtils.getClInitMethod(classnode), "clinit method");
+			ClassNode classnode = outputs.firstEntry().getValue();
+			TestUtils.assertSameStaticFieldValues(classnode, Constants.class);
+			assertNull(TestUtils.getClInitMethod(classnode), "clinit method");
+		}
+		{
+			NavigableMap<String, ClassNode> outputs = TestUtils.performInliningClassNodes(BoxedConstants.class);
+			assertEquals(outputs.size(), 1); // testing a single class
+
+			ClassNode classnode = outputs.firstEntry().getValue();
+			TestUtils.assertSameStaticFieldValues(classnode, BoxedConstants.class);
+		}
 	}
 
 	@SuppressWarnings("deprecation") // for new Primitive() constructors
@@ -149,6 +158,47 @@ public class BoxedPrimitivesInlineTest extends SakerTestCase {
 			strBoolean = Boolean.valueOf("true");
 			autoBoxBoolean = (Boolean) true;
 			objectPrimitiveBoolean = (boolean) (Object) true;
+		}
+	}
+
+	public static class BoxedConstants {
+
+		public static final Byte BOXEDBYTE = 123;
+		public static final Short BOXEDSHORT = 999;
+		public static final Integer BOXEDINTEGER = 999;
+		public static final Long BOXEDLONG = 999L;
+		public static final Float BOXEDFLOAT = 999f;
+		public static final Double BOXEDDOUBLE = 999d;
+		public static final Boolean BOXEDBOOLEAN = true;
+		public static final Character BOXEDCHARACTER = 'X';
+
+		static {
+			//to test that boxed instances are not inlined as constants
+			//bytecode validation would fail
+			if (Byte.valueOf((byte) 123) == BOXEDBYTE) {
+				System.out.println("TESTBYTE");
+			}
+			if (Short.valueOf((short) 123) == BOXEDSHORT) {
+				System.out.println("TESTSHORT");
+			}
+			if (Integer.valueOf(123) == BOXEDINTEGER) {
+				System.out.println("TESTINT");
+			}
+			if (Long.valueOf(123) == BOXEDLONG) {
+				System.out.println("TESTLONG");
+			}
+			if (Float.valueOf(123) == BOXEDFLOAT) {
+				System.out.println("TESTFLOAT");
+			}
+			if (Double.valueOf(123) == BOXEDDOUBLE) {
+				System.out.println("TESTDOUBLE");
+			}
+			if (Boolean.valueOf(false) == BOXEDBOOLEAN) {
+				System.out.println("TESTBOOLEAN");
+			}
+			if (Character.valueOf('Y') == BOXEDCHARACTER) {
+				System.out.println("TESTCHARACTER");
+			}
 		}
 	}
 }

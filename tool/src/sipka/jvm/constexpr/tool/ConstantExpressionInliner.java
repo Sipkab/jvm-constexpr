@@ -967,7 +967,7 @@ public class ConstantExpressionInliner {
 	private boolean inlineFieldValue(TransformedClass fieldowner, TransformedField transfield,
 			TransformedClass transclass) {
 		Object val = transfield.calculatedConstantValue.orElse(null);
-		if (!Utils.isConstantValue(val)) {
+		if (!Utils.isConstantInlineableAsLdc(val, Type.getType(transfield.fieldNode.desc))) {
 			//can't inline the value of this field
 			//probably because some custom class
 			return false;
@@ -1356,8 +1356,8 @@ public class ConstantExpressionInliner {
 						//the field should exist, but null check just in case
 
 						Object constval = transfield.calculatedConstantValue.orElse(null);
-						if (constval == null || constantTypes.containsKey(Type.getInternalName(constval.getClass()))
-								|| optionsConstantFields.containsKey(fieldkey)) {
+						if (constval == null || constantTypes.get(Type.getInternalName(constval.getClass())) != null
+								|| optionsConstantFields.get(fieldkey) != null) {
 							//only return if the type of the value is a constant type, otherwise it might get modified by other code
 							//and thus result in us using different values
 							return new SimpleConstantReconstructor(constval, AsmStackInfo.createStaticField(
@@ -1377,7 +1377,7 @@ public class ConstantExpressionInliner {
 				//getting field of an object
 				//the field is not marked as constant, otherwise a constant reconstructor would be set for it
 				FieldInsnNode fieldins = (FieldInsnNode) ins;
-				if (constantTypes.containsKey(fieldins.owner)) {
+				if (constantTypes.get(fieldins.owner) != null) {
 					//getting field of a constant type
 					//allow it
 					return new DynamicInstanceFieldBasedConstantReconstructor(fieldins.owner, fieldins.name,

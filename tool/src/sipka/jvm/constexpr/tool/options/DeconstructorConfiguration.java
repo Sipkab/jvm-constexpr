@@ -1,6 +1,7 @@
 package sipka.jvm.constexpr.tool.options;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Executable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -15,6 +16,17 @@ public class DeconstructorConfiguration {
 	DeconstructorConfiguration(Type memberOwner, String memberName) {
 		this.memberOwner = memberOwner;
 		this.memberName = memberName;
+	}
+
+	public static DeconstructorConfiguration createExecutable(Executable executable,
+			DeconstructionDataAccessor... parameterdataaccessors) throws NullPointerException {
+		if (executable instanceof Constructor<?>) {
+			return createConstructor((Constructor<?>) executable, parameterdataaccessors);
+		}
+		if (executable instanceof Method) {
+			return createStaticMethod((Method) executable, parameterdataaccessors);
+		}
+		throw new IllegalArgumentException("Invalid executable type: " + executable);
 	}
 
 	public static DeconstructorConfiguration createConstructor(Constructor<?> constructor,

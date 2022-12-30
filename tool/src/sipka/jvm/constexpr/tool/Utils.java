@@ -8,6 +8,7 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Executable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
@@ -791,6 +792,19 @@ public class Utils {
 		return true;
 	}
 
+	public static Executable getExecutableForDescriptor(Class<?> type, String owner, String name, String descriptor)
+			throws NoSuchMethodException {
+		if (CONSTRUCTOR_METHOD_NAME.equals(name)) {
+			String typeinternalname = Type.getInternalName(type);
+			if (typeinternalname.equals(owner)) {
+				throw new NoSuchMethodException(
+						"Constructor not found in type: " + typeinternalname + " with owner: " + owner);
+			}
+			return getConstructorForMethodDescriptor(type, descriptor);
+		}
+		return getMethodForMethodDescriptor(type, owner, descriptor, name);
+	}
+
 	public static Constructor<?> getConstructorForMethodDescriptor(Class<?> type, String descriptor)
 			throws NoSuchMethodException {
 		Type[] asmparamtypes = Type.getArgumentTypes(descriptor);
@@ -821,6 +835,29 @@ public class Utils {
 					return true;
 				}
 				return false;
+			default: {
+				return false;
+			}
+		}
+	}
+
+	public static boolean isConstantInlineableAsLdc(Object val, Type fieldtype) {
+		switch (fieldtype.getSort()) {
+			case Type.BOOLEAN:
+			case Type.CHAR:
+			case Type.BYTE:
+			case Type.SHORT:
+			case Type.INT:
+			case Type.FLOAT:
+			case Type.LONG:
+			case Type.DOUBLE:
+				return true;
+			case Type.OBJECT:
+				//only String can be inlined if the type of the field is non-primitive
+				if (!(val instanceof String)) {
+					return false;
+				}
+				return true;
 			default: {
 				return false;
 			}
@@ -882,6 +919,13 @@ public class Utils {
 			default: {
 				return null;
 			}
+		}
+	}
+
+	public static byte[] readStream(InputStream in) throws IOException {
+		try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+			copyStream(in, baos);
+			return baos.toByteArray();
 		}
 	}
 
@@ -986,6 +1030,12 @@ public class Utils {
 		int line = getLineNumber(methodnode, locationins);
 		return new BytecodeLocation(transclass.input, transclass.classNode.name, methodnode.name, methodnode.desc,
 				line);
+	}
+
+	public static String memberDescriptorToPrettyString(Type desctype, Type classtype, String name) {
+		StringBuilder sb = new StringBuilder();
+		appendMemberDescriptorPretty(sb, desctype, classtype, name);
+		return sb.toString();
 	}
 
 	public static void appendMemberDescriptorPretty(StringBuilder sb, Type desctype, Type classtype, String name) {

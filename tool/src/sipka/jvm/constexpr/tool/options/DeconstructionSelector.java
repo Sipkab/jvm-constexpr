@@ -1,5 +1,7 @@
 package sipka.jvm.constexpr.tool.options;
 
+import java.lang.reflect.Field;
+
 /**
  * Chooses how an object should be deconstructed back to the method stack.
  * <p>
@@ -31,5 +33,13 @@ public interface DeconstructionSelector {
 	 */
 	public static DeconstructionSelector create(DeconstructorConfiguration config) throws NullPointerException {
 		return new SimpleDeconstructionSelector(config);
+	}
+
+	public static DeconstructionSelector createStaticFieldEquality(Field[] fields, DeconstructionSelector delegate)
+			throws NullPointerException {
+		if (fields == null || fields.length == 0) {
+			return delegate;
+		}
+		return new StaticFieldEqualityDeconstructionSelector(delegate, fields);
 	}
 }
