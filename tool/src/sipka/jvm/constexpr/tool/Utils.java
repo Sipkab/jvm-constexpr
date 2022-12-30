@@ -851,6 +851,10 @@ public class Utils {
 			case Type.FLOAT:
 			case Type.LONG:
 			case Type.DOUBLE:
+				if (val == null) {
+					//this shouldn't really happen, but just in case
+					return false;
+				}
 				return true;
 			case Type.OBJECT:
 				//only String can be inlined if the type of the field is non-primitive
@@ -1110,6 +1114,9 @@ public class Utils {
 		}
 		if (value instanceof Type) {
 			return ((Type) value).getClassName() + ".class";
+		}
+		if (value instanceof Class<?>) {
+			return ((Class<?>) value).getCanonicalName() + ".class";
 		}
 		return value.toString();
 	}
