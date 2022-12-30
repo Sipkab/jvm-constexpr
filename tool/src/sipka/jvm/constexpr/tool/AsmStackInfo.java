@@ -11,7 +11,7 @@ import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
  * The class contains information about what was found on the method stack based on its instructions. It is usually used
  * to provide a meaningful explanation about how a given value was reconstructed or deconstructed to the stack.
  */
-public class AsmStackInfo {
+public final class AsmStackInfo {
 	private static final AsmStackInfo INSTANCE_NULL = new AsmStackInfo(Kind.NULL, null, null, null, null, null);
 
 	public static final AsmStackInfo[] EMPTY_ASMSTACKINFO_ARRAY = new AsmStackInfo[0];
