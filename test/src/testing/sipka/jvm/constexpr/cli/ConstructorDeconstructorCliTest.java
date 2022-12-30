@@ -26,8 +26,9 @@ public class ConstructorDeconstructorCliTest extends CliTestCase {
 
 		ClassNode classnode = TestUtils.loadClassNodeFromJar(outjarpath, Constants.class.getName());
 
-		//hashcode still present in clinit
 		assertNonNull(TestUtils.getClInitMethod(classnode), "clinit method");
+		//all invoke statics replaced with constructor/static field 
+		TestUtils.assertNoInvokeStaticInClInit(classnode);
 
 		ClassLoader outcl = TestUtils.createJarClassLoader(outjarpath);
 		Class<?> asmcontstantsclass = Class.forName(Constants.class.getName(), false, outcl);
