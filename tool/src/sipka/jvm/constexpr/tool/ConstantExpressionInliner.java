@@ -747,7 +747,6 @@ public class ConstantExpressionInliner {
 				}
 				case Opcodes.ANEWARRAY: {
 					TypeInsnNode typeins = (TypeInsnNode) ins;
-					Type componentasmtype = Type.getObjectType(typeins.desc);
 
 					AsmStackReconstructedValue sizeval = reconstructStackValue(context.withReceiverType(int.class),
 							ins.getPrevious());
@@ -768,17 +767,18 @@ public class ConstantExpressionInliner {
 					//an example like this:
 					//    String.format("%s", new NonAccessibleClass[]{});
 					//where if the component class is not accessible to the tool, then it would fail
-					Class<?> receivercomponenttyle;
-					if (receivertype == null) {
-						receivercomponenttyle = Utils.getClassForType(componentasmtype);
-						if (receivercomponenttyle == null) {
-							//fallback to object, so at least we can create the array
-							receivercomponenttyle = Object.class;
+					Type componentasmtype = Type.getObjectType(typeins.desc);
+					Class<?> arraycomponenttyle = Utils.getClassForType(componentasmtype);
+					if (arraycomponenttyle == null) {
+						if (receivertype != null) {
+							arraycomponenttyle = receivertype.getComponentType();
 						}
-					} else {
-						receivercomponenttyle = receivertype.getComponentType();
+						if (arraycomponenttyle == null) {
+							//fallback to object, so at least we can create the array
+							arraycomponenttyle = Object.class;
+						}
 					}
-					Object array = Array.newInstance(receivercomponenttyle, size);
+					Object array = Array.newInstance(arraycomponenttyle, size);
 
 					return new AsmStackReconstructedValue(sizeval.firstIns, endins,
 							AsmStackInfo.createArray(componentasmtype, sizeval.getStackInfo(), new AsmStackInfo[size]),
