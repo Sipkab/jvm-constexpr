@@ -27,10 +27,6 @@ class DeconstructionResult {
 		return new DeconstructionResult(instructions, AsmStackInfo.createConstant(value));
 	}
 
-	public static DeconstructionResult createNull(InsnList instructions) {
-		return new DeconstructionResult(instructions, AsmStackInfo.createNull());
-	}
-
 	public static DeconstructionResult createArray(InsnList instructions, Type componenttype, AsmStackInfo length,
 			AsmStackInfo[] elements) {
 		return new DeconstructionResult(instructions, AsmStackInfo.createArray(componenttype, length, elements));

@@ -1301,9 +1301,6 @@ public class Utils {
 	public static void appendAsmStackInfo(StringBuilder sb, AsmStackInfo info, String indentation) {
 		sb.append(indentation);
 		switch (info.getKind()) {
-			case NULL:
-				sb.append("null");
-				return;
 			case CONSTANT:
 				sb.append(formatConstant(info.getObject()));
 				return;

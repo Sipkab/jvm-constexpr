@@ -12,7 +12,7 @@ import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
  * to provide a meaningful explanation about how a given value was reconstructed or deconstructed to the stack.
  */
 public final class AsmStackInfo {
-	private static final AsmStackInfo INSTANCE_NULL = new AsmStackInfo(Kind.NULL, null, null, null, null, null);
+	private static final AsmStackInfo INSTANCE_NULL = new AsmStackInfo(Kind.CONSTANT, null, null, null, null, null);
 
 	public static final AsmStackInfo[] EMPTY_ASMSTACKINFO_ARRAY = new AsmStackInfo[0];
 
@@ -29,7 +29,6 @@ public final class AsmStackInfo {
 		ARRAY_LOAD,
 		ARRAY_LENGTH,
 		CONSTANT,
-		NULL,
 		OPERATOR,
 
 		;
@@ -52,11 +51,10 @@ public final class AsmStackInfo {
 	}
 
 	static AsmStackInfo createConstant(Object value) {
+		if (value == null) {
+			return INSTANCE_NULL;
+		}
 		return new AsmStackInfo(Kind.CONSTANT, null, null, null, value, null);
-	}
-
-	static AsmStackInfo createNull() {
-		return INSTANCE_NULL;
 	}
 
 	static AsmStackInfo createArray(Type componenttype, AsmStackInfo length, AsmStackInfo[] elements) {
@@ -164,7 +162,7 @@ public final class AsmStackInfo {
 	 * Gets the object associated with the info.
 	 * <p>
 	 * <ul>
-	 * <li>{@link Kind#CONSTANT}: The constant object</li>
+	 * <li>{@link Kind#CONSTANT}: The constant object. May be <code>null</code> if the value was <code>null</code>.</li>
 	 * <li>{@link Kind#ARRAY}: The length value stack info. An instance of {@link AsmStackInfo}.</li>
 	 * <li>{@link Kind#ARRAY_LOAD}: The array stack info. An instance of {@link AsmStackInfo}.</li>
 	 * <li>{@link Kind#ARRAY_LENGTH}: The array stack info. May not contain information about the individual elements.
@@ -317,7 +315,6 @@ public final class AsmStackInfo {
 					sb.append(elem);
 				}
 				break;
-			case NULL:
 			default: {
 				sb.append(kind.name());
 				break;

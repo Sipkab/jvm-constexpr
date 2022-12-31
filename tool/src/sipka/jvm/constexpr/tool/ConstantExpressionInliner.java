@@ -646,7 +646,7 @@ public class ConstantExpressionInliner {
 					return AsmStackReconstructedValue.createConstant(ins, endins,
 							Utils.asmCastValueToReceiverType(1d, receivertype));
 				case Opcodes.ACONST_NULL:
-					return new AsmStackReconstructedValue(ins, endins, AsmStackInfo.createNull(), null);
+					return new AsmStackReconstructedValue(ins, endins, AsmStackInfo.createConstant(null), null);
 
 				case Opcodes.CHECKCAST: {
 					return reconstructUnaryOperator(context, ins, endins, opcode, receivertype);
@@ -1105,14 +1105,12 @@ public class ConstantExpressionInliner {
 							break;
 						}
 						AbstractInsnNode addins;
-						AsmStackInfo replacementinfo;
 						if (val == null) {
 							addins = new InsnNode(Opcodes.ACONST_NULL);
-							replacementinfo = AsmStackInfo.createNull();
 						} else {
 							addins = new LdcInsnNode(val);
-							replacementinfo = AsmStackInfo.createConstant(val);
 						}
+						AsmStackInfo replacementinfo = AsmStackInfo.createConstant(val);
 						instructions.insert(ins, addins);
 						instructions.remove(ins);
 
@@ -1324,7 +1322,7 @@ public class ConstantExpressionInliner {
 				if (val == null) {
 					InsnList result = new InsnList();
 					result.add(new InsnNode(Opcodes.ACONST_NULL));
-					return DeconstructionResult.createNull(result);
+					return DeconstructionResult.createConstant(result, null);
 				}
 				if (val instanceof Class) {
 					InsnList result = new InsnList();
