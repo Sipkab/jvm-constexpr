@@ -55,6 +55,12 @@ public class StringBuilderInlineTest extends SakerTestCase {
 		public static final String S4 = "a" + "b";
 		public static final String S5 = Integer.valueOf(123) + String.valueOf(456);
 
+		public static final String SB1 = new StringBuilder().append("abc").append(123).append(true).append('x')
+				.toString();
+		public static final String SB2 = new StringBuilder().append("abc").append(S5).append(true).append('x')
+				.toString();
+		public static final String SB3 = new StringBuilder("xyz").append("abc").append(S5).append(true).append('x')
+				.toString();
 	}
 
 	public static class SbCoalesce {
