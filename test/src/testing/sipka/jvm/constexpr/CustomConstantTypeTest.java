@@ -26,7 +26,7 @@ public class CustomConstantTypeTest extends SakerTestCase {
 
 		Map<Class<?>, DeconstructionSelector> deconstructorConfigurations = new HashMap<>();
 		deconstructorConfigurations.put(MyConstantClass.class,
-				DeconstructionSelector.create(
+				DeconstructionSelector.getForConfiguration(
 						DeconstructorConfiguration.createConstructor(MyConstantClass.class.getConstructor(int.class),
 								DeconstructionDataAccessor.createForMethod(MyConstantClass.class, "getVal"))));
 		opts.setDeconstructorConfigurations(deconstructorConfigurations);

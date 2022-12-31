@@ -20,6 +20,7 @@ import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -138,6 +139,8 @@ public class RunCommand {
 	//use LinkedHashMap to keep the order as it was read on the classpath
 	private Map<String, ZipEntryBytes> outputZipEntryBytes = new LinkedHashMap<>();
 
+	protected Map<Class<?>, DeconstructorSettings> deconstructorSettings = new HashMap<>();
+
 	public void call() throws Exception {
 		if (overwrite && output != null) {
 			throw new IllegalArgumentException(
@@ -186,6 +189,16 @@ public class RunCommand {
 		}
 		for (URL url : inputurls) {
 			scanClasspath(options, url, cl, true);
+		}
+
+		for (Entry<Class<?>, DeconstructorSettings> entry : deconstructorSettings.entrySet()) {
+			DeconstructorSettings settings = entry.getValue();
+			DeconstructionSelector selector = settings.toDeconstructionSelector();
+			if (selector == null) {
+				//not configured, only the settings instance is present
+				continue;
+			}
+			options.getDeconstructorConfigurations().put(entry.getKey(), selector);
 		}
 
 		options.setLogger(new AbstractSimpleToolLogger() {
@@ -491,6 +504,7 @@ public class RunCommand {
 					namedescriptor.descriptor, namedescriptor.name);
 			options.getConstantReconstructors().add(member);
 		}
+
 		List<Field> equalityfields = new ArrayList<>(analyzer.deconstructorFields.size());
 		for (NameDescriptor namedescriptor : analyzer.deconstructorFields) {
 			Field field = Utils.getFieldForDescriptor(type, namedescriptor.name, namedescriptor.descriptor);
@@ -508,13 +522,14 @@ public class RunCommand {
 				continue;
 			}
 			equalityfields.add(field);
+			deconstructorSettings.computeIfAbsent(field.getType(), x -> new DeconstructorSettings()).addField(field);
 		}
-		DeconstructionSelector methodselector = null;
+
 		if (analyzer.deconstructorMethods.size() > 1) {
 			throw new IllegalArgumentException(
 					"Multiple method deconstructors specified for: " + analyzer.classInternalName);
 		}
-		//TODO support multiple deconstructors
+		//TODO support multiple executable deconstructors
 		for (NameDescriptor namedescriptor : analyzer.deconstructorMethods) {
 			Executable e = Utils.getExecutableForDescriptor(type, analyzer.classInternalName, namedescriptor.name,
 					namedescriptor.descriptor);
@@ -537,13 +552,9 @@ public class RunCommand {
 				Method gettermethod = getters.iterator().next();
 				parameterdataaccessors[i] = DeconstructionDataAccessor.createForMethod(gettermethod);
 			}
-			methodselector = DeconstructionSelector
-					.create(DeconstructorConfiguration.createExecutable(e, parameterdataaccessors));
-		}
-		DeconstructionSelector deconstructorselector = DeconstructionSelector
-				.createStaticFieldEquality(equalityfields.toArray(new Field[0]), methodselector);
-		if (deconstructorselector != null) {
-			options.getDeconstructorConfigurations().put(type, deconstructorselector);
+			deconstructorSettings
+					.computeIfAbsent(Utils.getExecutableEffectiveReturnType(e), x -> new DeconstructorSettings())
+					.addExecutable(DeconstructorConfiguration.createExecutable(e, parameterdataaccessors));
 		}
 		return analyzer;
 	}
@@ -599,6 +610,35 @@ public class RunCommand {
 		public ZipEntryBytes(ZipEntry zipEntry, byte[] bytes) {
 			this.zipEntry = zipEntry;
 			this.bytes = bytes;
+		}
+	}
+
+	private static final class DeconstructorSettings {
+
+		private Collection<Field> equalityFields = new LinkedHashSet<>();
+		private Collection<DeconstructorConfiguration> executableConfigurations = new LinkedHashSet<>();
+
+		public DeconstructionSelector toDeconstructionSelector() {
+			if (executableConfigurations.size() > 1) {
+				throw new IllegalArgumentException("Too many executable deconstructors: " + executableConfigurations);
+			}
+			DeconstructionSelector execdecons;
+			if (!executableConfigurations.isEmpty()) {
+				execdecons = DeconstructionSelector.getForConfiguration(executableConfigurations.iterator().next());
+			} else {
+				execdecons = null;
+			}
+			return DeconstructionSelector.getMultiSelector(
+					DeconstructionSelector.getStaticFieldEquality(equalityFields.toArray(new Field[0])), execdecons);
+		}
+
+		public void addField(Field field) {
+			equalityFields.add(field);
+
+		}
+
+		public void addExecutable(DeconstructorConfiguration execconfig) {
+			executableConfigurations.add(execconfig);
 		}
 	}
 

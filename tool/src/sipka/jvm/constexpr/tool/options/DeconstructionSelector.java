@@ -1,6 +1,9 @@
 package sipka.jvm.constexpr.tool.options;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 
 /**
  * Chooses how an object should be deconstructed back to the method stack.
@@ -10,7 +13,7 @@ import java.lang.reflect.Field;
  * <p>
  * Clients may implement this interface.
  * <p>
- * Use {@link #create(DeconstructorConfiguration)} for a simple instance that always uses the given config.
+ * Use {@link #getForConfiguration(DeconstructorConfiguration)} for a simple instance that always uses the given config.
  */
 public interface DeconstructionSelector {
 	/**
@@ -33,15 +36,50 @@ public interface DeconstructionSelector {
 	 * @throws NullPointerException
 	 *             If the argument is <code>null</code>.
 	 */
-	public static DeconstructionSelector create(DeconstructorConfiguration config) throws NullPointerException {
+	public static DeconstructionSelector getForConfiguration(DeconstructorConfiguration config)
+			throws NullPointerException {
 		return new SimpleDeconstructionSelector(config);
 	}
 
-	public static DeconstructionSelector createStaticFieldEquality(Field[] fields, DeconstructionSelector delegate)
-			throws NullPointerException {
-		if (fields == null || fields.length == 0) {
-			return delegate;
+	public static DeconstructionSelector getStaticFieldEquality(Field... fields) throws NullPointerException {
+		Objects.requireNonNull(fields, "fields");
+		if (fields.length == 0) {
+			return null;
 		}
-		return new StaticFieldEqualityDeconstructionSelector(delegate, fields);
+		for (int i = 0; i < fields.length; i++) {
+			if (fields[i] == null) {
+				throw new NullPointerException("fields[" + i + "]");
+			}
+		}
+		//defensive copy
+		return new StaticFieldEqualityDeconstructionSelector(fields.clone());
+	}
+
+	public static DeconstructionSelector getMultiSelector(DeconstructionSelector... delegates)
+			throws NullPointerException {
+		if (delegates.length == 0) {
+			return null;
+		}
+		List<DeconstructionSelector> createdelegates = new ArrayList<>();
+		for (int i = 0; i < delegates.length; i++) {
+			DeconstructionSelector selector = delegates[i];
+			if (selector == null) {
+				continue;
+			}
+			if (selector instanceof MultiDeconstructionSelector) {
+				for (DeconstructionSelector subselector : ((MultiDeconstructionSelector) selector).getDelegates()) {
+					createdelegates.add(subselector);
+				}
+			} else {
+				createdelegates.add(selector);
+			}
+		}
+		if (createdelegates.isEmpty()) {
+			return null;
+		}
+		if (createdelegates.size() == 1) {
+			return createdelegates.get(0);
+		}
+		return new MultiDeconstructionSelector(createdelegates);
 	}
 }

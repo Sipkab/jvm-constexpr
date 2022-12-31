@@ -1470,4 +1470,17 @@ public class Utils {
 			throw new RuntimeException(e);
 		}
 	}
+
+	public static Class<?> getExecutableEffectiveReturnType(Executable e) {
+		if (e == null) {
+			return null;
+		}
+		if (e instanceof Method) {
+			return ((Method) e).getReturnType();
+		}
+		if (e instanceof Constructor<?>) {
+			return e.getDeclaringClass();
+		}
+		throw new IllegalArgumentException("Unknown executable: " + e);
+	}
 }

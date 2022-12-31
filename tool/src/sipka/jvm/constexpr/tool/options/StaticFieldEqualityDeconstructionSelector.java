@@ -6,11 +6,9 @@ import sipka.jvm.constexpr.tool.Utils;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 
 final class StaticFieldEqualityDeconstructionSelector implements DeconstructionSelector {
-	private final DeconstructionSelector delegate;
 	private final Field[] fields;
 
-	public StaticFieldEqualityDeconstructionSelector(DeconstructionSelector delegate, Field[] fields) {
-		this.delegate = delegate;
+	public StaticFieldEqualityDeconstructionSelector(Field[] fields) {
 		this.fields = fields;
 	}
 
@@ -33,10 +31,7 @@ final class StaticFieldEqualityDeconstructionSelector implements DeconstructionS
 				e.printStackTrace();
 			}
 		}
-		if (delegate == null) {
-			return null;
-		}
-		return delegate.chooseDeconstructorConfiguration(optimizedmethod, value);
+		return null;
 	}
 
 }

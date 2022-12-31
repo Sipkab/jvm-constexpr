@@ -541,7 +541,7 @@ class BaseConfig {
 				(k, decon) -> new StaticFieldEqualityDelegateConstantDeconstructor(decon, OffsetDateTime.class, "MIN",
 						"MAX"));
 
-		addConstructorBasedDeconstructor(baseConstantDeconstructors, StringBuilder.class, "toString");
+		setDeconstructor(baseConstantDeconstructors, StringBuilder.class, StringBuilderConstantDeconstructor.INSTANCE);
 	}
 
 	private static void initConstantTypes(Map<String, Class<?>> baseConstantTypes,

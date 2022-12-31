@@ -126,7 +126,12 @@ public class ConstantExpressionInliner {
 		for (Entry<Class<?>, ? extends DeconstructionSelector> configentry : options.getDeconstructorConfigurations()
 				.entrySet()) {
 			DeconstructionSelector selector = configentry.getValue();
-			constantDeconstructors.put(configentry.getKey(), new ConfigSelectorConstantDeconstructor(selector));
+			if (selector == null) {
+				//override to remove
+				constantDeconstructors.remove(configentry.getKey());
+			} else {
+				constantDeconstructors.put(configentry.getKey(), new ConfigSelectorConstantDeconstructor(selector));
+			}
 		}
 		for (Member e : options.getConstantReconstructors()) {
 			//so we can surely call it later
