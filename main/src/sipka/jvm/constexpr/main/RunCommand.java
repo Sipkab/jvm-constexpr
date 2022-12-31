@@ -362,6 +362,10 @@ public class RunCommand {
 								handler = getOutputHandler(analyzer, null, ze);
 							}
 							if (input) {
+								if (ze.getName().startsWith("META-INF/versions/")) {
+									//not supported (yet?)
+									throw new IllegalArgumentException("Multi-release JARs are not supported: " + path);
+								}
 								options.getInputs().add(ToolInput.createWithBytes(handler, bytes));
 							}
 						}
