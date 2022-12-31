@@ -933,7 +933,7 @@ public class ConstantExpressionInliner {
 				break;
 			}
 			Class<?> reftype = entry.getValue().type;
-			if (Type.getInternalName(reftype).equals(typeinternalname)) {
+			if (reftype != null && Type.getInternalName(reftype).equals(typeinternalname)) {
 				return reftype;
 			}
 		}
