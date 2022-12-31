@@ -80,6 +80,15 @@ public class ChronoInlineTest extends SakerTestCase {
 		public static final String DUR9 = Duration.parse("PT1S").minusSeconds(1).toString();
 		public static final long DUR10 = Duration.parse("PT12.34S").get(ChronoUnit.SECONDS);
 		public static final long DUR11 = Duration.parse("PT12.34S").get(ChronoUnit.NANOS);
+		public static final String DUR12 = Duration.ofMillis(-1).toString();
+		public static final String DUR13 = Duration.ofSeconds(10).toString();
+		public static final String DUR14 = Duration.ofMinutes(11).toString();
+		public static final String DUR15 = Duration.ofSeconds(10, 123000000L).toString();
+		public static final String DUR16 = Duration.ofSeconds(10, 123456000L).toString();
+		public static final String DUR17 = Duration.ofSeconds(10, 123456789L).toString();
+		public static final String DUR18 = Duration.ofSeconds(0, 123000000L).toString();
+		public static final String DUR19 = Duration.ofSeconds(0, 123456000L).toString();
+		public static final String DUR20 = Duration.ofSeconds(0, 123456789L).toString();
 
 		public static final String PER1 = Period.parse("P2Y").toString();
 		public static final String PER2 = Period.parse("P2M").toString();

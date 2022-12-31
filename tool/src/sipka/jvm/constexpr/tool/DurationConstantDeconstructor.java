@@ -21,7 +21,13 @@ final class DurationConstantDeconstructor implements ConstantDeconstructor {
 			ConstantDeconstructor secondsbaseddeconstructor = StaticMethodBasedDeconstructor
 					.createStaticFactoryDeconstructor(Duration.class, "ofSeconds",
 							DeconstructionDataAccessor.createForMethod(Duration.class, "getSeconds"));
-			instance = new DurationConstantDeconstructor(nanosbaseddeconstructor, secondsbaseddeconstructor);
+			ConstantDeconstructor millisdeconstructor = StaticMethodBasedDeconstructor.createStaticFactoryDeconstructor(
+					Duration.class, "ofMillis", DeconstructionDataAccessor.createForMethod(Duration.class, "toMillis"));
+
+			ConstantDeconstructor nanosdecosntructor = StaticMethodBasedDeconstructor.createStaticFactoryDeconstructor(
+					Duration.class, "ofNanos", DeconstructionDataAccessor.createForMethod(Duration.class, "toNanos"));
+			instance = new DurationConstantDeconstructor(nanosbaseddeconstructor, secondsbaseddeconstructor,
+					millisdeconstructor, nanosdecosntructor);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -30,21 +36,45 @@ final class DurationConstantDeconstructor implements ConstantDeconstructor {
 	}
 	private final ConstantDeconstructor secondsAndNanosDeconstructor;
 	private final ConstantDeconstructor secondsDeconstructor;
+	private final ConstantDeconstructor millisDeconstructor;
+	private final ConstantDeconstructor nanosDeconstructor;
 
-	public DurationConstantDeconstructor(ConstantDeconstructor nanosbaseddeconstructor,
-			ConstantDeconstructor secondsbaseddeconstructor) {
-		this.secondsAndNanosDeconstructor = nanosbaseddeconstructor;
-		this.secondsDeconstructor = secondsbaseddeconstructor;
+	public DurationConstantDeconstructor(ConstantDeconstructor secondsAndNanosDeconstructor,
+			ConstantDeconstructor secondsDeconstructor, ConstantDeconstructor millisDeconstructor,
+			ConstantDeconstructor nanosDeconstructor) {
+		this.secondsAndNanosDeconstructor = secondsAndNanosDeconstructor;
+		this.secondsDeconstructor = secondsDeconstructor;
+		this.millisDeconstructor = millisDeconstructor;
+		this.nanosDeconstructor = nanosDeconstructor;
 	}
 
 	@Override
 	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass,
 			MethodNode methodnode, Object value) {
-		//if the nanos part of the Duration is 0, then we can use the ofSeconds(long) method instead of ofSeconds(long,long)
-		//for deconstruction
 		Duration dur = (Duration) value;
-		if (dur.getNano() == 0) {
+		try {
+			//call to check arithmetic overflow
+			dur.toNanos();
+			return nanosDeconstructor.deconstructValue(context, transclass, methodnode, value);
+		} catch (ArithmeticException e) {
+			// overflow, doesn't work
+		}
+		int nano = dur.getNano();
+		if (nano == 0) {
+			//if the nanos part of the Duration is 0, then we can use the ofSeconds(long) method instead of ofSeconds(long,long)
+			//for deconstruction
 			return secondsDeconstructor.deconstructValue(context, transclass, methodnode, value);
+		}
+		if ((nano % 1_000_000) == 0) {
+			//the nano and microseconds part is zero
+			//so the resolution is not finer than milliseconds
+			try {
+				//call to check arithmetic overflow
+				dur.toMillis();
+				return millisDeconstructor.deconstructValue(context, transclass, methodnode, value);
+			} catch (ArithmeticException e) {
+				// overflow, doesn't work
+			}
 		}
 		return secondsAndNanosDeconstructor.deconstructValue(context, transclass, methodnode, value);
 	}
