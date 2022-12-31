@@ -1075,21 +1075,33 @@ public class ConstantExpressionInliner {
 		AsmStackReconstructedValue reconstructedval = nvalues.iterator().next();
 		Object constantval = reconstructedval.getValue();
 		DeconstructionResult deconsresult = null;
+
+		InsnList instructions = clinitmethodnode.instructions;
 		if (transfield.setCalculatedConstantValue(constantval)) {
 			//ok, no deconstruction necessary
 
+			AsmStackInfo fieldasminfo = null;
+			BytecodeLocation bytecodelocation = null;
 			if (logger != null) {
 				//log for all locations that were updated
-				AsmStackInfo fieldasminfo = AsmStackInfo.createStaticField(
-						Type.getObjectType(transclass.classNode.name), fieldnode.name, Type.getType(fieldnode.desc));
+				fieldasminfo = AsmStackInfo.createStaticField(Type.getObjectType(transclass.classNode.name),
+						fieldnode.name, Type.getType(fieldnode.desc));
 
-				BytecodeLocation bytecodelocation = new BytecodeLocation(transclass.input, transclass.classNode.name,
-						fieldnode.name, fieldnode.desc, -1);
-				for (AsmStackReconstructedValue val : nvalues) {
+				bytecodelocation = new BytecodeLocation(transclass.input, transclass.classNode.name, fieldnode.name,
+						fieldnode.desc, -1);
+			}
+
+			for (AsmStackReconstructedValue val : nvalues) {
+				val.removeInstructions(instructions);
+
+				//remove the PUTSTATIC as well
+				instructions.remove(val.getLastIns());
+				if (logger != null) {
 					logger.log(new InstructionReplacementLogEntry(bytecodelocation, val.getStackInfo(), fieldasminfo,
 							constantval));
 				}
 			}
+
 		} else {
 			ConstantDeconstructor deconstructor = getConstantDeconstructor(constantval);
 			if (deconstructor == null) {
@@ -1105,29 +1117,20 @@ public class ConstantExpressionInliner {
 
 			//TODO don't modify the instructions if the deconstructed instructions are the same as the ones already present
 
-			if (logger != null) {
-				//log for all locations that were updated
-				for (AsmStackReconstructedValue val : nvalues) {
+			for (AsmStackReconstructedValue val : nvalues) {
+				val.removeInstructions(instructions);
+				//insert before the PUTSTATIC instruction
+				instructions.insertBefore(val.getLastIns(), Utils.clone(deconsresult.getInstructions()));
+				if (logger != null) {
+					//log for all locations that were updated
 					logger.log(new InstructionReplacementLogEntry(
 							Utils.getBytecodeLocation(transclass, clinitmethodnode, val.getLastIns()),
 							val.getStackInfo(), deconsresult.getStackInfo(), constantval));
 				}
 			}
+
 		}
 
-		InsnList instructions = clinitmethodnode.instructions;
-
-		for (AsmStackReconstructedValue val : nvalues) {
-			val.removeInstructions(instructions);
-			if (deconsresult != null) {
-				//the deconstructed instructions list is cleared, but its okay, because only inserted once
-				//insert before the PUTSTATIC instruction
-				instructions.insertBefore(val.getLastIns(), deconsresult.getInstructions());
-			} else {
-				//remove the PUTSTATIC as well
-				instructions.remove(val.getLastIns());
-			}
-		}
 		return true;
 	}
 

@@ -24,6 +24,7 @@ import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Opcodes;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.AbstractInsnNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.FieldInsnNode;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.InsnList;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.IntInsnNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.LabelNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.LineNumberNode;
@@ -1482,5 +1483,17 @@ public class Utils {
 			return e.getDeclaringClass();
 		}
 		throw new IllegalArgumentException("Unknown executable: " + e);
+	}
+
+	public static InsnList clone(InsnList list) {
+		if (list == null) {
+			return null;
+		}
+		Map<LabelNode, LabelNode> labelclones = new HashMap<>();
+		InsnList result = new InsnList();
+		for (AbstractInsnNode ins = list.getFirst(); ins != null; ins = ins.getNext()) {
+			result.add(ins.clone(labelclones));
+		}
+		return result;
 	}
 }

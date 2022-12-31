@@ -55,6 +55,15 @@ public class CustomConstantTypeTest extends SakerTestCase {
 
 		public static final int HASHCODE1 = CC1.hashCode();
 
+		public static final MyConstantClass MULTIPATH;
+		static {
+			if (Boolean.getBoolean("test")) {
+				MULTIPATH = MyConstantClass.create(123);
+			} else {
+				MULTIPATH = MyConstantClass.create(123);
+			}
+		}
+
 	}
 
 	public static class MyConstantClass {
