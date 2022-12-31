@@ -36,6 +36,11 @@ class TransformedClass {
 			this.fieldNode = fieldNode;
 		}
 
+		/**
+		 * @param val
+		 * @return <code>true</code> if the field value is either <code>null</code> or was inlined to
+		 *             {@link FieldNode#value}.
+		 */
 		public boolean setCalculatedConstantValue(Object val) {
 			if (this.calculatedConstantValue != null) {
 				throw new IllegalStateException(
