@@ -90,6 +90,10 @@ public class ArrayFieldTest extends SakerTestCase {
 		public static final int ARRGETPI = new int[] { 1, 2, 3 }[Integer.parseInt("2")];
 		public static final int ARRGETNV = (new int[3])[2];
 
+		public static final int LENGTH = new int[99].length;
+		public static final int LENGTH2 = new int[] { 1, 2, 3 }.length;
+		public static final int LENGTH3 = new Number[] { 1, 2, 3 }.length;
+
 		private static byte[] computer() {
 			return "COMPUTED".getBytes(StandardCharsets.UTF_8);
 		}

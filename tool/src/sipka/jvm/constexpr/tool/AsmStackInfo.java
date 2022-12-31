@@ -27,6 +27,7 @@ public final class AsmStackInfo {
 		FIELD,
 		ARRAY,
 		ARRAY_LOAD,
+		ARRAY_LENGTH,
 		CONSTANT,
 		NULL,
 		OPERATOR,
@@ -64,6 +65,10 @@ public final class AsmStackInfo {
 
 	static AsmStackInfo createArrayLoad(AsmStackInfo arrayobject, AsmStackInfo index) {
 		return new AsmStackInfo(Kind.ARRAY_LOAD, null, null, null, arrayobject, new AsmStackInfo[] { index });
+	}
+
+	static AsmStackInfo createArrayLength(AsmStackInfo arrayobject) {
+		return new AsmStackInfo(Kind.ARRAY_LENGTH, null, null, null, arrayobject, null);
 	}
 
 	static AsmStackInfo createConstructor(Type instancetype, Type methoddescriptor, AsmStackInfo[] arguments) {
@@ -162,6 +167,8 @@ public final class AsmStackInfo {
 	 * <li>{@link Kind#CONSTANT}: The constant object</li>
 	 * <li>{@link Kind#ARRAY}: The length value stack info. An instance of {@link AsmStackInfo}.</li>
 	 * <li>{@link Kind#ARRAY_LOAD}: The array stack info. An instance of {@link AsmStackInfo}.</li>
+	 * <li>{@link Kind#ARRAY_LENGTH}: The array stack info. May not contain information about the individual elements.
+	 * An instance of {@link AsmStackInfo}.</li>
 	 * <li>{@link Kind#METHOD}: The instance object of the method call. The object has a type of
 	 * {@link AsmStackInfo}.</li>
 	 * <li>{@link Kind#FIELD}: The instance object of the field access. The object has a type of
@@ -180,7 +187,8 @@ public final class AsmStackInfo {
 	 * <p>
 	 * <ul>
 	 * <li>{@link Kind#ARRAY}: The array elements. Has the same length as the array itself, might have <code>null</code>
-	 * elements.</li>
+	 * elements. Might not be filled at all when the array is part of an {@link Kind#ARRAY_LENGTH ARRAY_LENGTH} stack
+	 * info.</li>
 	 * <li>{@link Kind#ARRAY_LOAD}: The index of the array load instruction. A 1 length array with the 0 index element
 	 * as the index stack info, with type of {@link AsmStackInfo}.</li>
 	 * <li>{@link Kind#CONSTRUCTOR}: The method arguments.</li>
@@ -260,6 +268,10 @@ public final class AsmStackInfo {
 					sb.append(elem);
 				}
 				sb.append("]");
+				break;
+			}
+			case ARRAY_LENGTH: {
+				sb.append(kind.name());
 				break;
 			}
 			case CONSTANT:

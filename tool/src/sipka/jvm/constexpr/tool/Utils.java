@@ -1379,6 +1379,27 @@ public class Utils {
 				sb.append(']');
 				return;
 			}
+			case ARRAY_LENGTH: {
+				AsmStackInfo arrinfo = (AsmStackInfo) info.getObject();
+
+				if (arrinfo.getKind() == Kind.ARRAY) {
+					//don't display the elements
+					Type componenttype = arrinfo.getType();
+					AsmStackInfo[] elements = arrinfo.getElements();
+					sb.append("new ");
+					sb.append(componenttype.getClassName());
+					sb.append('[');
+					sb.append(elements.length);
+					sb.append(']');
+					if (!isAllNullElements(elements)) {
+						sb.append(" { ... }");
+					}
+				} else {
+					appendAsmStackInfo(sb, arrinfo, "");
+				}
+				sb.append(".length");
+				break;
+			}
 			default: {
 				sb.append(info);
 				break;

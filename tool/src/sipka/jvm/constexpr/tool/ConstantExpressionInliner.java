@@ -717,6 +717,18 @@ public class ConstantExpressionInliner {
 					return reconstructBinaryOperator(context.withReceiverType(long.class), ins, endins, opcode,
 							receivertype);
 				}
+				case Opcodes.ARRAYLENGTH: {
+					//Object[] as the receiver type should work
+					AsmStackReconstructedValue arrayval = reconstructStackValue(
+							context.withReceiverType(Object[].class), ins.getPrevious());
+					if (arrayval == null) {
+						//TODO don't need to reconstruct the elements, only the array length
+						return null;
+					}
+					int len = Array.getLength(arrayval.getValue());
+					return new AsmStackReconstructedValue(arrayval.getFirstIns(), ins.getNext(),
+							AsmStackInfo.createArrayLength(arrayval.getStackInfo()), len);
+				}
 				case Opcodes.NEWARRAY: {
 					IntInsnNode intins = (IntInsnNode) ins;
 
@@ -735,11 +747,7 @@ public class ConstantExpressionInliner {
 				}
 				case Opcodes.ANEWARRAY: {
 					TypeInsnNode typeins = (TypeInsnNode) ins;
-					if (receivertype == null) {
-						//the receiver type should be available
-						//TODO log?
-						return null;
-					}
+					Type componentasmtype = Type.getObjectType(typeins.desc);
 
 					AsmStackReconstructedValue sizeval = reconstructStackValue(context.withReceiverType(int.class),
 							ins.getPrevious());
@@ -760,11 +768,21 @@ public class ConstantExpressionInliner {
 					//an example like this:
 					//    String.format("%s", new NonAccessibleClass[]{});
 					//where if the component class is not accessible to the tool, then it would fail
-					Class<?> receivercomponenttyle = receivertype.getComponentType();
+					Class<?> receivercomponenttyle;
+					if (receivertype == null) {
+						receivercomponenttyle = Utils.getClassForType(componentasmtype);
+						if (receivercomponenttyle == null) {
+							//fallback to object, so at least we can create the array
+							receivercomponenttyle = Object.class;
+						}
+					} else {
+						receivercomponenttyle = receivertype.getComponentType();
+					}
 					Object array = Array.newInstance(receivercomponenttyle, size);
 
-					return new AsmStackReconstructedValue(sizeval.firstIns, endins, AsmStackInfo.createArray(
-							Type.getObjectType(typeins.desc), sizeval.getStackInfo(), new AsmStackInfo[size]), array);
+					return new AsmStackReconstructedValue(sizeval.firstIns, endins,
+							AsmStackInfo.createArray(componentasmtype, sizeval.getStackInfo(), new AsmStackInfo[size]),
+							array);
 				}
 				case Opcodes.BASTORE:
 				case Opcodes.SASTORE:
