@@ -295,6 +295,9 @@ public class RunCommand {
 			try (Stream<Path> walkstream = Files.walk(path)) {
 				for (Iterator<Path> it = walkstream.iterator(); it.hasNext();) {
 					Path p = it.next();
+					if (Files.isDirectory(p)) {
+						continue;
+					}
 					byte[] bytes = Files.readAllBytes(p);
 					if (input && outputZip) {
 						ZipEntry ze = new ZipEntry(path.relativize(p).toString());
