@@ -45,9 +45,15 @@ class ArrayConstantDeconstructor implements ConstantDeconstructor {
 		int storeopcode = Utils.getOperandForAsmStoreArrayInstruction(componenttype);
 
 		for (int i = 0; i < length; i++) {
+			Object element = Array.get(value, i);
+			if (Utils.isZeroDefaultValue(element)) {
+				//the element equals to the default zero initialized value
+				//no need to write a store instruction for it
+				continue;
+			}
 			result.add(new InsnNode(Opcodes.DUP));
 			result.add(new LdcInsnNode(i));
-			DeconstructionResult deconstructed = context.deconstructValue(transclass, methodnode, Array.get(value, i),
+			DeconstructionResult deconstructed = context.deconstructValue(transclass, methodnode, element,
 					componentasmtype);
 			if (deconstructed == null) {
 				//failed to deconstruct this element
