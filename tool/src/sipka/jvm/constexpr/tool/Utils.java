@@ -7,6 +7,7 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
+import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Field;
@@ -69,6 +70,32 @@ public class Utils {
 	private static final Set<Class<?>> BOX_CLASSES = new HashSet<>();
 	static {
 		BOX_CLASSES.addAll(PRIMITIVE_BOX_TYPE_INTERNAL_NAMES_TO_BOX_CLASSES.values());
+	}
+
+	private static final Map<Type, Class<?>> TYPES_TO_CLASSES = new HashMap<>();
+	static {
+		TYPES_TO_CLASSES.put(Type.getType(void.class), void.class);
+		TYPES_TO_CLASSES.put(Type.getType(byte.class), byte.class);
+		TYPES_TO_CLASSES.put(Type.getType(short.class), short.class);
+		TYPES_TO_CLASSES.put(Type.getType(int.class), int.class);
+		TYPES_TO_CLASSES.put(Type.getType(long.class), long.class);
+		TYPES_TO_CLASSES.put(Type.getType(float.class), float.class);
+		TYPES_TO_CLASSES.put(Type.getType(double.class), double.class);
+		TYPES_TO_CLASSES.put(Type.getType(char.class), char.class);
+		TYPES_TO_CLASSES.put(Type.getType(boolean.class), boolean.class);
+
+		TYPES_TO_CLASSES.put(Type.getType(Void.class), Void.class);
+		TYPES_TO_CLASSES.put(Type.getType(Byte.class), Byte.class);
+		TYPES_TO_CLASSES.put(Type.getType(Short.class), Short.class);
+		TYPES_TO_CLASSES.put(Type.getType(Integer.class), Integer.class);
+		TYPES_TO_CLASSES.put(Type.getType(Long.class), Long.class);
+		TYPES_TO_CLASSES.put(Type.getType(Float.class), Float.class);
+		TYPES_TO_CLASSES.put(Type.getType(Double.class), Double.class);
+		TYPES_TO_CLASSES.put(Type.getType(Character.class), Character.class);
+		TYPES_TO_CLASSES.put(Type.getType(Boolean.class), Boolean.class);
+
+		TYPES_TO_CLASSES.put(Type.getType(Object.class), Object.class);
+		TYPES_TO_CLASSES.put(Type.getType(String.class), String.class);
 	}
 
 	private static final Map<Class<?>, Integer> PRIMITIVE_TYPE_TO_ASM_ARRAY_OPCODE = new HashMap<>();
@@ -260,6 +287,17 @@ public class Utils {
 		} catch (ArrayIndexOutOfBoundsException e) {
 			throw e;
 		}
+	}
+
+	public static Class<?> getClassForType(Type type) {
+		if (type.getSort() == Type.ARRAY) {
+			Class<?> elemclass = getClassForType(type.getElementType());
+			if (elemclass == null) {
+				return null;
+			}
+			return Array.newInstance(elemclass, 0).getClass();
+		}
+		return TYPES_TO_CLASSES.get(type);
 	}
 
 	/**

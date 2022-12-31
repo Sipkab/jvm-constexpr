@@ -1289,7 +1289,7 @@ public class ConstantExpressionInliner {
 					}
 
 					ReconstructionContext reconstructioncontext = ReconstructionContext.createForReceiverType(this,
-							transclass, null, methodnode);
+							transclass, Utils.getClassForType(rettype), methodnode);
 					MethodKey methodkey = new MethodKey(methodins);
 					AsmStackReconstructedValue reconstructedval;
 					try {
