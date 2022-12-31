@@ -422,14 +422,17 @@ public class ConstantExpressionInliner {
 				handleReconstructionException(exc);
 				continue;
 			}
-			if (nvalue != null) {
-				AsmStackReconstructedValue result = results.isEmpty() ? null : results.get(0);
-				if (result != null && !Objects.deepEquals(result.getValue(), nvalue.getValue())) {
-					//multiple different values are possibly assigned to the field
-					return null;
-				}
-				results.add(nvalue);
+			if (nvalue == null) {
+				//failed to reconstruct this assignment
+				//so the field value cannot be determined
+				return null;
 			}
+			AsmStackReconstructedValue result = results.isEmpty() ? null : results.get(0);
+			if (result != null && !Objects.deepEquals(result.getValue(), nvalue.getValue())) {
+				//multiple different values are possibly assigned to the field
+				return null;
+			}
+			results.add(nvalue);
 		}
 
 		if (results.isEmpty()) {
