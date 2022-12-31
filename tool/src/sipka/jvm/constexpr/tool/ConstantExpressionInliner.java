@@ -606,38 +606,52 @@ public class ConstantExpressionInliner {
 							Utils.asmCastValueToReceiverType(intinsn.operand, receivertype));
 				}
 				case Opcodes.ICONST_M1:
-					return AsmStackReconstructedValue.createConstant(ins, endins, -1);
+					return AsmStackReconstructedValue.createConstant(ins, endins,
+							Utils.asmCastValueToReceiverType(-1, receivertype));
 				case Opcodes.ICONST_0:
-					return AsmStackReconstructedValue.createConstant(ins, endins, 0);
+					return AsmStackReconstructedValue.createConstant(ins, endins,
+							Utils.asmCastValueToReceiverType(0, receivertype));
 				case Opcodes.ICONST_1:
-					return AsmStackReconstructedValue.createConstant(ins, endins, 1);
+					return AsmStackReconstructedValue.createConstant(ins, endins,
+							Utils.asmCastValueToReceiverType(1, receivertype));
 				case Opcodes.ICONST_2:
-					return AsmStackReconstructedValue.createConstant(ins, endins, 2);
+					return AsmStackReconstructedValue.createConstant(ins, endins,
+							Utils.asmCastValueToReceiverType(2, receivertype));
 				case Opcodes.ICONST_3:
-					return AsmStackReconstructedValue.createConstant(ins, endins, 3);
+					return AsmStackReconstructedValue.createConstant(ins, endins,
+							Utils.asmCastValueToReceiverType(3, receivertype));
 				case Opcodes.ICONST_4:
-					return AsmStackReconstructedValue.createConstant(ins, endins, 4);
+					return AsmStackReconstructedValue.createConstant(ins, endins,
+							Utils.asmCastValueToReceiverType(4, receivertype));
 				case Opcodes.ICONST_5:
-					return AsmStackReconstructedValue.createConstant(ins, endins, 5);
+					return AsmStackReconstructedValue.createConstant(ins, endins,
+							Utils.asmCastValueToReceiverType(5, receivertype));
 				case Opcodes.LCONST_0:
-					return AsmStackReconstructedValue.createConstant(ins, endins, 0L);
+					return AsmStackReconstructedValue.createConstant(ins, endins,
+							Utils.asmCastValueToReceiverType(0L, receivertype));
 				case Opcodes.LCONST_1:
-					return AsmStackReconstructedValue.createConstant(ins, endins, 1L);
+					return AsmStackReconstructedValue.createConstant(ins, endins,
+							Utils.asmCastValueToReceiverType(1L, receivertype));
 				case Opcodes.FCONST_0:
-					return AsmStackReconstructedValue.createConstant(ins, endins, 0f);
+					return AsmStackReconstructedValue.createConstant(ins, endins,
+							Utils.asmCastValueToReceiverType(0f, receivertype));
 				case Opcodes.FCONST_1:
-					return AsmStackReconstructedValue.createConstant(ins, endins, 1f);
+					return AsmStackReconstructedValue.createConstant(ins, endins,
+							Utils.asmCastValueToReceiverType(1f, receivertype));
 				case Opcodes.FCONST_2:
-					return AsmStackReconstructedValue.createConstant(ins, endins, 2f);
+					return AsmStackReconstructedValue.createConstant(ins, endins,
+							Utils.asmCastValueToReceiverType(2f, receivertype));
 				case Opcodes.DCONST_0:
-					return AsmStackReconstructedValue.createConstant(ins, endins, 0d);
+					return AsmStackReconstructedValue.createConstant(ins, endins,
+							Utils.asmCastValueToReceiverType(0d, receivertype));
 				case Opcodes.DCONST_1:
-					return AsmStackReconstructedValue.createConstant(ins, endins, 1d);
+					return AsmStackReconstructedValue.createConstant(ins, endins,
+							Utils.asmCastValueToReceiverType(1d, receivertype));
 				case Opcodes.ACONST_NULL:
 					return new AsmStackReconstructedValue(ins, endins, AsmStackInfo.createNull(), null);
 
 				case Opcodes.CHECKCAST: {
-					return reconstructUnaryOperator(context, ins, endins, opcode);
+					return reconstructUnaryOperator(context, ins, endins, opcode, receivertype);
 				}
 				case Opcodes.I2L:
 				case Opcodes.I2F:
@@ -646,28 +660,32 @@ public class ConstantExpressionInliner {
 				case Opcodes.I2C:
 				case Opcodes.I2S:
 				case Opcodes.INEG: {
-					return reconstructUnaryOperator(context.withReceiverType(int.class), ins, endins, opcode);
+					return reconstructUnaryOperator(context.withReceiverType(int.class), ins, endins, opcode,
+							receivertype);
 				}
 
 				case Opcodes.L2I:
 				case Opcodes.L2F:
 				case Opcodes.L2D:
 				case Opcodes.LNEG: {
-					return reconstructUnaryOperator(context.withReceiverType(long.class), ins, endins, opcode);
+					return reconstructUnaryOperator(context.withReceiverType(long.class), ins, endins, opcode,
+							receivertype);
 				}
 
 				case Opcodes.F2I:
 				case Opcodes.F2L:
 				case Opcodes.F2D:
 				case Opcodes.FNEG: {
-					return reconstructUnaryOperator(context.withReceiverType(float.class), ins, endins, opcode);
+					return reconstructUnaryOperator(context.withReceiverType(float.class), ins, endins, opcode,
+							receivertype);
 				}
 
 				case Opcodes.D2I:
 				case Opcodes.D2L:
 				case Opcodes.D2F:
 				case Opcodes.DNEG: {
-					return reconstructUnaryOperator(context.withReceiverType(double.class), ins, endins, opcode);
+					return reconstructUnaryOperator(context.withReceiverType(double.class), ins, endins, opcode,
+							receivertype);
 				}
 
 				case Opcodes.IADD:
@@ -681,7 +699,8 @@ public class ConstantExpressionInliner {
 				case Opcodes.IAND:
 				case Opcodes.IOR:
 				case Opcodes.IXOR: {
-					return reconstructBinaryOperator(context.withReceiverType(int.class), ins, endins, opcode);
+					return reconstructBinaryOperator(context.withReceiverType(int.class), ins, endins, opcode,
+							receivertype);
 				}
 
 				case Opcodes.LADD:
@@ -695,7 +714,8 @@ public class ConstantExpressionInliner {
 				case Opcodes.LAND:
 				case Opcodes.LOR:
 				case Opcodes.LXOR: {
-					return reconstructBinaryOperator(context.withReceiverType(long.class), ins, endins, opcode);
+					return reconstructBinaryOperator(context.withReceiverType(long.class), ins, endins, opcode,
+							receivertype);
 				}
 				case Opcodes.NEWARRAY: {
 					IntInsnNode intins = (IntInsnNode) ins;
@@ -917,7 +937,8 @@ public class ConstantExpressionInliner {
 	}
 
 	private AsmStackReconstructedValue reconstructBinaryOperator(ReconstructionContext operandcontext,
-			AbstractInsnNode ins, AbstractInsnNode endins, int opcode) throws ReconstructionException {
+			AbstractInsnNode ins, AbstractInsnNode endins, int opcode, Class<?> receivertype)
+			throws ReconstructionException {
 		AsmStackReconstructedValue rightop;
 		try {
 			rightop = reconstructStackValue(operandcontext, ins.getPrevious());
@@ -940,12 +961,14 @@ public class ConstantExpressionInliner {
 		if (value == null) {
 			return null;
 		}
+		value = Utils.asmCastValueToReceiverType(value, receivertype);
 		return new AsmStackReconstructedValue(leftop.getFirstIns(), endins, AsmStackInfo.createOperator(opcode, null,
 				new AsmStackInfo[] { leftop.getStackInfo(), rightop.getStackInfo() }), value);
 	}
 
 	private AsmStackReconstructedValue reconstructUnaryOperator(ReconstructionContext operandcontext,
-			AbstractInsnNode ins, AbstractInsnNode endins, int opcode) throws ReconstructionException {
+			AbstractInsnNode ins, AbstractInsnNode endins, int opcode, Class<?> receivertype)
+			throws ReconstructionException {
 		AsmStackReconstructedValue val;
 		try {
 			val = reconstructStackValue(operandcontext, ins.getPrevious());
@@ -968,6 +991,7 @@ public class ConstantExpressionInliner {
 		} else {
 			checkcasttype = null;
 		}
+		nval = Utils.asmCastValueToReceiverType(nval, receivertype);
 		return new AsmStackReconstructedValue(val.firstIns, endins,
 				AsmStackInfo.createOperator(opcode, checkcasttype, new AsmStackInfo[] { val.getStackInfo() }), nval);
 	}
