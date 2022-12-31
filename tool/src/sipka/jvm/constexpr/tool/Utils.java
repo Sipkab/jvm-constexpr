@@ -26,11 +26,15 @@ import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.AbstractInsnNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.FieldInsnNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.InsnList;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.InsnNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.IntInsnNode;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.InvokeDynamicInsnNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.LabelNode;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.LdcInsnNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.LineNumberNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodInsnNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodNode;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.TypeInsnNode;
 
 public class Utils {
 
@@ -120,6 +124,19 @@ public class Utils {
 		PRIMITIVE_TYPE_TO_ASM_STORE_ARRAY_OPCODE.put(boolean.class, Opcodes.BASTORE);
 		PRIMITIVE_TYPE_TO_ASM_STORE_ARRAY_OPCODE.put(char.class, Opcodes.CASTORE);
 	}
+
+	private static final Set<Object> DEFAULT_ZERO_BOXED_VALUES = new HashSet<>();
+	static {
+		DEFAULT_ZERO_BOXED_VALUES.add(Byte.valueOf((byte) 0));
+		DEFAULT_ZERO_BOXED_VALUES.add(Short.valueOf((short) 0));
+		DEFAULT_ZERO_BOXED_VALUES.add(Integer.valueOf(0));
+		DEFAULT_ZERO_BOXED_VALUES.add(Long.valueOf(0));
+		DEFAULT_ZERO_BOXED_VALUES.add(Float.valueOf(0));
+		DEFAULT_ZERO_BOXED_VALUES.add(Double.valueOf(0));
+		DEFAULT_ZERO_BOXED_VALUES.add(Character.valueOf('\0'));
+		DEFAULT_ZERO_BOXED_VALUES.add(Boolean.valueOf(false));
+	}
+
 	private static final String[] OPCODE_NAMES = new String[200];
 	static {
 		OPCODE_NAMES[0] = "NOP";
@@ -290,6 +307,9 @@ public class Utils {
 	}
 
 	public static Class<?> getClassForType(Type type) {
+		if (type == null) {
+			return null;
+		}
 		if (type.getSort() == Type.ARRAY) {
 			Class<?> elemclass = getClassForType(type.getElementType());
 			if (elemclass == null) {
@@ -934,6 +954,10 @@ public class Utils {
 		}
 	}
 
+	public static boolean isZeroDefaultValue(Object o) {
+		return o == null || DEFAULT_ZERO_BOXED_VALUES.contains(o);
+	}
+
 	public static Class<?> getReceiverType(Type fieldtype) {
 		switch (fieldtype.getSort()) {
 			case Type.BOOLEAN:
@@ -1049,21 +1073,37 @@ public class Utils {
 		if (l == null) {
 			return r == null;
 		}
-		switch (l.getOpcode()) {
-			case Opcodes.GETSTATIC:
-			case Opcodes.GETFIELD:
-			case Opcodes.PUTSTATIC:
-			case Opcodes.PUTFIELD:
-				return isSameInsruction((FieldInsnNode) l, r);
-			case Opcodes.INVOKEVIRTUAL:
-			case Opcodes.INVOKEINTERFACE:
-			case Opcodes.INVOKESTATIC:
-			case Opcodes.INVOKESPECIAL:
-				return isSameInsruction((MethodInsnNode) l, r);
-			default: {
-				throw new UnsupportedOperationException(Integer.toString(l.getOpcode()));
-			}
+		if (r == null) {
+			return false;
 		}
+		if (l.getOpcode() != r.getOpcode()) {
+			return false;
+		}
+		if (l instanceof MethodInsnNode) {
+			return isSameInsruction((MethodInsnNode) l, r);
+		}
+		if (l instanceof FieldInsnNode) {
+			return isSameInsruction((FieldInsnNode) l, r);
+		}
+		if (l instanceof InsnNode) {
+			return true;
+		}
+		if (l instanceof IntInsnNode) {
+			IntInsnNode ln = (IntInsnNode) l;
+			IntInsnNode rn = (IntInsnNode) r;
+			return ln.operand == rn.operand;
+		}
+		if (l instanceof LdcInsnNode) {
+			LdcInsnNode ln = (LdcInsnNode) l;
+			LdcInsnNode rn = (LdcInsnNode) r;
+			return ln.cst.equals(rn.cst);
+		}
+		if (l instanceof TypeInsnNode) {
+			TypeInsnNode ln = (TypeInsnNode) l;
+			TypeInsnNode rn = (TypeInsnNode) r;
+			return ln.desc.equals(rn.desc);
+		}
+		throw new UnsupportedOperationException(l.getClass().getName() + ": " + Integer.toString(l.getOpcode()));
 	}
 
 	public static boolean isSameInsruction(FieldInsnNode l, AbstractInsnNode r) {
@@ -1554,5 +1594,181 @@ public class Utils {
 			result.add(ins.clone(labelclones));
 		}
 		return result;
+	}
+
+	public static Type getInstructionResultAsmType(AbstractInsnNode ins) {
+		if (ins == null) {
+			return null;
+		}
+		int opcode = ins.getOpcode();
+		switch (opcode) {
+			case Opcodes.LDC: {
+				LdcInsnNode ldc = (LdcInsnNode) ins;
+				return Type.getType(ldc.cst.getClass());
+			}
+			case Opcodes.BIPUSH:
+				return Type.BYTE_TYPE;
+			case Opcodes.SIPUSH:
+				return Type.SHORT_TYPE;
+			case Opcodes.ICONST_M1:
+			case Opcodes.ICONST_0:
+			case Opcodes.ICONST_1:
+			case Opcodes.ICONST_2:
+			case Opcodes.ICONST_3:
+			case Opcodes.ICONST_4:
+			case Opcodes.ICONST_5:
+				return Type.INT_TYPE;
+			case Opcodes.LCONST_0:
+			case Opcodes.LCONST_1:
+				return Type.LONG_TYPE;
+			case Opcodes.FCONST_0:
+			case Opcodes.FCONST_1:
+			case Opcodes.FCONST_2:
+				return Type.FLOAT_TYPE;
+			case Opcodes.DCONST_0:
+			case Opcodes.DCONST_1:
+				return Type.DOUBLE_TYPE;
+			case Opcodes.ACONST_NULL:
+				return null;
+
+			case Opcodes.CHECKCAST: {
+				TypeInsnNode typeins = (TypeInsnNode) ins;
+				return Type.getObjectType(typeins.desc);
+			}
+
+			case Opcodes.I2B:
+				return Type.BYTE_TYPE;
+			case Opcodes.I2C:
+				return Type.CHAR_TYPE;
+			case Opcodes.I2S:
+				return Type.SHORT_TYPE;
+
+			case Opcodes.D2I:
+			case Opcodes.F2I:
+			case Opcodes.L2I:
+				return Type.INT_TYPE;
+			case Opcodes.D2L:
+			case Opcodes.F2L:
+			case Opcodes.I2L:
+				return Type.LONG_TYPE;
+
+			case Opcodes.I2F:
+			case Opcodes.L2F:
+			case Opcodes.D2F:
+			case Opcodes.FNEG:
+				return Type.FLOAT_TYPE;
+			case Opcodes.I2D:
+			case Opcodes.L2D:
+			case Opcodes.F2D:
+			case Opcodes.DNEG:
+				return Type.DOUBLE_TYPE;
+
+			case Opcodes.INEG:
+			case Opcodes.IADD:
+			case Opcodes.ISUB:
+			case Opcodes.IMUL:
+			case Opcodes.IDIV:
+			case Opcodes.IREM:
+			case Opcodes.ISHL:
+			case Opcodes.ISHR:
+			case Opcodes.IUSHR:
+			case Opcodes.IAND:
+			case Opcodes.IOR:
+			case Opcodes.IXOR:
+				return Type.INT_TYPE;
+
+			case Opcodes.LNEG:
+			case Opcodes.LADD:
+			case Opcodes.LSUB:
+			case Opcodes.LMUL:
+			case Opcodes.LDIV:
+			case Opcodes.LREM:
+			case Opcodes.LSHL:
+			case Opcodes.LSHR:
+			case Opcodes.LUSHR:
+			case Opcodes.LAND:
+			case Opcodes.LOR:
+			case Opcodes.LXOR:
+				return Type.LONG_TYPE;
+
+			case Opcodes.ARRAYLENGTH:
+				return Type.INT_TYPE;
+			case Opcodes.NEWARRAY: {
+				IntInsnNode intins = (IntInsnNode) ins;
+
+				switch (intins.operand) {
+					case Opcodes.T_BOOLEAN:
+						return Type.getType(boolean[].class);
+					case Opcodes.T_CHAR:
+						return Type.getType(char[].class);
+					case Opcodes.T_BYTE:
+						return Type.getType(byte[].class);
+					case Opcodes.T_SHORT:
+						return Type.getType(short[].class);
+					case Opcodes.T_INT:
+						return Type.getType(int[].class);
+					case Opcodes.T_LONG:
+						return Type.getType(long[].class);
+					case Opcodes.T_FLOAT:
+						return Type.getType(float[].class);
+					case Opcodes.T_DOUBLE:
+						return Type.getType(double[].class);
+					default:
+						throw new IllegalArgumentException("Unknown NEWARRAY operand: " + intins.operand);
+				}
+			}
+
+			case Opcodes.ANEWARRAY: {
+				TypeInsnNode typeins = (TypeInsnNode) ins;
+				return Type.getType('[' + Type.getObjectType(typeins.desc).getDescriptor());
+			}
+
+			case Opcodes.BALOAD:
+				return Type.BYTE_TYPE;
+			case Opcodes.SALOAD:
+				return Type.SHORT_TYPE;
+			case Opcodes.IALOAD:
+				return Type.INT_TYPE;
+			case Opcodes.LALOAD:
+				return Type.LONG_TYPE;
+			case Opcodes.FALOAD:
+				return Type.FLOAT_TYPE;
+			case Opcodes.DALOAD:
+				return Type.DOUBLE_TYPE;
+			case Opcodes.CALOAD:
+				return Type.CHAR_TYPE;
+			case Opcodes.AALOAD:
+				return Type.getType(Object.class); // can't to better here
+
+			case Opcodes.INVOKEVIRTUAL:
+			case Opcodes.INVOKEINTERFACE:
+			case Opcodes.INVOKESTATIC:
+			case Opcodes.INVOKESPECIAL: {
+				MethodInsnNode methodins = (MethodInsnNode) ins;
+
+				Type rettype = Type.getReturnType(methodins.desc);
+				if (rettype.getSort() == Type.VOID) {
+					if (opcode == Opcodes.INVOKESPECIAL) {
+						//update the return type to the constructor declaring class
+						//so the deconstruction is appropriate
+						rettype = Type.getObjectType(methodins.owner);
+					}
+				}
+				return rettype;
+			}
+			case Opcodes.INVOKEDYNAMIC: {
+				InvokeDynamicInsnNode dynins = (InvokeDynamicInsnNode) ins;
+				return Type.getReturnType(dynins.desc);
+			}
+
+			case Opcodes.GETSTATIC:
+			case Opcodes.GETFIELD: {
+				FieldInsnNode fieldins = (FieldInsnNode) ins;
+				return Type.getType(fieldins.desc);
+			}
+			default: {
+				return null;
+			}
+		}
 	}
 }

@@ -187,11 +187,11 @@ public class ConstantExpressionInliner {
 
 		List<TransformedClass> nextround = new ArrayList<>();
 		for (; !round.isEmpty(); round = nextround, nextround = new ArrayList<>()) {
-			for (TransformedClass transclass : inputClasses.values()) {
+			for (TransformedClass transclass : round) {
 				ClassNode cn = transclass.classNode;
 
 				for (MethodNode mn : cn.methods) {
-					performFunctionInlining(transclass, mn);
+					performInstructionInlining(transclass, mn);
 				}
 				if (transclass.clinitMethod != null) {
 					for (TransformedField transfield : transclass.transformedFields.values()) {
@@ -203,7 +203,7 @@ public class ConstantExpressionInliner {
 								if (tc.isReferencesStaticField(cn, transfield.fieldNode)) {
 									inlineFieldValue(transclass, transfield, tc);
 									//always reprocess them if they reference this field
-									nextround.add(transclass);
+									nextround.add(tc);
 								}
 							}
 						}
@@ -806,8 +806,6 @@ public class ConstantExpressionInliner {
 				case Opcodes.DALOAD:
 				case Opcodes.CALOAD:
 				case Opcodes.AALOAD: {
-					Class<?> rectype = context.getReceiverType();
-
 					AsmStackReconstructedValue idxval = reconstructStackValue(context.withReceiverType(int.class),
 							ins.getPrevious());
 					if (idxval == null) {
@@ -815,9 +813,9 @@ public class ConstantExpressionInliner {
 					}
 
 					ReconstructionContext ncontext = context;
-					if (rectype != null) {
+					if (receivertype != null) {
 						//XXX make getting the type more efficient?
-						ncontext = context.withReceiverType(Array.newInstance(rectype, 0).getClass());
+						ncontext = context.withReceiverType(Array.newInstance(receivertype, 0).getClass());
 					}
 					AsmStackReconstructedValue arrayval = reconstructStackValue(ncontext,
 							idxval.getFirstIns().getPrevious());
@@ -1277,87 +1275,155 @@ public class ConstantExpressionInliner {
 		}
 	}
 
-	private boolean performFunctionInlining(TransformedClass transclass, MethodNode methodnode) {
+	private boolean performInstructionInlining(TransformedClass transclass, MethodNode methodnode) {
 		boolean any = false;
 		InsnList instructions = methodnode.instructions;
-		for (AbstractInsnNode ins = instructions.getFirst(); ins != null;) {
-			final AbstractInsnNode nextnode = ins.getNext();
+		AbstractInsnNode nextnode;
+		for (AbstractInsnNode ins = instructions.getFirst(); ins != null; ins = nextnode) {
+			nextnode = ins.getNext();
+
+			if (transclass.inlinedInstructions.contains(ins)) {
+				//already inlined at this instruction, dont deconstruct and reconstruct again
+				continue;
+			}
+
+			Type rettype;
+			AsmStackReconstructedValue reconstructedval;
 			int opcode = ins.getOpcode();
 			switch (opcode) {
+				case -1: {
+					//some line number, or other node
+					continue;
+				}
+
 				case Opcodes.INVOKEVIRTUAL:
 				case Opcodes.INVOKEINTERFACE:
 				case Opcodes.INVOKESTATIC:
 				case Opcodes.INVOKESPECIAL: {
 					MethodInsnNode methodins = (MethodInsnNode) ins;
-					if (transclass.inlinedInstructions.contains(methodins)) {
-						//already inlined at this instruction, dont deconstruct and reconstruct again
-						break;
-					}
 
-					Type rettype = Type.getReturnType(methodins.desc);
+					rettype = Utils.getInstructionResultAsmType(ins);
 					if (rettype.getSort() == Type.VOID) {
-						if (opcode != Opcodes.INVOKESPECIAL) {
-							//no inlining for functions that return void
-							//VOID is allowed for constructors
-							break;
-						}
-						//update the return type to the constructor declaring class
-						//so the deconstruction is appropriate
-						rettype = Type.getObjectType(methodins.owner);
+						//no inlining for functions that return void
+						continue;
 					}
 
 					ReconstructionContext reconstructioncontext = ReconstructionContext.createForReceiverType(this,
 							transclass, Utils.getClassForType(rettype), methodnode);
 					MethodKey methodkey = new MethodKey(methodins);
-					AsmStackReconstructedValue reconstructedval;
 					try {
 						reconstructedval = reconstructValueImpl(reconstructioncontext, ins, methodkey);
 					} catch (ReconstructionException e) {
 						ReconstructionException exc = reconstructioncontext.newMemberInliningReconstructionException(e,
 								ins, methodins.owner, methodins.name, methodins.desc);
 						handleReconstructionException(exc);
-						break;
-					}
-					if (reconstructedval == null) {
-						break;
-					}
-					Object inlineval = reconstructedval.getValue();
-
-					DeconstructionResult deconsresult = deconstructValue(transclass, methodnode, inlineval, rettype);
-					if (deconsresult == null) {
-						//failed to deconstruct
-						//mark the instruction as inlined, so we don't process it again
-						//if the deconstruction failed once, it is expected to fail again the next time
-						transclass.inlinedInstructions.add(ins);
-						break;
-					}
-					InsnList deconstructedinstructions = deconsresult.getInstructions();
-					AbstractInsnNode lastdeconins = deconstructedinstructions.getLast();
-					if (Utils.isSameInsruction(methodins, lastdeconins)) {
-						//the reconstructed instruction is the same as the one we're processing
-						//don't replace the instructions
-						transclass.inlinedInstructions.add(lastdeconins);
-						break;
-					}
-
-					instructions.insertBefore(reconstructedval.getFirstIns(), deconstructedinstructions);
-
-					reconstructedval.removeInstructions(instructions);
-
-					transclass.inlinedInstructions.add(lastdeconins);
-
-					if (logger != null) {
-						logger.log(new InstructionReplacementLogEntry(
-								Utils.getBytecodeLocation(transclass, methodnode, lastdeconins),
-								reconstructedval.getStackInfo(), deconsresult.getStackInfo(), inlineval));
+						continue;
 					}
 					break;
 				}
+				case Opcodes.LDC:
+				case Opcodes.ACONST_NULL:
+				case Opcodes.BIPUSH:
+				case Opcodes.SIPUSH:
+				case Opcodes.ICONST_M1:
+				case Opcodes.ICONST_0:
+				case Opcodes.ICONST_1:
+				case Opcodes.ICONST_2:
+				case Opcodes.ICONST_3:
+				case Opcodes.ICONST_4:
+				case Opcodes.ICONST_5:
+				case Opcodes.LCONST_0:
+				case Opcodes.LCONST_1:
+				case Opcodes.FCONST_0:
+				case Opcodes.FCONST_1:
+				case Opcodes.FCONST_2:
+				case Opcodes.DCONST_0:
+				case Opcodes.DCONST_1: {
+					//nothing to inline for these constant loading instructions, just mark as processed
+					transclass.inlinedInstructions.add(ins);
+					continue;
+				}
+				case Opcodes.BASTORE:
+				case Opcodes.SASTORE:
+				case Opcodes.IASTORE:
+				case Opcodes.LASTORE:
+				case Opcodes.FASTORE:
+				case Opcodes.DASTORE:
+				case Opcodes.CASTORE:
+				case Opcodes.AASTORE:
+
+				case Opcodes.BALOAD:
+				case Opcodes.SALOAD:
+				case Opcodes.IALOAD:
+				case Opcodes.LALOAD:
+				case Opcodes.FALOAD:
+				case Opcodes.DALOAD:
+				case Opcodes.CALOAD:
+				case Opcodes.AALOAD: {
+					//not handled, these cannot really be optimized in place
+					continue;
+				}
+				case Opcodes.CHECKCAST: {
+					//don't optimize this individually
+					continue;
+				}
+				case Opcodes.GETSTATIC: {
+					//nothing to optimize on this one, GETSTATIC values are replaced when a static final value is inlined
+					continue;
+				}
 				default: {
+					//generic inlining
+					rettype = Utils.getInstructionResultAsmType(ins);
+					if (rettype != null && rettype.getSort() == Type.VOID) {
+						//no inlining for functions that return void
+						continue;
+					}
+					ReconstructionContext reconstructioncontext = ReconstructionContext.createForReceiverType(this,
+							transclass, Utils.getClassForType(rettype), methodnode);
+
+					try {
+						reconstructedval = reconstructStackValue(reconstructioncontext, ins);
+					} catch (ReconstructionException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+						continue;
+					}
 					break;
 				}
 			}
-			ins = nextnode;
+			if (reconstructedval == null) {
+				continue;
+			}
+			Object inlineval = reconstructedval.getValue();
+
+			DeconstructionResult deconsresult = deconstructValue(transclass, methodnode, inlineval, rettype);
+			if (deconsresult == null) {
+				//failed to deconstruct
+				//mark the instruction as inlined, so we don't process it again
+				//if the deconstruction failed once, it is expected to fail again the next time
+				transclass.inlinedInstructions.add(ins);
+				continue;
+			}
+			InsnList deconstructedinstructions = deconsresult.getInstructions();
+			AbstractInsnNode lastdeconins = deconstructedinstructions.getLast();
+			if (Utils.isSameInsruction(ins, lastdeconins)) {
+				//the reconstructed instruction is the same as the one we're processing
+				//don't replace the instructions
+				transclass.inlinedInstructions.add(lastdeconins);
+				continue;
+			}
+
+			instructions.insertBefore(reconstructedval.getFirstIns(), deconstructedinstructions);
+
+			reconstructedval.removeInstructions(instructions);
+
+			transclass.inlinedInstructions.add(lastdeconins);
+
+			if (logger != null) {
+				logger.log(new InstructionReplacementLogEntry(
+						Utils.getBytecodeLocation(transclass, methodnode, lastdeconins),
+						reconstructedval.getStackInfo(), deconsresult.getStackInfo(), inlineval));
+			}
 		}
 		return any;
 	}
