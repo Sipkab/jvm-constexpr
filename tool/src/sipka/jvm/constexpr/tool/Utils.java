@@ -16,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
 
@@ -113,6 +114,13 @@ public class Utils {
 		PRIMITIVE_TYPE_TO_ASM_ARRAY_OPCODE.put(boolean.class, Opcodes.T_BOOLEAN);
 		PRIMITIVE_TYPE_TO_ASM_ARRAY_OPCODE.put(char.class, Opcodes.T_CHAR);
 	}
+	private static final Map<Integer, Class<?>> ASM_ARRAY_OPCODE_TO_PRIMITIVE_COMPONENT_TYPE = new TreeMap<>();
+	static {
+		for (Entry<Class<?>, Integer> entry : PRIMITIVE_TYPE_TO_ASM_ARRAY_OPCODE.entrySet()) {
+			ASM_ARRAY_OPCODE_TO_PRIMITIVE_COMPONENT_TYPE.put(entry.getValue(), entry.getKey());
+		}
+	}
+
 	private static final Map<Class<?>, Integer> PRIMITIVE_TYPE_TO_ASM_STORE_ARRAY_OPCODE = new HashMap<>();
 	static {
 		PRIMITIVE_TYPE_TO_ASM_STORE_ARRAY_OPCODE.put(byte.class, Opcodes.BASTORE);
@@ -718,6 +726,10 @@ public class Utils {
 
 	public static int getOperandForAsmNewArrayInstruction(Class<?> primitivetype) {
 		return PRIMITIVE_TYPE_TO_ASM_ARRAY_OPCODE.get(primitivetype);
+	}
+
+	public static Class<?> getComponentTypeForAsmNewArrayOperandInstruction(int operand) {
+		return ASM_ARRAY_OPCODE_TO_PRIMITIVE_COMPONENT_TYPE.get(operand);
 	}
 
 	public static int getOperandForAsmStoreArrayInstruction(Class<?> type) {

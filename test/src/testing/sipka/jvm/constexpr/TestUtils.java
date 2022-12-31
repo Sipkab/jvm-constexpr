@@ -87,7 +87,9 @@ public class TestUtils {
 	public static InlinerOptions createOptionsForClasses(Class<?>... classes) {
 		InlinerOptions opts = new InlinerOptions();
 		opts.setLogger(new TestCollectingLogger());
+		opts.setClassLoader(TestUtils.class.getClassLoader()); // init with the testing classloader
 		opts.setInputs(createInputsForClasses(classes));
+
 		return opts;
 	}
 

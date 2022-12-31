@@ -14,6 +14,7 @@ import sipka.jvm.constexpr.tool.log.MemberInliningLogContextInfo;
 import sipka.jvm.constexpr.tool.log.MethodArgumentsLogContextInfo;
 import sipka.jvm.constexpr.tool.log.MethodInvocationFailureContextInfo;
 import sipka.jvm.constexpr.tool.log.MethodNotFoundLogContextInfo;
+import sipka.jvm.constexpr.tool.log.NewArrayLogContextInfo;
 import sipka.jvm.constexpr.tool.log.OpcodeArgumentLogContextInfo;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.AbstractInsnNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodNode;
@@ -26,28 +27,25 @@ class ReconstructionContext {
 	 * The type that receives the reconstructed value.
 	 */
 	private final Class<?> receiverType;
-	private final ClassLoader classLoader;
 	private final boolean forceReconstruct;
 
 	private ReconstructionContext(ConstantExpressionInliner inliner, TransformedClass transformedClass,
-			MethodNode methodNode, Class<?> receiverType, ClassLoader classLoader, boolean forceReconstruct) {
+			MethodNode methodNode, Class<?> receiverType, boolean forceReconstruct) {
 		this.inliner = inliner;
 		this.transformedClass = transformedClass;
 		this.methodNode = methodNode;
 		this.receiverType = receiverType;
-		this.classLoader = classLoader;
 		this.forceReconstruct = forceReconstruct;
 	}
 
 	public static ReconstructionContext createConstantField(ConstantExpressionInliner inliner,
 			TransformedClass transformedClass, Field f, MethodNode clinitmethod) {
-		return new ReconstructionContext(inliner, transformedClass, clinitmethod, f.getType(),
-				f.getDeclaringClass().getClassLoader(), true);
+		return new ReconstructionContext(inliner, transformedClass, clinitmethod, f.getType(), true);
 	}
 
 	public static ReconstructionContext createForReceiverType(ConstantExpressionInliner inliner,
 			TransformedClass transformedClass, Class<?> receiver, MethodNode method) {
-		return new ReconstructionContext(inliner, transformedClass, method, receiver, null, false);
+		return new ReconstructionContext(inliner, transformedClass, method, receiver, false);
 	}
 
 	public ConstantExpressionInliner getInliner() {
@@ -66,16 +64,12 @@ class ReconstructionContext {
 		return receiverType;
 	}
 
-	public ClassLoader getClassLoader() {
-		return classLoader;
-	}
-
 	public boolean isForceReconstruct() {
 		return forceReconstruct;
 	}
 
 	public ReconstructionContext withReceiverType(Class<?> type) {
-		return new ReconstructionContext(inliner, transformedClass, methodNode, type, classLoader, forceReconstruct);
+		return new ReconstructionContext(inliner, transformedClass, methodNode, type, forceReconstruct);
 	}
 
 	public ReconstructionContext forArgumentReconstruction() {
@@ -162,6 +156,18 @@ class ReconstructionContext {
 			AbstractInsnNode locationins, String classinternalname, String membername, String memberdescriptor) {
 		return new ReconstructionException(e, new InstanceAccessLogContextInfo(getBytecodeLocation(locationins),
 				classinternalname, membername, memberdescriptor));
+	}
+
+	public ReconstructionException newArrayCreationFailureReconstructionException(ReconstructionException e,
+			AbstractInsnNode locationins, String arraycomponenttype) {
+		return new ReconstructionException(e,
+				new NewArrayLogContextInfo(getBytecodeLocation(locationins), arraycomponenttype, -1));
+	}
+
+	public ReconstructionException newArrayCreationFailureReconstructionException(ReconstructionException e,
+			AbstractInsnNode locationins, String arraycomponenttype, int size) {
+		return new ReconstructionException(e,
+				new NewArrayLogContextInfo(getBytecodeLocation(locationins), arraycomponenttype, size));
 	}
 
 	private BytecodeLocation getBytecodeLocation(AbstractInsnNode locationins) {

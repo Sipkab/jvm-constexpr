@@ -39,6 +39,8 @@ public final class InlinerOptions {
 
 	protected Collection<Member> constantReconstructors = new ArrayList<>();
 
+	protected ClassLoader classLoader;
+
 	protected ToolLogger logger;
 
 	/**
@@ -326,6 +328,27 @@ public final class InlinerOptions {
 	 */
 	public ToolLogger getLogger() {
 		return logger;
+	}
+
+	/**
+	 * Sets the {@link ClassLoader} to be used when classes need to be dynamically looked up to execute constant
+	 * expressions.
+	 * 
+	 * @param classLoader
+	 *            The class loader.
+	 */
+	public void setClassLoader(ClassLoader classLoader) {
+		this.classLoader = classLoader;
+	}
+
+	/**
+	 * Gets the {@link ClassLoader} for dynamic lookup.
+	 * 
+	 * @return The class loader.
+	 * @see #setClassLoader(ClassLoader)
+	 */
+	public ClassLoader getClassLoader() {
+		return classLoader;
 	}
 
 }

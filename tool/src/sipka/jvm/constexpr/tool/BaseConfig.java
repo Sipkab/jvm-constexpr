@@ -472,15 +472,6 @@ class BaseConfig {
 		//specifies ways of writing the type instances to the stack
 		baseConstantDeconstructors.put(String.class, StringConstantDeconstructor.INSTANCE);
 
-		baseConstantDeconstructors.put(byte[].class, ArrayConstantDeconstructor.INSTANCE);
-		baseConstantDeconstructors.put(short[].class, ArrayConstantDeconstructor.INSTANCE);
-		baseConstantDeconstructors.put(int[].class, ArrayConstantDeconstructor.INSTANCE);
-		baseConstantDeconstructors.put(long[].class, ArrayConstantDeconstructor.INSTANCE);
-		baseConstantDeconstructors.put(float[].class, ArrayConstantDeconstructor.INSTANCE);
-		baseConstantDeconstructors.put(double[].class, ArrayConstantDeconstructor.INSTANCE);
-		baseConstantDeconstructors.put(boolean[].class, ArrayConstantDeconstructor.INSTANCE);
-		baseConstantDeconstructors.put(char[].class, ArrayConstantDeconstructor.INSTANCE);
-
 		addStaticMethodBasedDeconstructor(baseConstantDeconstructors, Byte.class, "valueOf", "byteValue");
 		addStaticMethodBasedDeconstructor(baseConstantDeconstructors, Short.class, "valueOf", "shortValue");
 		addStaticMethodBasedDeconstructor(baseConstantDeconstructors, Integer.class, "valueOf", "intValue");

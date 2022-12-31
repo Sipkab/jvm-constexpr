@@ -183,6 +183,7 @@ public class RunCommand {
 				getParentClassLoader())) {
 
 			InlinerOptions options = new InlinerOptions();
+			options.setClassLoader(cl);
 
 			//scan the complete classpath for annotations
 			for (URL url : classpathurls) {

@@ -96,6 +96,8 @@ public class ConstantExpressionInliner {
 	private final Set<FieldKey> multipleInitializationLoggedFields = new TreeSet<>(MemberKey::compare);
 	private final Set<MemberKey> configMemberNotAvailableLoggedEntries = new TreeSet<>(MemberKey::compare);
 
+	private ClassLoader classLoader;
+
 	private ToolLogger logger;
 
 	private ConstantExpressionInliner() {
@@ -108,6 +110,7 @@ public class ConstantExpressionInliner {
 		}
 
 		logger = options.getLogger();
+		classLoader = options.getClassLoader();
 
 		Collection<? extends ToolInput<?>> inputs = options.getInputs();
 
@@ -316,33 +319,19 @@ public class ConstantExpressionInliner {
 		for (int i = 0; i < outargs.length; i++) {
 			int paramindex = outargs.length - i - 1;
 			AsmStackReconstructedValue argval;
+			Class<?> parameterclass = parameterTypes == null ? null : parameterTypes[paramindex];
 			try {
-				argval = reconstructStackValue(
-						context.withReceiverType(parameterTypes == null ? null : parameterTypes[paramindex]), argit);
+				argval = reconstructStackValue(context.withReceiverType(parameterclass), argit);
 			} catch (ReconstructionException e) {
 				throw context.newArgumentIndexReconstructionException(e, ins, paramindex);
 			}
 			if (argval == null) {
 				return false;
 			}
-			Object val = argval.getValue();
-			if (val instanceof Type) {
-				// replace with a Class instance
-				Type typeval = (Type) val;
-				Class<?> c;
-				try {
-					c = Class.forName(typeval.getClassName(), false, context.getClassLoader());
-				} catch (ClassNotFoundException e) {
-					throw context.newArgumentIndexReconstructionException(
-							context.newClassNotFoundReconstructionException(e, argit, typeval.getInternalName()), ins,
-							paramindex);
-				}
-				argval = argval.replaceValue(c);
-				val = c;
-			}
-			outderivedargs[paramindex] = argval;
 			Type type = parameterAsmTypes == null ? null : parameterAsmTypes[paramindex];
-			outargs[paramindex] = castValueFromAsm(type, val);
+			Object val = castValueFromAsm(type, argval.getValue());
+			outderivedargs[paramindex] = argval;
+			outargs[paramindex] = val;
 			argit = argval.getFirstIns().getPrevious();
 		}
 		return true;
@@ -596,8 +585,17 @@ public class ConstantExpressionInliner {
 			switch (opcode) {
 				case Opcodes.LDC: {
 					LdcInsnNode ldc = (LdcInsnNode) ins;
-					return AsmStackReconstructedValue.createConstant(ins, endins,
-							Utils.asmCastValueToReceiverType(ldc.cst, receivertype));
+					Object ldcval = Utils.asmCastValueToReceiverType(ldc.cst, receivertype);
+					if (ldcval instanceof Type) {
+						//convert Type to Class
+						try {
+							ldcval = findClass((Type) ldcval);
+						} catch (ClassNotFoundException e) {
+							throw context.newClassNotFoundReconstructionException(e, ins,
+									((Type) ldcval).getInternalName());
+						}
+					}
+					return AsmStackReconstructedValue.createConstant(ins, endins, ldcval);
 				}
 				case Opcodes.BIPUSH:
 				case Opcodes.SIPUSH: {
@@ -732,8 +730,13 @@ public class ConstantExpressionInliner {
 				case Opcodes.NEWARRAY: {
 					IntInsnNode intins = (IntInsnNode) ins;
 
-					AsmStackReconstructedValue sizeval = reconstructStackValue(context.withReceiverType(int.class),
-							ins.getPrevious());
+					AsmStackReconstructedValue sizeval;
+					try {
+						sizeval = reconstructStackValue(context.withReceiverType(int.class), ins.getPrevious());
+					} catch (ReconstructionException e) {
+						throw context.newArrayCreationFailureReconstructionException(e, ins, Type
+								.getDescriptor(Utils.getComponentTypeForAsmNewArrayOperandInstruction(intins.operand)));
+					}
 					if (sizeval == null) {
 						return null;
 					}
@@ -748,34 +751,37 @@ public class ConstantExpressionInliner {
 				case Opcodes.ANEWARRAY: {
 					TypeInsnNode typeins = (TypeInsnNode) ins;
 
-					AsmStackReconstructedValue sizeval = reconstructStackValue(context.withReceiverType(int.class),
-							ins.getPrevious());
+					AsmStackReconstructedValue sizeval;
+					try {
+						sizeval = reconstructStackValue(context.withReceiverType(int.class), ins.getPrevious());
+					} catch (ReconstructionException e) {
+						throw context.newArrayCreationFailureReconstructionException(e, ins, typeins.desc);
+					}
 					if (sizeval == null) {
 						//not constant size
 						return null;
 					}
 					int size = ((Number) sizeval.getValue()).intValue();
 
-					//the receiver type should be the exact type of the array
-					//but if the type in the instruction is not the same as the component type
-					//then we might run into trouble if the function downcasts it.
-					//however, we consider that an unsupported scenario, because
-					//  1. it is a bad practice
-					//  2. the component type class is not available to us
-					//     we could use Class.forName on some class, but there will be edge-cases
-					//     that won't work. so if we can't support all of these cases, don't support any of them
-					//an example like this:
-					//    String.format("%s", new NonAccessibleClass[]{});
-					//where if the component class is not accessible to the tool, then it would fail
+					//find the actual component type
 					Type componentasmtype = Type.getObjectType(typeins.desc);
 					Class<?> arraycomponenttyle = Utils.getClassForType(componentasmtype);
 					if (arraycomponenttyle == null) {
 						if (receivertype != null) {
-							arraycomponenttyle = receivertype.getComponentType();
+							Class<?> receivercomponent = receivertype.getComponentType();
+							if (receivercomponent != null
+									&& Type.getInternalName(receivercomponent).equals(typeins.desc)) {
+								arraycomponenttyle = receivercomponent;
+							}
 						}
 						if (arraycomponenttyle == null) {
-							//fallback to object, so at least we can create the array
-							arraycomponenttyle = Object.class;
+							try {
+								arraycomponenttyle = findClass(componentasmtype);
+							} catch (ClassNotFoundException e) {
+								throw context.newArrayCreationFailureReconstructionException(
+										context.newClassNotFoundReconstructionException(e, ins, typeins.desc), ins,
+										typeins.desc, size);
+							}
 						}
 					}
 					Object array = Array.newInstance(arraycomponenttyle, size);
@@ -871,6 +877,69 @@ public class ConstantExpressionInliner {
 		}
 	}
 
+	Class<?> findClass(Type asmtype) throws ClassNotFoundException {
+		switch (asmtype.getSort()) {
+			case Type.BOOLEAN:
+				return boolean.class;
+			case Type.CHAR:
+				return char.class;
+			case Type.BYTE:
+				return byte.class;
+			case Type.SHORT:
+				return short.class;
+			case Type.INT:
+				return int.class;
+			case Type.FLOAT:
+				return float.class;
+			case Type.LONG:
+				return long.class;
+			case Type.DOUBLE:
+				return double.class;
+			case Type.VOID:
+				return void.class;
+			case Type.ARRAY: {
+				Class<?> type = Array.newInstance(findClass(asmtype.getElementType()), 0).getClass();
+				for (int dim = asmtype.getDimensions(); dim > 1; dim--) {
+					type = Array.newInstance(type, 0).getClass();
+				}
+				return type;
+			}
+			default: {
+				break;
+			}
+		}
+		//try searching the configs before attempting the classloader
+		Class<?> found = findConfiguredClass(asmtype);
+		if (found != null) {
+			return found;
+		}
+		return Class.forName(asmtype.getClassName(), false, classLoader);
+	}
+
+	private Class<?> findConfiguredClass(Type asmtype) {
+		String typeinternalname = asmtype.getInternalName();
+		Class<?> ct = constantTypes.get(typeinternalname);
+		if (ct != null) {
+			return ct;
+		}
+		//try searching the reconstructors, if the class may be there
+		FieldKey searchfieldkey = new FieldKey(typeinternalname, "", "");
+		NavigableMap<MemberKey, TypeReferencedConstantReconstructor> tailmap = constantReconstructors
+				.tailMap(searchfieldkey, true);
+		for (Entry<MemberKey, TypeReferencedConstantReconstructor> entry : tailmap.entrySet()) {
+			MemberKey em = entry.getKey();
+			if (!em.getOwner().equals(searchfieldkey.getOwner())) {
+				//not found
+				break;
+			}
+			Class<?> reftype = entry.getValue().type;
+			if (Type.getInternalName(reftype).equals(typeinternalname)) {
+				return reftype;
+			}
+		}
+		return null;
+	}
+
 	private AsmStackReconstructedValue reconstructInvokeDynamic(ReconstructionContext context,
 			InvokeDynamicInsnNode dynins) throws ReconstructionException {
 		//specifically handle the string concatenation that is used from Java 9+
@@ -905,7 +974,7 @@ public class ConstantExpressionInliner {
 		Object[] args = new Object[dynargcount];
 		AsmStackReconstructedValue[] derivedargs = new AsmStackReconstructedValue[dynargcount];
 		try {
-			if (!reconstructArguments(context, null, dynins, args, derivedargs)) {
+			if (!reconstructArguments(context.forArgumentReconstruction(), null, dynins, args, derivedargs)) {
 				return null;
 			}
 		} catch (ReconstructionException e) {
@@ -1544,9 +1613,9 @@ public class ConstantExpressionInliner {
 				case Opcodes.GETSTATIC: {
 					FieldInsnNode fieldins = (FieldInsnNode) ins;
 					Class<?> type;
-					String classname = Type.getObjectType(memberkey.getOwner()).getClassName();
+					Type ownertype = Type.getObjectType(memberkey.getOwner());
 					try {
-						type = Class.forName(classname, false, context.getClassLoader());
+						type = findClass(ownertype);
 					} catch (ClassNotFoundException e) {
 						throw context.newClassNotFoundReconstructionException(e, ins, memberkey.getOwner());
 					}
@@ -1563,9 +1632,9 @@ public class ConstantExpressionInliner {
 				default: {
 					MethodInsnNode methodins = (MethodInsnNode) ins;
 					Class<?> type;
-					String classname = Type.getObjectType(memberkey.getOwner()).getClassName();
+					Type ownertype = Type.getObjectType(memberkey.getOwner());
 					try {
-						type = Class.forName(classname, false, context.getClassLoader());
+						type = findClass(ownertype);
 					} catch (ClassNotFoundException e) {
 						throw context.newClassNotFoundReconstructionException(e, ins, memberkey.getOwner());
 					}
@@ -1678,6 +1747,9 @@ public class ConstantExpressionInliner {
 
 	private ConstantDeconstructor getConstantDeconstructor(Object value) {
 		Class<?> valclass = value.getClass();
+		if (valclass.isArray()) {
+			return ArrayConstantDeconstructor.INSTANCE;
+		}
 		ConstantDeconstructor deconstructor = constantDeconstructors.get(valclass);
 		if (deconstructor != null) {
 			return deconstructor;
