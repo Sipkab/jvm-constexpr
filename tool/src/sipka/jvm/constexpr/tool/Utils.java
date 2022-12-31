@@ -1165,7 +1165,8 @@ public class Utils {
 		if (value instanceof Class<?>) {
 			return ((Class<?>) value).getCanonicalName() + ".class";
 		}
-		return value.toString();
+		//brackets to signal the unknown typeness of it
+		return '<' + value.getClass().getName() + ": " + value.toString() + '>';
 	}
 
 	private static String quote(String s) {

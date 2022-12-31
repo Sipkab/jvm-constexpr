@@ -3,6 +3,7 @@ package testing.sipka.jvm.constexpr;
 import java.util.Map;
 import java.util.NavigableMap;
 
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Opcodes;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.ClassNode;
 import testing.saker.SakerTest;
 import testing.saker.SakerTestCase;
@@ -29,6 +30,15 @@ public class BoxedPrimitivesInlineTest extends SakerTestCase {
 
 			ClassNode classnode = outputs.firstEntry().getValue();
 			TestUtils.assertSameStaticFieldValues(classnode, BoxedConstants.class);
+		}
+		{
+			NavigableMap<String, ClassNode> outputs = TestUtils.performInliningClassNodes(ConstructorReplacement.class);
+			assertEquals(outputs.size(), 1); // testing a single class
+
+			ClassNode classnode = outputs.firstEntry().getValue();
+			TestUtils.assertSameStaticFieldValues(classnode, ConstructorReplacement.class);
+			TestUtils.assertNoOpcodeInMethod(TestUtils.getMethodNode(classnode, "makeByte", "()Ljava/lang/Byte;"),
+					Opcodes.INVOKESPECIAL);
 		}
 	}
 
@@ -162,7 +172,6 @@ public class BoxedPrimitivesInlineTest extends SakerTestCase {
 	}
 
 	public static class BoxedConstants {
-
 		public static final Byte BOXEDBYTE = 123;
 		public static final Short BOXEDSHORT = 999;
 		public static final Integer BOXEDINTEGER = 999;
@@ -199,6 +208,12 @@ public class BoxedPrimitivesInlineTest extends SakerTestCase {
 			if (Character.valueOf('Y') == BOXEDCHARACTER) {
 				System.out.println("TESTCHARACTER");
 			}
+		}
+	}
+
+	public static class ConstructorReplacement {
+		public Byte makeByte() {
+			return new Byte("111");
 		}
 	}
 }

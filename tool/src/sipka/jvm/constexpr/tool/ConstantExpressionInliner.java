@@ -1243,8 +1243,14 @@ public class ConstantExpressionInliner {
 
 					Type rettype = Type.getReturnType(methodins.desc);
 					if (rettype.getSort() == Type.VOID) {
-						//no inlining for functions that return void
-						break;
+						if (opcode != Opcodes.INVOKESPECIAL) {
+							//no inlining for functions that return void
+							//VOID is allowed for constructors
+							break;
+						}
+						//update the return type to the constructor declaring class
+						//so the deconstruction is appropriate
+						rettype = Type.getObjectType(methodins.owner);
 					}
 
 					ReconstructionContext reconstructioncontext = ReconstructionContext.createForReceiverType(this,

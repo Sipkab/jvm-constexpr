@@ -289,12 +289,28 @@ public class TestUtils {
 		}
 	}
 
+	public static void assertNoInvokeSpecialInClInit(ClassNode cn) {
+		MethodNode mn = getClInitMethod(cn);
+		if (mn != null) {
+			assertNoOpcodeInMethod(mn, Opcodes.INVOKESPECIAL);
+		}
+	}
+
 	public static void assertNoOpcodeInMethod(MethodNode mn, int checkopcode) throws AssertionError {
 		for (AbstractInsnNode ins : mn.instructions) {
 			if (ins.getOpcode() == checkopcode) {
-				throw new AssertionError(checkopcode + " opcode in <clinit> with " + ins);
+				throw new AssertionError(checkopcode + " opcode in " + mn.name + mn.desc + " with " + ins);
 			}
 		}
+	}
+
+	public static MethodNode getMethodNode(ClassNode cn, String name, String descriptor) {
+		for (MethodNode mn : cn.methods) {
+			if (name.equals(mn.name) && descriptor.equals(mn.desc)) {
+				return mn;
+			}
+		}
+		return null;
 	}
 
 	public static boolean isContainsInvokeStatic(MethodNode mn, Class<?> c, String name, Class<?>... paramtypes) {
