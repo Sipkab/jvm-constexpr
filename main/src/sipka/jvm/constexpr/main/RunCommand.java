@@ -179,45 +179,47 @@ public class RunCommand {
 				throw new IllegalArgumentException("Duplicate URL in classpath and input: " + inurl);
 			}
 		}
-		URLClassLoader cl = URLClassLoader.newInstance(classloaderurls.toArray(new URL[0]), getParentClassLoader());
+		try (URLClassLoader cl = URLClassLoader.newInstance(classloaderurls.toArray(new URL[0]),
+				getParentClassLoader())) {
 
-		InlinerOptions options = new InlinerOptions();
+			InlinerOptions options = new InlinerOptions();
 
-		//scan the complete classpath for annotations
-		for (URL url : classpathurls) {
-			scanClasspath(options, url, cl, false);
-		}
-		for (URL url : inputurls) {
-			scanClasspath(options, url, cl, true);
-		}
-
-		for (Entry<Class<?>, DeconstructorSettings> entry : deconstructorSettings.entrySet()) {
-			DeconstructorSettings settings = entry.getValue();
-			DeconstructionSelector selector = settings.toDeconstructionSelector();
-			if (selector == null) {
-				//not configured, only the settings instance is present
-				continue;
+			//scan the complete classpath for annotations
+			for (URL url : classpathurls) {
+				scanClasspath(options, url, cl, false);
 			}
-			options.getDeconstructorConfigurations().put(entry.getKey(), selector);
-		}
-
-		options.setLogger(new AbstractSimpleToolLogger() {
-			@Override
-			protected void log(LogEntry entry) {
-				System.out.println(entry.getMessage());
+			for (URL url : inputurls) {
+				scanClasspath(options, url, cl, true);
 			}
-		});
-		options.setOutputConsumer(new OutputConsumer() {
-			@Override
-			public void put(ToolInput<?> input, byte[] resultBytes) throws IOException {
-				Object inputkey = input.getInputKey();
-				if (inputkey instanceof OutputHandler) {
-					((OutputHandler) inputkey).handle(resultBytes);
+
+			for (Entry<Class<?>, DeconstructorSettings> entry : deconstructorSettings.entrySet()) {
+				DeconstructorSettings settings = entry.getValue();
+				DeconstructionSelector selector = settings.toDeconstructionSelector();
+				if (selector == null) {
+					//not configured, only the settings instance is present
+					continue;
 				}
+				options.getDeconstructorConfigurations().put(entry.getKey(), selector);
 			}
-		});
 
-		ConstantExpressionInliner.run(options);
+			options.setLogger(new AbstractSimpleToolLogger() {
+				@Override
+				protected void log(LogEntry entry) {
+					System.out.println(entry.getMessage());
+				}
+			});
+			options.setOutputConsumer(new OutputConsumer() {
+				@Override
+				public void put(ToolInput<?> input, byte[] resultBytes) throws IOException {
+					Object inputkey = input.getInputKey();
+					if (inputkey instanceof OutputHandler) {
+						((OutputHandler) inputkey).handle(resultBytes);
+					}
+				}
+			});
+
+			ConstantExpressionInliner.run(options);
+		}
 		for (Entry<Path, byte[]> entry : outputPathBytes.entrySet()) {
 			Path classfilepath = entry.getKey();
 			Files.createDirectories(classfilepath.getParent());
