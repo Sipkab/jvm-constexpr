@@ -169,14 +169,16 @@ public class RunCommand {
 		}
 
 		Collection<URL> classloaderurls = new LinkedHashSet<>();
-		Collection<URL> classpathurls = new LinkedHashSet<>();
-		Collection<URL> inputurls = new LinkedHashSet<>();
-		toURLs(classpathurls, classpath);
-		toURLs(inputurls, input);
-		classloaderurls.addAll(classpathurls);
-		for (URL inurl : inputurls) {
-			if (!classloaderurls.add(inurl)) {
-				throw new IllegalArgumentException("Duplicate URL in classpath and input: " + inurl);
+		Collection<Path> classpathpaths = new LinkedHashSet<>();
+		Collection<Path> inputpaths = new LinkedHashSet<>();
+		toPaths(classpathpaths, classpath);
+		toPaths(inputpaths, input);
+		for (Path clpath : classpathpaths) {
+			classloaderurls.add(clpath.toUri().toURL());
+		}
+		for (Path inpath : inputpaths) {
+			if (!classloaderurls.add(inpath.toUri().toURL())) {
+				throw new IllegalArgumentException("Duplicate Path in classpath and input: " + inpath);
 			}
 		}
 		try (URLClassLoader cl = URLClassLoader.newInstance(classloaderurls.toArray(new URL[0]),
@@ -186,11 +188,11 @@ public class RunCommand {
 			options.setClassLoader(cl);
 
 			//scan the complete classpath for annotations
-			for (URL url : classpathurls) {
-				scanClasspath(options, url, cl, false);
+			for (Path path : classpathpaths) {
+				scanClasspath(options, path, cl, false);
 			}
-			for (URL url : inputurls) {
-				scanClasspath(options, url, cl, true);
+			for (Path path : inputpaths) {
+				scanClasspath(options, path, cl, true);
 			}
 
 			for (Entry<Class<?>, DeconstructorSettings> entry : deconstructorSettings.entrySet()) {
@@ -284,13 +286,7 @@ public class RunCommand {
 		}
 	}
 
-	private void scanClasspath(InlinerOptions options, URL url, URLClassLoader cl, boolean input) throws Exception {
-		if (!"file".equals(url.getProtocol())) {
-			throw new IllegalArgumentException("Unsupported URL protocol: " + url);
-		}
-
-		Path path = Paths.get(url.toURI()).toAbsolutePath().normalize();
-
+	private void scanClasspath(InlinerOptions options, Path path, URLClassLoader cl, boolean input) throws Exception {
 		if (!Files.exists(path)) {
 			throw new NoSuchFileException(path.toString());
 		}
@@ -594,8 +590,7 @@ public class RunCommand {
 		}
 	}
 
-	private static void toURLs(Collection<URL> classpathurls, Collection<String> paths)
-			throws InvalidPathException, MalformedURLException {
+	private static void toPaths(Collection<Path> classpathurls, Collection<String> paths) throws InvalidPathException {
 		if (paths == null) {
 			return;
 		}
@@ -604,7 +599,7 @@ public class RunCommand {
 				if (url.isEmpty()) {
 					continue;
 				}
-				classpathurls.add(Paths.get(url).toUri().toURL());
+				classpathurls.add(Paths.get(url).toAbsolutePath().normalize());
 			}
 		}
 	}
