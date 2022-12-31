@@ -1203,6 +1203,10 @@ public class ConstantExpressionInliner {
 			//TODO don't modify the instructions if the deconstructed instructions are the same as the ones already present
 
 			for (AsmStackReconstructedValue val : nvalues) {
+				if (val.getStackInfo().equals(deconsresult.getStackInfo())) {
+					//no need for replacement in this case
+					continue;
+				}
 				val.removeInstructions(instructions);
 				//insert before the PUTSTATIC instruction
 				instructions.insertBefore(val.getLastIns(), Utils.clone(deconsresult.getInstructions()));
@@ -1475,7 +1479,8 @@ public class ConstantExpressionInliner {
 			}
 			InsnList deconstructedinstructions = deconsresult.getInstructions();
 			AbstractInsnNode lastdeconins = deconstructedinstructions.getLast();
-			if (Utils.isSameInsruction(ins, lastdeconins)) {
+
+			if (reconstructedval.getStackInfo().equals(deconsresult.getStackInfo())) {
 				//the reconstructed instruction is the same as the one we're processing
 				//don't replace the instructions
 				transclass.inlinedInstructions.add(lastdeconins);

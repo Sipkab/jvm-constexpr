@@ -16,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
@@ -1380,12 +1381,36 @@ public class Utils {
 				sb.append(elements.length);
 				sb.append(']');
 				if (!isAllNullElements(elements)) {
+					Object defaultval = getDefaultValue(info.getType());
+
 					sb.append(" { ");
+					int lastdefault = -1;
 					for (int i = 0; i < elements.length; i++) {
+						AsmStackInfo elem = elements[i];
+						boolean isdefault = elem == null;
+						if (isdefault) {
+							if (lastdefault < 0) {
+								lastdefault = i;
+							}
+							//else multiple default elements after each other
+							//nothing to print now
+							continue;
+						}
+						if (lastdefault >= 0) {
+							//print the default elements if there were any 
+							asmStackInfoAppendArrayDefaultElementValues(sb, defaultval, lastdefault, i);
+							lastdefault = -1;
+						}
+
 						if (i != 0) {
 							sb.append(", ");
 						}
-						appendAsmArrayElement(sb, componenttype, elements[i]);
+						appendAsmArrayElement(sb, componenttype, elem);
+					}
+					if (lastdefault >= 0) {
+						//print the default elements if there were any 
+						asmStackInfoAppendArrayDefaultElementValues(sb, defaultval, lastdefault, elements.length);
+						lastdefault = -1;
 					}
 					sb.append(" }");
 				}
@@ -1456,6 +1481,27 @@ public class Utils {
 				sb.append(info);
 				break;
 			}
+		}
+	}
+
+	private static void asmStackInfoAppendArrayDefaultElementValues(StringBuilder sb, Object defaultval,
+			int lastdefault, int i) {
+		if (lastdefault > 0) {
+			sb.append(", ");
+		}
+		if (lastdefault == i - 1) {
+			//only a single item
+			sb.append("[def:");
+			sb.append(formatConstant(defaultval));
+			sb.append(']');
+		} else {
+			sb.append('[');
+			sb.append(lastdefault);
+			sb.append('-');
+			sb.append(i - 1);
+			sb.append(" def:");
+			sb.append(formatConstant(defaultval));
+			sb.append(']');
 		}
 	}
 
@@ -1734,6 +1780,17 @@ public class Utils {
 				TypeInsnNode typeins = (TypeInsnNode) ins;
 				return Type.getType('[' + Type.getObjectType(typeins.desc).getDescriptor());
 			}
+
+			case Opcodes.BASTORE:
+			case Opcodes.SASTORE:
+			case Opcodes.IASTORE:
+			case Opcodes.LASTORE:
+			case Opcodes.FASTORE:
+			case Opcodes.DASTORE:
+			case Opcodes.CASTORE:
+			case Opcodes.AASTORE:
+				//these dont return anything back to the stack
+				return Type.VOID_TYPE;
 
 			case Opcodes.BALOAD:
 				return Type.BYTE_TYPE;

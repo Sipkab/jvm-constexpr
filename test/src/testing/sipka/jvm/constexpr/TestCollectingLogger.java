@@ -6,11 +6,19 @@ import java.util.Map;
 import java.util.Set;
 
 import sipka.jvm.constexpr.tool.log.AbstractSimpleToolLogger;
+import sipka.jvm.constexpr.tool.log.InstructionReplacementLogEntry;
 import sipka.jvm.constexpr.tool.log.LogEntry;
+import testing.saker.SakerTestCase;
 
 public final class TestCollectingLogger extends AbstractSimpleToolLogger {
 	private Set<LogEntry> logEntries = new HashSet<>();
 	private Map<Class<? extends LogEntry>, Set<LogEntry>> typedLogEntries = new HashMap<>();
+
+	@Override
+	public void log(InstructionReplacementLogEntry logentry) {
+		super.log(logentry);
+		SakerTestCase.assertNotEquals(logentry.getReplacedInfo(), logentry.getReplacementInfo());
+	}
 
 	@Override
 	protected void log(LogEntry entry) {
