@@ -485,7 +485,6 @@ public class RunCommand {
 		}
 
 		public void addClassFile(String classname, byte[] classbytes) {
-			System.out.println("RunCommand.InputLoadingURLClassLoader.addClassFile() " + classname);
 			individualClassFiles.put(classname, classbytes);
 		}
 
