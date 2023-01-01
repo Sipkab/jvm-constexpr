@@ -119,10 +119,13 @@ public class ChronoInlineTest extends SakerTestCase {
 		public static final String JERA1 = JapaneseEra.HEISEI.toString();
 		public static final String JERA2 = JapaneseEra.valueOf("Heisei").toString();
 		public static final int JERA3 = JapaneseEra.valueOf("Heisei").getValue();
+		public static final JapaneseEra JERA4 = JapaneseEra.valueOf("Heisei");
 
 		public static final String LOCALDATE1 = LocalDate.of(2000, 1, 2).toString();
 		public static final String LOCALDATE2 = LocalDate.of(2000, Month.JANUARY, 2).toString();
 		public static final String LOCALDATE3 = LocalDate.parse("2000-02-03").toString();
+		public static final String LOCALDATE4 = LocalDate.MIN.toString();
+		public static final String LOCALDATE5 = LocalDate.parse("-999999999-01-01").toString();
 
 		public static final String LOCALTIME1 = LocalTime.of(12, 10).toString();
 		public static final String LOCALTIME2 = LocalTime.of(12, 10, 13).toString();

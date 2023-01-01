@@ -26,6 +26,14 @@ final class ConstructorBasedDeconstructor implements ConstantDeconstructor {
 		this.typeInternalName = typeInternalName;
 	}
 
+	public String getTypeInternalName() {
+		return typeInternalName;
+	}
+
+	public DeconstructionDataAccessor[] getDataAccessors() {
+		return dataAccessors;
+	}
+
 	@Override
 	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass,
 			MethodNode methodnode, Object value) {
@@ -49,7 +57,7 @@ final class ConstructorBasedDeconstructor implements ConstantDeconstructor {
 				return null;
 			}
 			Object arg = deconstructeddata.getData();
-			Type argasmtype = Type.getType(deconstructeddata.getReceiverType());
+			Type argasmtype = deconstructeddata.getReceiverType();
 			asmargtypes[i] = argasmtype;
 			DeconstructionResult argdeconresult = context.deconstructValue(transclass, methodnode, arg, argasmtype);
 			if (argdeconresult == null) {

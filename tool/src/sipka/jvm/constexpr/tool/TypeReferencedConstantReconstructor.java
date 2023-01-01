@@ -9,12 +9,19 @@ class TypeReferencedConstantReconstructor implements ConstantReconstructor {
 	 * <p>
 	 * This type is not available through the {@link ConstantReconstructor}, but is relevant to make configuration
 	 * easier, so its kept here internally.
+	 * <p>
+	 * Might be <code>null</code>.
 	 */
 	protected final Class<?> type;
 
 	public TypeReferencedConstantReconstructor(ConstantReconstructor delegate, Class<?> type) {
 		this.delegate = delegate;
 		this.type = type;
+	}
+
+	public TypeReferencedConstantReconstructor(ConstantReconstructor delegate) {
+		this.delegate = delegate;
+		this.type = null;
 	}
 
 	@Override

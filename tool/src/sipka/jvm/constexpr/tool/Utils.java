@@ -810,7 +810,7 @@ public class Utils {
 	public static Method getMethodForMethodDescriptor(Class<?> type, String owner, String descriptor, String name)
 			throws NoSuchMethodException {
 		Type[] asmparamtypes = Type.getArgumentTypes(descriptor);
-		Method m = searchMethodForMethodDescriptor(type, asmparamtypes, owner, descriptor, name, false);
+		Method m = searchMethodForMethodDescriptor(type, asmparamtypes, owner, descriptor, name, owner == null);
 		if (m != null) {
 			m.setAccessible(true);
 			return m;
@@ -867,7 +867,7 @@ public class Utils {
 		}
 		return true;
 	}
-
+	
 	public static Executable getExecutableForDescriptor(Class<?> type, String owner, String name, String descriptor)
 			throws NoSuchMethodException {
 		if (CONSTRUCTOR_METHOD_NAME.equals(name)) {

@@ -3,16 +3,17 @@ package sipka.jvm.constexpr.tool.options;
 import java.lang.reflect.Field;
 
 import sipka.jvm.constexpr.tool.DeconstructedData;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 
 public final class FieldDeconstructionDataAccessor implements DeconstructionDataAccessor {
 	private final Field field;
-	private final Class<?> receiverType;
+	private final Type receiverType;
 
 	public FieldDeconstructionDataAccessor(Field f) {
-		this(f, f.getType());
+		this(f, Type.getType(f.getType()));
 	}
 
-	public FieldDeconstructionDataAccessor(Field field, Class<?> receiverType) {
+	public FieldDeconstructionDataAccessor(Field field, Type receiverType) {
 		this.field = field;
 		this.receiverType = receiverType;
 	}

@@ -28,6 +28,22 @@ final class StaticMethodBasedDeconstructor implements ConstantDeconstructor {
 		this.dataAccessors = dataAccessors;
 	}
 
+	public String getMethodOwnerTypeInternalName() {
+		return methodOwnerTypeInternalName;
+	}
+
+	public String getMethodName() {
+		return methodName;
+	}
+
+	public Type getReturnType() {
+		return returnType;
+	}
+
+	public DeconstructionDataAccessor[] getDataAccessors() {
+		return dataAccessors;
+	}
+
 	@Override
 	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass,
 			MethodNode methodnode, Object value) {
@@ -45,7 +61,7 @@ final class StaticMethodBasedDeconstructor implements ConstantDeconstructor {
 				return null;
 			}
 			Object arg = deconstructeddata.getData();
-			Type argasmtype = Type.getType(deconstructeddata.getReceiverType());
+			Type argasmtype = deconstructeddata.getReceiverType();
 			asmargtypes[i] = argasmtype;
 			DeconstructionResult argdecon = context.deconstructValue(transclass, methodnode, arg, argasmtype);
 			if (argdecon == null) {

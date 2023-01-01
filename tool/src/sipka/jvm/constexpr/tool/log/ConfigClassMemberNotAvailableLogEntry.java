@@ -38,17 +38,22 @@ public final class ConfigClassMemberNotAvailableLogEntry implements LogEntry {
 	@Override
 	public String getMessage() {
 		StringBuilder sb = new StringBuilder();
-		Type memberdesc = Type.getType(memberDescriptor);
-		if (memberdesc.getSort() == Type.METHOD) {
-			if (Utils.CONSTRUCTOR_METHOD_NAME.equals(memberName)) {
-				sb.append("Constructor not found in current JVM: ");
-			} else {
-				sb.append("Method not found in current JVM: ");
-			}
+		if (memberName == null) {
+			sb.append("Class not found in current JVM: ");
+			sb.append(Type.getObjectType(className).getClassName());
 		} else {
-			sb.append("Field not found in current JVM: ");
+			Type memberdesc = Type.getType(memberDescriptor);
+			if (memberdesc.getSort() == Type.METHOD) {
+				if (Utils.CONSTRUCTOR_METHOD_NAME.equals(memberName)) {
+					sb.append("Constructor not found in current JVM: ");
+				} else {
+					sb.append("Method not found in current JVM: ");
+				}
+			} else {
+				sb.append("Field not found in current JVM: ");
+			}
+			Utils.appendMemberDescriptorPretty(sb, memberdesc, Type.getObjectType(className), memberName);
 		}
-		Utils.appendMemberDescriptorPretty(sb, memberdesc, Type.getObjectType(className), memberName);
 		Throwable rc = exception;
 		if (rc != null) {
 			sb.append(System.lineSeparator());

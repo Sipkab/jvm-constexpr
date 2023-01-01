@@ -1,6 +1,7 @@
 package sipka.jvm.constexpr.tool;
 
 import java.lang.reflect.Field;
+import java.util.Arrays;
 
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Opcodes;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
@@ -25,6 +26,24 @@ final class StaticFieldEqualityDelegateConstantDeconstructor implements Constant
 		this.delegate = delegate;
 		this.type = type;
 		this.fieldNames = fieldNames;
+	}
+
+	public StaticFieldEqualityDelegateConstantDeconstructor withField(String fieldname) {
+		String[] narray = Arrays.copyOf(fieldNames, fieldNames.length + 1);
+		narray[fieldNames.length] = fieldname;
+		return new StaticFieldEqualityDelegateConstantDeconstructor(delegate, type, narray);
+	}
+
+	public ConstantDeconstructor getDelegate() {
+		return delegate;
+	}
+
+	public Class<?> getType() {
+		return type;
+	}
+
+	public String[] getFieldNames() {
+		return fieldNames;
 	}
 
 	@Override

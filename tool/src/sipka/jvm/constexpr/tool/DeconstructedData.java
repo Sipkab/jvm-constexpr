@@ -1,10 +1,12 @@
 package sipka.jvm.constexpr.tool;
 
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
+
 public final class DeconstructedData {
 	private final Object data;
-	private final Class<?> receiverType;
+	private final Type receiverType;
 
-	public DeconstructedData(Object data, Class<?> receiverType) {
+	public DeconstructedData(Object data, Type receiverType) {
 		this.data = data;
 		this.receiverType = receiverType;
 	}
@@ -13,7 +15,7 @@ public final class DeconstructedData {
 		return data;
 	}
 
-	public Class<?> getReceiverType() {
+	public Type getReceiverType() {
 		return receiverType;
 	}
 

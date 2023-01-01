@@ -3,18 +3,27 @@ package sipka.jvm.constexpr.tool.options;
 import java.lang.reflect.Method;
 
 import sipka.jvm.constexpr.tool.DeconstructedData;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 
 public final class MethodDeconstructionDataAccessor implements DeconstructionDataAccessor {
 	private final Method method;
-	private final Class<?> receiverType;
+	private final Type receiverType;
 
 	public MethodDeconstructionDataAccessor(Method method) {
-		this(method, method.getReturnType());
+		this(method, Type.getType(method.getReturnType()));
 	}
 
-	public MethodDeconstructionDataAccessor(Method method, Class<?> receiverType) {
+	public MethodDeconstructionDataAccessor(Method method, Type receiverType) {
 		this.method = method;
 		this.receiverType = receiverType;
+	}
+
+	public Method getMethod() {
+		return method;
+	}
+
+	public Type getReceiverType() {
+		return receiverType;
 	}
 
 	@Override

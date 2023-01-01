@@ -148,12 +148,16 @@ export(
 		Includes: [
 			{
 				# include all classes from the JARs
+				# and all additional resources
 				Archive: [
 					$annotationsjar[Path]
 					$tooljar[Path]
 					$mainjar[Path]
 				],
-				Resources: **/*.class,
+				Resources: [
+					**/*.class,
+					res/**
+				],
 			},
 			{
 				# the META-INF is taken from the main bundle
@@ -209,7 +213,7 @@ test_on_jdk(
 	$export = export()
 	$compile = $export[compile]
 	$testcp = [
-		$compile[mainjavac],
+		$export[fatjar][Path],
 		saker.java.classpath.bundle([
 			"saker.build-v{ static(VERSION_saker.build) }",
 			"saker.build-test-utils-v{ static(VERSION_saker.build) }",
@@ -234,6 +238,7 @@ test_on_jdk(
 		ClassPath: $testcp,
 		TestInvokerClass: testing.saker.SakerJavaTestingInvoker,
 		TestClassPath: $testcompile[ClassDirectory],
+		DependencyClassPath: $compile[mainjavac],
 		TestClasses: [
 			testing.sipka.**.*Test
 		],

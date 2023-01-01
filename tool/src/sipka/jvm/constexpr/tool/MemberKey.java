@@ -17,6 +17,20 @@ class MemberKey {
 		return new FieldKey(owner, membername, descriptor);
 	}
 
+	public static String getDescriptor(MemberKey key) {
+		if (key instanceof MethodKey) {
+			return ((MethodKey) key).getMethodDescriptor();
+		}
+		if (key instanceof FieldKey) {
+			return ((FieldKey) key).getFieldDescriptor();
+		}
+		if (key == null) {
+			return null;
+		}
+		throw new IllegalArgumentException(
+				"Unknown " + MemberKey.class.getSimpleName() + " subclass: " + key.getClass().getName() + ": " + key);
+	}
+
 	/**
 	 * Ordering is based on a owner-member_name ascending order.
 	 * <p>
