@@ -29,7 +29,6 @@ public class JarOverwriteCliTest extends CliTestCase {
 		args.add(jarpath.toString());
 		args.add("-overwrite");
 
-		//just check that it runs, and no classloading errors happen
 		CliMain.main(args.toArray(new String[0]));
 
 		Map<String, ClassNode> nodes = TestUtils.jarToClassNodes(jarpath);
