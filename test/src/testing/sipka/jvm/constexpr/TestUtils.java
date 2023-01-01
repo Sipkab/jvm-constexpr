@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -19,6 +20,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.jar.JarInputStream;
+import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -139,6 +141,29 @@ public class TestUtils {
 				cr.accept(cn, ClassReader.EXPAND_FRAMES);
 				result.put(Type.getObjectType(cn.name).getClassName(), cn);
 			}
+		}
+		return result;
+	}
+
+	public static Map<String, ClassNode> directoryToClassNodes(Path dir) throws IOException {
+		NavigableMap<String, ClassNode> result = new TreeMap<>();
+		try (Stream<Path> walkstream = Files.walk(dir)) {
+			for (Iterator<Path> it = walkstream.iterator(); it.hasNext();) {
+				Path p = it.next();
+				if (Files.isDirectory(p)) {
+					continue;
+				}
+
+				if (!p.getFileName().toString().endsWith(".class")) {
+					continue;
+				}
+				byte[] bytes = Files.readAllBytes(p);
+				ClassReader cr = new ClassReader(bytes);
+				ClassNode cn = new ClassNode(ConstantExpressionInliner.ASM_API);
+				cr.accept(cn, ClassReader.EXPAND_FRAMES);
+				result.put(Type.getObjectType(cn.name).getClassName(), cn);
+			}
+
 		}
 		return result;
 	}
