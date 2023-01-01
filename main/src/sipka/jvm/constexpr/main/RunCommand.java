@@ -7,7 +7,6 @@ import java.lang.reflect.Executable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.FileAlreadyExistsException;
@@ -181,18 +180,31 @@ public class RunCommand {
 				throw new IllegalArgumentException("Duplicate Path in classpath and input: " + inpath);
 			}
 		}
-		try (URLClassLoader cl = URLClassLoader.newInstance(classloaderurls.toArray(new URL[0]),
-				getParentClassLoader())) {
+		InlinerOptions options = createBaseOptions();
 
-			InlinerOptions options = new InlinerOptions();
+		//scan the complete classpath for annotations
+		Map<String, ClassBytes> classestoanalyze = new LinkedHashMap<>();
+		for (Path path : classpathpaths) {
+			scanClasspath(options, path, classestoanalyze, false);
+		}
+		for (Path path : inputpaths) {
+			scanClasspath(options, path, classestoanalyze, true);
+		}
+
+		try (InputLoadingURLClassLoader cl = new InputLoadingURLClassLoader(classloaderurls.toArray(new URL[0]),
+				getParentClassLoader())) {
+			for (Entry<String, ClassBytes> entry : classestoanalyze.entrySet()) {
+				//add the individually specified class files from the classpath to the classloader
+				ClassBytes cbytes = entry.getValue();
+				if (cbytes.individualClassFile) {
+					cl.addClassFile(Type.getObjectType(entry.getKey()).getClassName(), cbytes.bytes);
+				}
+			}
+
 			options.setClassLoader(cl);
 
-			//scan the complete classpath for annotations
-			for (Path path : classpathpaths) {
-				scanClasspath(options, path, cl, false);
-			}
-			for (Path path : inputpaths) {
-				scanClasspath(options, path, cl, true);
+			for (Entry<String, ClassBytes> entry : classestoanalyze.entrySet()) {
+				analyzeClassFile(options, entry.getValue().bytes, cl);
 			}
 
 			for (Entry<Class<?>, DeconstructorSettings> entry : deconstructorSettings.entrySet()) {
@@ -204,22 +216,6 @@ public class RunCommand {
 				}
 				options.getDeconstructorConfigurations().put(entry.getKey(), selector);
 			}
-
-			options.setLogger(new AbstractSimpleToolLogger() {
-				@Override
-				protected void log(LogEntry entry) {
-					System.out.println(entry.getMessage());
-				}
-			});
-			options.setOutputConsumer(new OutputConsumer() {
-				@Override
-				public void put(ToolInput<?> input, byte[] resultBytes) throws IOException {
-					Object inputkey = input.getInputKey();
-					if (inputkey instanceof OutputHandler) {
-						((OutputHandler) inputkey).handle(resultBytes);
-					}
-				}
-			});
 
 			ConstantExpressionInliner.run(options);
 		}
@@ -276,6 +272,26 @@ public class RunCommand {
 		}
 	}
 
+	private static InlinerOptions createBaseOptions() {
+		InlinerOptions options = new InlinerOptions();
+		options.setLogger(new AbstractSimpleToolLogger() {
+			@Override
+			protected void log(LogEntry entry) {
+				System.out.println(entry.getMessage());
+			}
+		});
+		options.setOutputConsumer(new OutputConsumer() {
+			@Override
+			public void put(ToolInput<?> input, byte[] resultBytes) throws IOException {
+				Object inputkey = input.getInputKey();
+				if (inputkey instanceof OutputHandler) {
+					((OutputHandler) inputkey).handle(resultBytes);
+				}
+			}
+		});
+		return options;
+	}
+
 	private static ClassLoader getParentClassLoader() {
 		//available from JDK 9+
 		try {
@@ -286,7 +302,8 @@ public class RunCommand {
 		}
 	}
 
-	private void scanClasspath(InlinerOptions options, Path path, URLClassLoader cl, boolean input) throws Exception {
+	private void scanClasspath(InlinerOptions options, Path path, Map<String, ClassBytes> classestoanalyze,
+			boolean input) throws Exception {
 		if (!Files.exists(path)) {
 			throw new NoSuchFileException(path.toString());
 		}
@@ -304,18 +321,22 @@ public class RunCommand {
 						outputZipEntryBytes.put(ze.getName(), new ZipEntryBytes(ze, bytes));
 					}
 					if (p.getFileName().toString().endsWith(".class")) {
-						AnalyzerClassVisitor analyzer;
-						try {
-							analyzer = analyzeClassFile(options, bytes, cl);
-						} catch (Exception e) {
-							throw new RuntimeException("Failed to analyze " + p, e);
-						}
+						ClassReader cr = new ClassReader(bytes);
+						String classinternalname = cr.getClassName();
+						classestoanalyze.put(classinternalname, new ClassBytes(p, bytes));
+
+//						AnalyzerClassVisitor analyzer;
+//						try {
+//							analyzer = analyzeClassFile(options, bytes, cl);
+//						} catch (Exception e) {
+//							throw new RuntimeException("Failed to analyze " + p, e);
+//						}
 						if (input) {
 							OutputHandler handler;
 							if (overwrite) {
 								handler = new ClassFileOutputHandler(p);
 							} else {
-								handler = getOutputHandler(analyzer, p, null);
+								handler = getOutputHandler(classinternalname, p, null);
 							}
 							options.getInputs().add(ToolInput.createForPath(handler, p));
 						}
@@ -328,15 +349,24 @@ public class RunCommand {
 				//simple class, not zip or jar
 
 				byte[] bytes = Files.readAllBytes(path);
-				AnalyzerClassVisitor analyzer;
-				try {
-					analyzer = analyzeClassFile(options, bytes, cl);
-				} catch (Exception e) {
-					throw new RuntimeException("Failed to analyze " + path, e);
-				}
+
+				ClassReader cr = new ClassReader(bytes);
+				String classinternalname = cr.getClassName();
+				ClassBytes classbytes = new ClassBytes(path, bytes);
+				classbytes.individualClassFile = true;
+				classestoanalyze.put(classinternalname, classbytes);
+
+//				AnalyzerClassVisitor analyzer;
+//				try {
+//					ClassReader cr = new ClassReader(bytes);
+//					cl.addClassFile(Type.getObjectType(cr.getClassName()).getClassName(), bytes);
+//					analyzer = analyzeClassFile(options, bytes, cl);
+//				} catch (Exception e) {
+//					throw new RuntimeException("Failed to analyze " + path, e);
+//				}
 				if (input) {
 					if (outputZip) {
-						ZipEntry ze = new ZipEntry(analyzer.classInternalName + ".class");
+						ZipEntry ze = new ZipEntry(classinternalname + ".class");
 						ze.setLastModifiedTime(Files.getLastModifiedTime(path));
 						outputZipEntryBytes.put(ze.getName(), new ZipEntryBytes(ze, bytes));
 					}
@@ -344,7 +374,7 @@ public class RunCommand {
 					if (overwrite) {
 						handler = new ClassFileOutputHandler(path);
 					} else {
-						handler = getOutputHandler(analyzer, path, null);
+						handler = getOutputHandler(classinternalname, path, null);
 					}
 					options.getInputs().add(ToolInput.createForPath(handler, path));
 				}
@@ -364,17 +394,24 @@ public class RunCommand {
 							outputZipEntryBytes.put(ze.getName(), new ZipEntryBytes(cloneZipEntry(ze), bytes));
 						}
 						if (ze.getName().endsWith(".class")) {
-							AnalyzerClassVisitor analyzer;
-							try {
-								analyzer = analyzeClassFile(options, bytes, cl);
-							} catch (Exception e) {
-								throw new RuntimeException("Failed to analyze " + ze.getName() + " in " + path, e);
-							}
+
+							ClassReader cr = new ClassReader(bytes);
+							String classinternalname = cr.getClassName();
+							ClassBytes classbytes = new ClassBytes(path, bytes);
+							classbytes.zipEntry = ze;
+							classestoanalyze.put(classinternalname, classbytes);
+
+//							AnalyzerClassVisitor analyzer;
+//							try {
+//								analyzer = analyzeClassFile(options, bytes, cl);
+//							} catch (Exception e) {
+//								throw new RuntimeException("Failed to analyze " + ze.getName() + " in " + path, e);
+//							}
 							OutputHandler handler;
 							if (overwrite) {
 								handler = new OverwriteZipOutputHandler(path, ze.getName());
 							} else {
-								handler = getOutputHandler(analyzer, null, ze);
+								handler = getOutputHandler(classinternalname, null, ze);
 							}
 							if (input) {
 								if (ze.getName().startsWith("META-INF/versions/")) {
@@ -390,8 +427,21 @@ public class RunCommand {
 		}
 	}
 
+	private static class ClassBytes {
+		protected final Path source;
+		protected final byte[] bytes;
+
+		protected boolean individualClassFile;
+		protected ZipEntry zipEntry;
+
+		public ClassBytes(Path source, byte[] bytes) {
+			this.source = source;
+			this.bytes = bytes;
+		}
+	}
+
 	/**
-	 * @param analyzer
+	 * @param classinternalname
 	 * @param filepath
 	 *            If the input is a file.
 	 * @param zipentry
@@ -399,17 +449,17 @@ public class RunCommand {
 	 * @return
 	 * @throws IOException
 	 */
-	private OutputHandler getOutputHandler(AnalyzerClassVisitor analyzer, Path filepath, ZipEntry zipentry)
+	private OutputHandler getOutputHandler(String classinternalname, Path filepath, ZipEntry zipentry)
 			throws IOException {
 		if (outputDir) {
-			return new ClassFileOutputHandler(outputDirectory.resolve(analyzer.classInternalName + ".class"));
+			return new ClassFileOutputHandler(outputDirectory.resolve(classinternalname + ".class"));
 		}
 		if (outputZip) {
 			ZipEntry ze;
 			if (zipentry != null) {
 				ze = cloneZipEntry(zipentry);
 			} else {
-				ze = new ZipEntry(analyzer.classInternalName + ".class");
+				ze = new ZipEntry(classinternalname + ".class");
 				ze.setLastModifiedTime(Files.getLastModifiedTime(filepath));
 			}
 			return new ZipOutputHandler(ze);
@@ -425,6 +475,32 @@ public class RunCommand {
 		}
 		nentry.setMethod(zipentry.getMethod());
 		return nentry;
+	}
+
+	private static final class InputLoadingURLClassLoader extends URLClassLoader {
+		private Map<String, byte[]> individualClassFiles = new TreeMap<>();
+
+		private InputLoadingURLClassLoader(URL[] urls, ClassLoader parent) {
+			super(urls, parent);
+		}
+
+		public void addClassFile(String classname, byte[] classbytes) {
+			System.out.println("RunCommand.InputLoadingURLClassLoader.addClassFile() " + classname);
+			individualClassFiles.put(classname, classbytes);
+		}
+
+		@Override
+		protected Class<?> findClass(String name) throws ClassNotFoundException {
+			try {
+				return super.findClass(name);
+			} catch (ClassNotFoundException e) {
+				byte[] cbytes = individualClassFiles.get(name);
+				if (cbytes != null) {
+					return defineClass(name, cbytes, 0, cbytes.length);
+				}
+				throw e;
+			}
+		}
 	}
 
 	private final class ZipOutputHandler implements OutputHandler {
@@ -476,6 +552,11 @@ public class RunCommand {
 	private AnalyzerClassVisitor analyzeClassFile(InlinerOptions options, byte[] bytes, URLClassLoader cl)
 			throws Exception {
 		ClassReader cr = new ClassReader(bytes);
+		return analyzeClassFile(options, cr, cl);
+	}
+
+	private AnalyzerClassVisitor analyzeClassFile(InlinerOptions options, ClassReader cr, URLClassLoader cl)
+			throws ClassNotFoundException, NoSuchFieldException, NoSuchMethodException {
 		AnalyzerClassVisitor analyzer = new AnalyzerClassVisitor(ConstantExpressionInliner.ASM_API);
 		cr.accept(analyzer, ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
 		if (!analyzer.isAnyConstantRelatedSettings()) {

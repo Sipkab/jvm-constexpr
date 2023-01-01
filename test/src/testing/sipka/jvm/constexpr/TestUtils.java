@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
@@ -373,6 +374,17 @@ public class TestUtils {
 		return result;
 	}
 
+	public static Map<Class<?>, Path> writeClasses(Path path, Class<?>... classes) throws IOException {
+		Map<Class<?>, Path> result = new LinkedHashMap<>();
+		for (Class<?> c : classes) {
+			Path classfilepath = path.resolve(c.getName().replace('.', '/') + ".class");
+			Files.createDirectories(classfilepath.getParent());
+			writeFileIfChanged(classfilepath, ReflectUtils.getClassBytesUsingClassLoader(c).copyOptionally());
+			result.put(c, classfilepath);
+		}
+		return result;
+	}
+
 	public static void writeJar(Path path, Class<?>... classes) throws IOException {
 		Files.createDirectories(path.getParent());
 		try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
@@ -386,19 +398,26 @@ public class TestUtils {
 					zos.closeEntry();
 				}
 			}
-			byte[] zipbytes = baos.toByteArray();
-			try {
-				//only write if changed, dont need to unnecessarily write the disk for test cases
-				if (Arrays.equals(zipbytes, Files.readAllBytes(path))) {
-					return;
-				}
-			} catch (Exception e) {
+			writeFileIfChanged(path, baos);
+		}
+	}
+
+	private static void writeFileIfChanged(Path path, ByteArrayOutputStream baos) throws IOException {
+		writeFileIfChanged(path, baos.toByteArray());
+	}
+
+	private static void writeFileIfChanged(Path path, byte[] filebytes) throws IOException {
+		try {
+			//only write if changed, dont need to unnecessarily write the disk for test cases
+			if (Arrays.equals(filebytes, Files.readAllBytes(path))) {
+				return;
 			}
-			try {
-				Files.write(path, zipbytes);
-			} catch (Exception e) {
-				throw e;
-			}
+		} catch (Exception e) {
+		}
+		try {
+			Files.write(path, filebytes);
+		} catch (Exception e) {
+			throw e;
 		}
 	}
 }
