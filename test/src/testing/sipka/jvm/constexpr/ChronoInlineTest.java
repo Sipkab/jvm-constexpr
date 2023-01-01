@@ -133,6 +133,7 @@ public class ChronoInlineTest extends SakerTestCase {
 		public static final String LOCALTIME4 = LocalTime.parse("01:02:03.123456789").toString();
 		public static final String LOCALTIME5 = LocalTime.ofNanoOfDay(123456789123L).toString();
 		public static final String LOCALTIME6 = LocalTime.ofSecondOfDay(12345).toString();
+		public static final LocalTime LOCALTIMENOON = LocalTime.of(12, 0);
 
 		public static final String LOCALDATETIME1 = LocalDateTime.of(2020, Month.JANUARY, 1, 11, 22).toString();
 		public static final String LOCALDATETIME2 = LocalDateTime.of(2020, Month.JANUARY, 1, 11, 22, 33).toString();
