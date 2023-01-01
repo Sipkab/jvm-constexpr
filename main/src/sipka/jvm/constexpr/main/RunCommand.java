@@ -325,12 +325,6 @@ public class RunCommand {
 						String classinternalname = cr.getClassName();
 						classestoanalyze.put(classinternalname, new ClassBytes(p, bytes));
 
-//						AnalyzerClassVisitor analyzer;
-//						try {
-//							analyzer = analyzeClassFile(options, bytes, cl);
-//						} catch (Exception e) {
-//							throw new RuntimeException("Failed to analyze " + p, e);
-//						}
 						if (input) {
 							OutputHandler handler;
 							if (overwrite) {
@@ -356,14 +350,6 @@ public class RunCommand {
 				classbytes.individualClassFile = true;
 				classestoanalyze.put(classinternalname, classbytes);
 
-//				AnalyzerClassVisitor analyzer;
-//				try {
-//					ClassReader cr = new ClassReader(bytes);
-//					cl.addClassFile(Type.getObjectType(cr.getClassName()).getClassName(), bytes);
-//					analyzer = analyzeClassFile(options, bytes, cl);
-//				} catch (Exception e) {
-//					throw new RuntimeException("Failed to analyze " + path, e);
-//				}
 				if (input) {
 					if (outputZip) {
 						ZipEntry ze = new ZipEntry(classinternalname + ".class");
@@ -401,12 +387,6 @@ public class RunCommand {
 							classbytes.zipEntry = ze;
 							classestoanalyze.put(classinternalname, classbytes);
 
-//							AnalyzerClassVisitor analyzer;
-//							try {
-//								analyzer = analyzeClassFile(options, bytes, cl);
-//							} catch (Exception e) {
-//								throw new RuntimeException("Failed to analyze " + ze.getName() + " in " + path, e);
-//							}
 							OutputHandler handler;
 							if (overwrite) {
 								handler = new OverwriteZipOutputHandler(path, ze.getName());
