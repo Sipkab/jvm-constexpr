@@ -1,8 +1,8 @@
 package sipka.jvm.constexpr.tool;
 
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Opcodes;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.AbstractInsnNode;
 
@@ -22,11 +22,9 @@ final class MethodBasedConstantReconstructor implements ConstantReconstructor {
 	private final Method method;
 
 	private final transient Class<?>[] parameterTypes;
-	private final transient boolean staticFunc;
 
 	public MethodBasedConstantReconstructor(Method m) {
 		this.parameterTypes = m.getParameterTypes();
-		this.staticFunc = (m.getModifiers() & Modifier.STATIC) == Modifier.STATIC;
 		this.method = m;
 	}
 
@@ -50,7 +48,8 @@ final class MethodBasedConstantReconstructor implements ConstantReconstructor {
 		AbstractInsnNode firstins = paramcount == 0 ? ins : derivedargs[0].getFirstIns();
 		Object subject;
 		AsmStackReconstructedValue subjectval;
-		if (staticFunc) {
+		boolean staticfunc = ins.getOpcode() == Opcodes.INVOKESTATIC;
+		if (staticfunc) {
 			subjectval = null;
 			subject = null;
 		} else {
@@ -77,7 +76,7 @@ final class MethodBasedConstantReconstructor implements ConstantReconstructor {
 					Type.getMethodDescriptor(method), subject, args);
 		}
 		AsmStackInfo stackinfo;
-		if (staticFunc) {
+		if (staticfunc) {
 			stackinfo = AsmStackInfo.createStaticMethod(Type.getType(method.getDeclaringClass()), method.getName(),
 					Type.getType(method), AsmStackReconstructedValue.toStackInfoArray(derivedargs));
 		} else {
