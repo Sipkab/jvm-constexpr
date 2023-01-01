@@ -126,6 +126,23 @@ public class TestUtils {
 		return result;
 	}
 
+	public static Map<String, ClassNode> jarToClassNodes(Path jarfile) throws IOException {
+		NavigableMap<String, ClassNode> result = new TreeMap<>();
+		try (InputStream is = Files.newInputStream(jarfile);
+				JarInputStream jis = new JarInputStream(is)) {
+			for (ZipEntry ze; (ze = jis.getNextEntry()) != null;) {
+				if (!ze.getName().endsWith(".class")) {
+					continue;
+				}
+				ClassReader cr = new ClassReader(jis);
+				ClassNode cn = new ClassNode(ConstantExpressionInliner.ASM_API);
+				cr.accept(cn, ClassReader.EXPAND_FRAMES);
+				result.put(Type.getObjectType(cn.name).getClassName(), cn);
+			}
+		}
+		return result;
+	}
+
 	public static NavigableMap<String, FieldNode> getFields(ClassNode cn) {
 		TreeMap<String, FieldNode> result = new TreeMap<>();
 		for (FieldNode fn : cn.fields) {
