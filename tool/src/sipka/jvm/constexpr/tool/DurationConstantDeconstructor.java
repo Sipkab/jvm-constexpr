@@ -52,18 +52,18 @@ final class DurationConstantDeconstructor implements ConstantDeconstructor {
 	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass,
 			MethodNode methodnode, Object value) {
 		Duration dur = (Duration) value;
+		int nano = dur.getNano();
+		if (nano == 0) {
+			//if the nanos part of the Duration is 0, then we can use the ofSeconds(long) method instead of ofSeconds(long,long)
+			//for deconstruction
+			return secondsDeconstructor.deconstructValue(context, transclass, methodnode, value);
+		}
 		try {
 			//call to check arithmetic overflow
 			dur.toNanos();
 			return nanosDeconstructor.deconstructValue(context, transclass, methodnode, value);
 		} catch (ArithmeticException e) {
 			// overflow, doesn't work
-		}
-		int nano = dur.getNano();
-		if (nano == 0) {
-			//if the nanos part of the Duration is 0, then we can use the ofSeconds(long) method instead of ofSeconds(long,long)
-			//for deconstruction
-			return secondsDeconstructor.deconstructValue(context, transclass, methodnode, value);
 		}
 		if ((nano % 1_000_000) == 0) {
 			//the nano and microseconds part is zero
