@@ -104,15 +104,26 @@ public class TestUtils {
 		return bytesToClassNodes(outbytes);
 	}
 
-	private static NavigableMap<String, ClassNode> bytesToClassNodes(NavigableMap<String, byte[]> outbytes) {
+	public static NavigableMap<String, ClassNode> bytesToClassNodes(NavigableMap<String, byte[]> classbytes) {
 		NavigableMap<String, ClassNode> outputs = new TreeMap<>();
-		for (Entry<String, byte[]> entry : outbytes.entrySet()) {
+		for (Entry<String, byte[]> entry : classbytes.entrySet()) {
 			ClassReader cr = new ClassReader(entry.getValue());
 			ClassNode cn = new ClassNode(ConstantExpressionInliner.ASM_API);
 			cr.accept(cn, ClassReader.EXPAND_FRAMES);
 			outputs.put(entry.getKey(), cn);
 		}
 		return outputs;
+	}
+
+	public static Map<String, ClassNode> filesToClassNodes(Iterable<? extends Path> files) throws IOException {
+		NavigableMap<String, ClassNode> result = new TreeMap<>();
+		for (Path path : files) {
+			ClassReader cr = new ClassReader(Files.readAllBytes(path));
+			ClassNode cn = new ClassNode(ConstantExpressionInliner.ASM_API);
+			cr.accept(cn, ClassReader.EXPAND_FRAMES);
+			result.put(Type.getObjectType(cn.name).getClassName(), cn);
+		}
+		return result;
 	}
 
 	public static NavigableMap<String, FieldNode> getFields(ClassNode cn) {
