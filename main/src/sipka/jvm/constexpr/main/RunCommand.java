@@ -146,7 +146,7 @@ public class RunCommand {
 					"Both -overwrite and -output were specified. Only one is allowed at a time.");
 		}
 		Path outputpath;
-		if (!overwrite && output != null) {
+		if (output != null) {
 			outputpath = Paths.get(output).toAbsolutePath().normalize();
 			String outputpathfilename = outputpath.getFileName().toString();
 			outputZip = outputpathfilename.endsWith(".jar") || outputpathfilename.endsWith(".zip");
@@ -219,6 +219,7 @@ public class RunCommand {
 
 			ConstantExpressionInliner.run(options);
 		}
+
 		for (Entry<Path, byte[]> entry : outputPathBytes.entrySet()) {
 			Path classfilepath = entry.getKey();
 			Files.createDirectories(classfilepath.getParent());
@@ -380,7 +381,6 @@ public class RunCommand {
 							outputZipEntryBytes.put(ze.getName(), new ZipEntryBytes(cloneZipEntry(ze), bytes));
 						}
 						if (ze.getName().endsWith(".class")) {
-
 							ClassReader cr = new ClassReader(bytes);
 							String classinternalname = cr.getClassName();
 							ClassBytes classbytes = new ClassBytes(path, bytes);
@@ -528,18 +528,17 @@ public class RunCommand {
 		public void handle(byte[] bytes);
 	}
 
-	private AnalyzerClassVisitor analyzeClassFile(InlinerOptions options, byte[] bytes, URLClassLoader cl)
-			throws Exception {
+	private void analyzeClassFile(InlinerOptions options, byte[] bytes, URLClassLoader cl) throws Exception {
 		ClassReader cr = new ClassReader(bytes);
-		return analyzeClassFile(options, cr, cl);
+		analyzeClassFile(options, cr, cl);
 	}
 
-	private AnalyzerClassVisitor analyzeClassFile(InlinerOptions options, ClassReader cr, URLClassLoader cl)
+	private void analyzeClassFile(InlinerOptions options, ClassReader cr, ClassLoader cl)
 			throws ClassNotFoundException, NoSuchFieldException, NoSuchMethodException {
 		AnalyzerClassVisitor analyzer = new AnalyzerClassVisitor(ConstantExpressionInliner.ASM_API);
 		cr.accept(analyzer, ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
 		if (!analyzer.isAnyConstantRelatedSettings()) {
-			return analyzer;
+			return;
 		}
 		Class<?> type = Class.forName(Type.getObjectType(analyzer.classInternalName).getClassName(), false, cl);
 		if (analyzer.constantExpression) {
@@ -618,7 +617,6 @@ public class RunCommand {
 					.computeIfAbsent(Utils.getExecutableEffectiveReturnType(e), x -> new DeconstructorSettings())
 					.addExecutable(DeconstructorConfiguration.createExecutable(e, parameterdataaccessors));
 		}
-		return analyzer;
 	}
 
 	private static Collection<? extends Method> searchGetter(Class<?> type, Class<?> paramtype, String paramname) {
