@@ -12,4 +12,6 @@ public interface ToolLogger {
 	public void log(DeconstructionFailedLogEntry logentry);
 
 	public void log(ConfigClassMemberNotAvailableLogEntry logentry);
+
+	public void log(IndeterministicToStringLogEntry logentry);
 }

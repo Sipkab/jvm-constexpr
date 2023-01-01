@@ -26,6 +26,7 @@ import sipka.jvm.constexpr.tool.log.BytecodeLocation;
 import sipka.jvm.constexpr.tool.log.ConfigClassMemberNotAvailableLogEntry;
 import sipka.jvm.constexpr.tool.log.DeconstructionFailedLogEntry;
 import sipka.jvm.constexpr.tool.log.DeconstructorNotConfiguredLogEntry;
+import sipka.jvm.constexpr.tool.log.IndeterministicToStringLogEntry;
 import sipka.jvm.constexpr.tool.log.InstructionReplacementLogEntry;
 import sipka.jvm.constexpr.tool.log.LogContextInfo;
 import sipka.jvm.constexpr.tool.log.MultipleInitializationPathLogEntry;
@@ -98,6 +99,8 @@ public class ConstantExpressionInliner {
 	private final Map<String, DeconstructorNotConfiguredLogEntry> deconstructorNotConfiguredLogEntries = new TreeMap<>();
 	private final Set<FieldKey> multipleInitializationLoggedFields = new TreeSet<>(MemberKey::compare);
 	private final Set<String> configMemberNotAvailableLoggedEntries = new TreeSet<>();
+
+	private final Map<String, IndeterministicToStringLogEntry> toStringLogEntries = new TreeMap<>();
 
 	private ClassLoader classLoader;
 
@@ -256,6 +259,9 @@ public class ConstantExpressionInliner {
 			}
 
 			for (DeconstructorNotConfiguredLogEntry logentry : deconstructorNotConfiguredLogEntries.values()) {
+				logger.log(logentry);
+			}
+			for (IndeterministicToStringLogEntry logentry : toStringLogEntries.values()) {
 				logger.log(logentry);
 			}
 		}
@@ -882,6 +888,10 @@ public class ConstantExpressionInliner {
 				}
 			}
 		}
+	}
+
+	boolean isConstantType(String typeinternalname) {
+		return constantTypes.get(typeinternalname) != null;
 	}
 
 	Class<?> findClass(Type asmtype) throws ClassNotFoundException {
@@ -1522,7 +1532,7 @@ public class ConstantExpressionInliner {
 				if ("toString".equals(methodins.name) && "()Ljava/lang/String;".equals(methodins.desc)) {
 					//handle toString specially
 					//if the reconstruction succeeds, then we can call toString on it and inline that result
-					return MethodBasedConstantReconstructor.TOSTRING_INSTANCE.reconstructValue(context, ins);
+					return ToStringConstantReconstructor.INSTANCE.reconstructValue(context, methodins);
 				}
 				InlinerTypeReference typeref = constantTypes.get(methodins.owner);
 				if (typeref != null) {
@@ -1849,5 +1859,13 @@ public class ConstantExpressionInliner {
 			return;
 		}
 		logger.log(new DeconstructionFailedLogEntry(value, accessor, cause));
+	}
+
+	void logIndeterministicToString(String classinternalname) {
+		if (logger == null) {
+			//no need for logging
+			return;
+		}
+		toStringLogEntries.put(classinternalname, new IndeterministicToStringLogEntry(classinternalname));
 	}
 }

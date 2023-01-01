@@ -1,6 +1,7 @@
 package sipka.jvm.constexpr.tool;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Opcodes;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
@@ -10,15 +11,6 @@ import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.AbstractInsnNo
  * {@link ConstantReconstructor} that calls a static or instance method to reconstruct a value.
  */
 final class MethodBasedConstantReconstructor implements ConstantReconstructor {
-	public static final MethodBasedConstantReconstructor TOSTRING_INSTANCE;
-	static {
-		try {
-			TOSTRING_INSTANCE = new MethodBasedConstantReconstructor(Object.class.getMethod("toString"));
-		} catch (NoSuchMethodException | SecurityException e) {
-			throw new AssertionError("Object.toString method not found.", e);
-		}
-	}
-
 	private final Method method;
 
 	private final transient Class<?>[] parameterTypes;
@@ -65,6 +57,13 @@ final class MethodBasedConstantReconstructor implements ConstantReconstructor {
 				throw context.newInstanceAccessFailureReconstructionException(e, ins,
 						Type.getInternalName(method.getDeclaringClass()), method.getName(),
 						Type.getMethodDescriptor(method));
+			}
+
+			if (subject == null) {
+				throw context.newMethodInvocationFailureReconstructionException(
+						new NullPointerException("Method call subject is null: " + method), ins,
+						Type.getInternalName(method.getDeclaringClass()), method.getName(),
+						Type.getMethodDescriptor(method), subject, args);
 			}
 		}
 		Object resultobj;
