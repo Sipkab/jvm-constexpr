@@ -3,6 +3,7 @@ package testing.sipka.jvm.constexpr;
 import java.util.Map;
 import java.util.NavigableMap;
 
+import sipka.jvm.constexpr.tool.options.InlinerOptions;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.ClassNode;
 import testing.saker.SakerTest;
 import testing.saker.SakerTestCase;
@@ -15,12 +16,26 @@ public class ClassNameInlineTest extends SakerTestCase {
 
 	@Override
 	public void runTest(Map<String, String> parameters) throws Throwable {
-		NavigableMap<String, ClassNode> outputs = TestUtils.performInliningClassNodes(Constants.class);
-		assertEquals(outputs.size(), 1); // testing a single class
+		{
+			NavigableMap<String, ClassNode> outputs = TestUtils.performInliningClassNodes(Constants.class);
+			assertEquals(outputs.size(), 1); // testing a single class
 
-		ClassNode classnode = outputs.firstEntry().getValue();
-		TestUtils.assertSameStaticFieldValues(classnode, Constants.class);
-		assertNull(TestUtils.getClInitMethod(classnode), "clinit method");
+			ClassNode classnode = outputs.firstEntry().getValue();
+			TestUtils.assertSameStaticFieldValues(classnode, Constants.class);
+			assertNull(TestUtils.getClInitMethod(classnode), "clinit method");
+		}
+		{
+			//the loading of SomeOtherClass would fail, so the constant couldnt be loaded
+			//this is fixed by not attempting to load the classes themselves in these simple cases
+			InlinerOptions options = TestUtils.createOptionsForClasses(NotAvailableClassNameConstants.class);
+			options.setClassLoader(null);
+			NavigableMap<String, ClassNode> outputs = TestUtils.performInliningClassNodes(options);
+			assertEquals(outputs.size(), 1); // testing a single class
+
+			ClassNode classnode = outputs.firstEntry().getValue();
+			TestUtils.assertSameStaticFieldValues(classnode, NotAvailableClassNameConstants.class);
+			assertNull(TestUtils.getClInitMethod(classnode), "clinit method");
+		}
 	}
 
 	public static class Constants {
@@ -139,5 +154,14 @@ public class ClassNameInlineTest extends SakerTestCase {
 		public static class InnerClass {
 
 		}
+	}
+
+	public static class NotAvailableClassNameConstants {
+		public static final String otherClassName = SomeOtherClass.class.getName();
+		public static final String otherArrayClassName = SomeOtherClass[].class.getName();
+	}
+
+	public static class SomeOtherClass {
+
 	}
 }

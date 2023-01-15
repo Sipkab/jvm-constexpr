@@ -18,8 +18,10 @@ import java.util.Locale;
 import java.util.Map;
 
 import sipka.jvm.constexpr.tool.options.DeconstructionDataAccessor;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Opcodes;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.AbstractInsnNode;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.LdcInsnNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodNode;
 
 /**
@@ -468,8 +470,16 @@ class BaseConfig {
 				throws ReconstructionException {
 			AsmStackReconstructedValue typeval;
 			try {
-				typeval = context.getInliner().reconstructStackValue(context.withReceiverType(Class.class),
-						ins.getPrevious());
+				AbstractInsnNode previns = ins.getPrevious();
+				//if the previous one is an LDC instruction, then get the Type constant directly
+				//instead of reconstructing the Class instance, as that is not really necessary
+				if (previns.getOpcode() == Opcodes.LDC) {
+					LdcInsnNode ldcins = (LdcInsnNode) previns;
+					typeval = AsmStackReconstructedValue.createConstant(previns, ins, ldcins.cst);
+				} else {
+					typeval = context.getInliner().reconstructStackValue(context.withReceiverType(Class.class),
+							previns);
+				}
 			} catch (ReconstructionException e) {
 				throw context.newInstanceAccessFailureReconstructionException(e, ins, "java/lang/Class", memberName,
 						"()Ljava/lang/String;");

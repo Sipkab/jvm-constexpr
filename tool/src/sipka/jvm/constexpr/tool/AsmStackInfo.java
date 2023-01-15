@@ -162,7 +162,9 @@ public final class AsmStackInfo {
 	 * Gets the object associated with the info.
 	 * <p>
 	 * <ul>
-	 * <li>{@link Kind#CONSTANT}: The constant object. May be <code>null</code> if the value was <code>null</code>.</li>
+	 * <li>{@link Kind#CONSTANT}: The constant object. May be <code>null</code> if the value was <code>null</code>. May
+	 * be an instance of {@link Type} instead of {@link Class} if the class wasn't loaded when the object was
+	 * reconstructed.</li>
 	 * <li>{@link Kind#ARRAY}: The length value stack info. An instance of {@link AsmStackInfo}.</li>
 	 * <li>{@link Kind#ARRAY_LOAD}: The array stack info. An instance of {@link AsmStackInfo}.</li>
 	 * <li>{@link Kind#ARRAY_LENGTH}: The array stack info. May not contain information about the individual elements.
