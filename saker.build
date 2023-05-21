@@ -81,7 +81,8 @@ export(
 			MainAttributes: {
 				Nest-Bundle-Format-Version: 1,
 				Nest-Bundle-Identifier: "sipka.jvm.constexpr-annotations-v{ global(VERSION_sipka.jvm.constexpr) }",
-				Nest-Bundle-Source: "sipka.jvm.constexpr-sources-v{ global(VERSION_sipka.jvm.constexpr) }"
+				Nest-Bundle-Source: "sipka.jvm.constexpr-sources-v{ global(VERSION_sipka.jvm.constexpr) }",
+				Sipka-Jvm-Constexpr-Version: "{ global(VERSION_sipka.jvm.constexpr) }",
 			}
 		}
 	)
@@ -105,7 +106,8 @@ export(
 			MainAttributes: {
 				Nest-Bundle-Format-Version: 1,
 				Nest-Bundle-Identifier: "sipka.jvm.constexpr-tool-v{ global(VERSION_sipka.jvm.constexpr) }",
-				Nest-Bundle-Source: "sipka.jvm.constexpr-sources-v{ global(VERSION_sipka.jvm.constexpr) }"
+				Nest-Bundle-Source: "sipka.jvm.constexpr-sources-v{ global(VERSION_sipka.jvm.constexpr) }",
+				Sipka-Jvm-Constexpr-Version: "{ global(VERSION_sipka.jvm.constexpr) }",
 			}
 		}
 	)
@@ -136,7 +138,8 @@ export(
 				Main-Class: sipka.jvm.constexpr.main.CliMain,
 				Nest-Bundle-Format-Version: 1,
 				Nest-Bundle-Identifier: "sipka.jvm.constexpr-v{ global(VERSION_sipka.jvm.constexpr) }",
-				Nest-Bundle-Source: "sipka.jvm.constexpr-sources-v{ global(VERSION_sipka.jvm.constexpr) }"
+				Nest-Bundle-Source: "sipka.jvm.constexpr-sources-v{ global(VERSION_sipka.jvm.constexpr) }",
+				Sipka-Jvm-Constexpr-Version: "{ global(VERSION_sipka.jvm.constexpr) }",
 			}
 		}
 	)
@@ -171,6 +174,7 @@ export(
 			MainAttributes: {
 				#overwrite the bundle identifier
 				Nest-Bundle-Identifier: "sipka.jvm.constexpr-fat-v{ global(VERSION_sipka.jvm.constexpr) }",
+				Sipka-Jvm-Constexpr-Version: "{ global(VERSION_sipka.jvm.constexpr) }",
 			}
 		}
 	)
@@ -198,6 +202,7 @@ export(
 			MainAttributes: {
 				Nest-Bundle-Format-Version: 1,
 				Nest-Bundle-Identifier: "sipka.jvm.constexpr-sources-v{ global(VERSION_sipka.jvm.constexpr) }",
+				Sipka-Jvm-Constexpr-Version: "{ global(VERSION_sipka.jvm.constexpr) }",
 			},
 		},
 	)
