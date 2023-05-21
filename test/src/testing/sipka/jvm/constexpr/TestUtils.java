@@ -19,6 +19,7 @@ import java.util.NavigableMap;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.function.Supplier;
 import java.util.jar.JarInputStream;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
@@ -26,9 +27,12 @@ import java.util.zip.ZipOutputStream;
 
 import saker.build.thirdparty.saker.util.ObjectUtils;
 import saker.build.thirdparty.saker.util.ReflectUtils;
+import saker.build.thirdparty.saker.util.classloader.ClassLoaderDataFinder;
 import saker.build.thirdparty.saker.util.classloader.MultiDataClassLoader;
 import saker.build.thirdparty.saker.util.io.ByteArrayRegion;
+import saker.build.thirdparty.saker.util.io.ByteSource;
 import saker.build.thirdparty.saker.util.io.StreamUtils;
+import saker.build.thirdparty.saker.util.io.UnsyncByteArrayInputStream;
 import sipka.jvm.constexpr.tool.ConstantExpressionInliner;
 import sipka.jvm.constexpr.tool.OutputConsumer;
 import sipka.jvm.constexpr.tool.Utils;
@@ -44,7 +48,6 @@ import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.FieldNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodInsnNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodNode;
 import testing.saker.SakerTestCase;
-import testing.saker.build.tests.TestUtils.MemoryClassLoaderDataFinder;
 
 public class TestUtils {
 
@@ -472,5 +475,23 @@ public class TestUtils {
 		} catch (Exception e) {
 			throw e;
 		}
+	}
+
+	public static class MemoryClassLoaderDataFinder implements ClassLoaderDataFinder {
+		private Map<String, ByteArrayRegion> resourceBytes;
+
+		public MemoryClassLoaderDataFinder(Map<String, ByteArrayRegion> resourceBytes) {
+			this.resourceBytes = resourceBytes;
+		}
+
+		@Override
+		public Supplier<ByteSource> getResource(String name) {
+			ByteArrayRegion got = resourceBytes.get(name);
+			if (got == null) {
+				return null;
+			}
+			return () -> new UnsyncByteArrayInputStream(got);
+		}
+
 	}
 }

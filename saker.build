@@ -216,7 +216,6 @@ test_on_jdk(
 		$export[fatjar][Path],
 		saker.java.classpath.bundle([
 			"saker.build-v{ static(VERSION_saker.build) }",
-			"saker.build-test-utils-v{ static(VERSION_saker.build) }",
 		]),
 	]
 	$testrunnercp = [
