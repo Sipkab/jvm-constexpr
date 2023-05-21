@@ -5,23 +5,23 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import sipka.jvm.constexpr.tool.log.AbstractSimpleToolLogger;
 import sipka.jvm.constexpr.tool.log.InstructionReplacementLogEntry;
 import sipka.jvm.constexpr.tool.log.LogEntry;
+import sipka.jvm.constexpr.tool.log.ToolLogger;
 import testing.saker.SakerTestCase;
 
-public final class TestCollectingLogger extends AbstractSimpleToolLogger {
+public final class TestCollectingLogger implements ToolLogger {
 	private Set<LogEntry> logEntries = new HashSet<>();
 	private Map<Class<? extends LogEntry>, Set<LogEntry>> typedLogEntries = new HashMap<>();
 
 	@Override
 	public void log(InstructionReplacementLogEntry logentry) {
-		super.log(logentry);
+		ToolLogger.super.log(logentry);
 		SakerTestCase.assertNotEquals(logentry.getReplacedInfo(), logentry.getReplacementInfo());
 	}
 
 	@Override
-	protected void log(LogEntry entry) {
+	public void log(LogEntry entry) {
 		logEntries.add(entry);
 		typedLogEntries.computeIfAbsent(entry.getClass(), x -> new HashSet<>()).add(entry);
 

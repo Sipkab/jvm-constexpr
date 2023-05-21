@@ -3,6 +3,7 @@ package sipka.jvm.constexpr.main;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.PrintStream;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -45,8 +46,9 @@ import sipka.jvm.constexpr.annotations.Deconstructor;
 import sipka.jvm.constexpr.tool.ConstantExpressionInliner;
 import sipka.jvm.constexpr.tool.OutputConsumer;
 import sipka.jvm.constexpr.tool.Utils;
-import sipka.jvm.constexpr.tool.log.AbstractSimpleToolLogger;
 import sipka.jvm.constexpr.tool.log.LogEntry;
+import sipka.jvm.constexpr.tool.log.MessageLogEntry;
+import sipka.jvm.constexpr.tool.log.ToolLogger;
 import sipka.jvm.constexpr.tool.options.DeconstructionDataAccessor;
 import sipka.jvm.constexpr.tool.options.DeconstructionSelector;
 import sipka.jvm.constexpr.tool.options.DeconstructorConfiguration;
@@ -274,13 +276,12 @@ public class RunCommand {
 	}
 
 	private static InlinerOptions createBaseOptions() {
+		return createBaseOptions(System.out);
+	}
+
+	private static InlinerOptions createBaseOptions(PrintStream outstream) {
 		InlinerOptions options = new InlinerOptions();
-		options.setLogger(new AbstractSimpleToolLogger() {
-			@Override
-			protected void log(LogEntry entry) {
-				System.out.println(entry.getMessage());
-			}
-		});
+		options.setLogger(new PrintStreamToolLogger(outstream));
 		options.setOutputConsumer(new OutputConsumer() {
 			@Override
 			public void put(ToolInput<?> input, byte[] resultBytes) throws IOException {
@@ -571,15 +572,18 @@ public class RunCommand {
 			Field field = Utils.getFieldForDescriptor(type, namedescriptor.name, namedescriptor.descriptor);
 			if (field.isEnumConstant()) {
 				//ignore, always used regardless of configuration
-				//TODO maybe log it?
+				options.getLogger()
+						.log(new MessageLogEntry("Redundant annodation of @" + Deconstructor.class.getSimpleName()
+								+ " on enum field: " + Type.getObjectType(analyzer.classInternalName).getClassName()
+								+ "." + namedescriptor.name));
 				continue;
 			}
 			if (!((field.getModifiers() & Modifier.STATIC) == Modifier.STATIC)) {
-				//TODO better logging
-				System.out.println(
-						"Non-static field market with @" + Deconstructor.class.getSimpleName() + " annotation: "
+				options.getLogger()
+						.log(new MessageLogEntry("Ignoring non-static field marked with @"
+								+ Deconstructor.class.getSimpleName() + " annotation: "
 								+ Utils.memberDescriptorToPrettyString(Type.getType(namedescriptor.descriptor),
-										Type.getObjectType(analyzer.classInternalName), namedescriptor.name));
+										Type.getObjectType(analyzer.classInternalName), namedescriptor.name)));
 				continue;
 			}
 			equalityfields.add(field);
@@ -774,4 +778,16 @@ public class RunCommand {
 		}
 	}
 
+	private static final class PrintStreamToolLogger implements ToolLogger {
+		private final PrintStream outstream;
+
+		private PrintStreamToolLogger(PrintStream outstream) {
+			this.outstream = outstream;
+		}
+
+		@Override
+		public void log(LogEntry entry) {
+			outstream.println(entry.getMessage());
+		}
+	}
 }

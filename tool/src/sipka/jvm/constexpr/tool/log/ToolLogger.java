@@ -1,17 +1,33 @@
 package sipka.jvm.constexpr.tool.log;
 
 public interface ToolLogger {
-	public void log(ReconstructionFailureLogEntry logentry);
+	public default void log(ReconstructionFailureLogEntry logentry) {
+		this.log((LogEntry) logentry);
+	}
 
-	public void log(InstructionReplacementLogEntry logentry);
+	public default void log(InstructionReplacementLogEntry logentry) {
+		this.log((LogEntry) logentry);
+	}
 
-	public void log(DeconstructorNotConfiguredLogEntry logentry);
+	public default void log(DeconstructorNotConfiguredLogEntry logentry) {
+		this.log((LogEntry) logentry);
+	}
 
-	public void log(MultipleInitializationPathLogEntry logentry);
+	public default void log(MultipleInitializationPathLogEntry logentry) {
+		this.log((LogEntry) logentry);
+	}
 
-	public void log(DeconstructionFailedLogEntry logentry);
+	public default void log(DeconstructionFailedLogEntry logentry) {
+		this.log((LogEntry) logentry);
+	}
 
-	public void log(ConfigClassMemberNotAvailableLogEntry logentry);
+	public default void log(ConfigClassMemberNotAvailableLogEntry logentry) {
+		this.log((LogEntry) logentry);
+	}
 
-	public void log(IndeterministicToStringLogEntry logentry);
+	public default void log(IndeterministicToStringLogEntry logentry) {
+		this.log((LogEntry) logentry);
+	}
+
+	public void log(LogEntry entry);
 }
