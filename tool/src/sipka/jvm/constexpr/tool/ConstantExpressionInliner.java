@@ -733,7 +733,10 @@ public class ConstantExpressionInliner {
 					AsmStackReconstructedValue arrayval = reconstructStackValue(
 							context.withReceiverType(Object[].class), ins.getPrevious());
 					if (arrayval == null) {
-						//TODO don't need to reconstruct the elements, only the array length
+						//Note: here we don't need to reconstruct the complete array, only the length of it
+						//however, if we can't reconstruct the array, then we can't optimize the array length
+						//because some element creation might have side effects
+						// -> so we need to reconstruct the complete array nonetheless
 						return null;
 					}
 					int len = Array.getLength(arrayval.getValue());
@@ -1215,11 +1218,9 @@ public class ConstantExpressionInliner {
 				return true;
 			}
 
-			//TODO don't modify the instructions if the deconstructed instructions are the same as the ones already present
-
 			for (AsmStackReconstructedValue val : nvalues) {
 				if (val.getStackInfo().equals(deconsresult.getStackInfo())) {
-					//no need for replacement in this case
+					//no need for replacement in this case, the reconstructed stack equals the deconstructed insructions
 					continue;
 				}
 				val.removeInstructions(instructions);
@@ -1472,8 +1473,7 @@ public class ConstantExpressionInliner {
 					try {
 						reconstructedval = reconstructStackValue(reconstructioncontext, ins);
 					} catch (ReconstructionException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
+						handleReconstructionException(e);
 						continue;
 					}
 					break;
