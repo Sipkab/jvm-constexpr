@@ -63,7 +63,7 @@ final class StaticFieldEqualityDelegateConstantDeconstructor implements Constant
 	}
 
 	private static DeconstructionResult tryDeconstructEqualStaticField(ConstantExpressionInliner context,
-			TransformedClass transclass, Class<?> type, Object val, String[] fields) {
+			TransformedClass transclass, Class<?> type, Object value, String[] fields) {
 		Field[] declaredfields = type.getDeclaredFields();
 		for (String fieldname : fields) {
 			boolean foundwithname = false;
@@ -72,31 +72,35 @@ final class StaticFieldEqualityDelegateConstantDeconstructor implements Constant
 				if (!reflectedfieldname.equals(fieldname)) {
 					continue;
 				}
-				if (!field.getType().equals(type)) {
+				Class<?> fieldtype = field.getType();
+				if (!fieldtype.equals(type)) {
 					//different field type than expected
 					continue;
 				}
 				foundwithname = true;
 				try {
-					if (val.equals(field.get(null))) {
-						Class<?> fieldtype = field.getType();
-						Type fieldasmtype = Type.getType(fieldtype);
-
-						InsnList result = new InsnList();
-						result.add(new FieldInsnNode(Opcodes.GETSTATIC, Type.getInternalName(type), fieldname,
-								fieldasmtype.getDescriptor()));
-						return DeconstructionResult.createField(result, Type.getType(type), fieldname, fieldasmtype);
+					if (!value.equals(field.get(null))) {
+						continue;
 					}
+					//okay, proceed
 				} catch (Exception e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
+					//log the error that we couldn't access the static field
+					Type fieldasmtype = Type.getType(fieldtype);
+					context.logConfigClassMemberInaccessible(fieldasmtype.getInternalName(), fieldname,
+							fieldasmtype.getDescriptor(), e);
 					continue;
 				}
+				Type fieldasmtype = Type.getType(fieldtype);
+
+				InsnList result = new InsnList();
+				result.add(new FieldInsnNode(Opcodes.GETSTATIC, Type.getInternalName(type), fieldname,
+						fieldasmtype.getDescriptor()));
+				return DeconstructionResult.createField(result, Type.getType(type), fieldname, fieldasmtype);
 			}
 			if (!foundwithname) {
 				Type typeasmtype = Type.getType(type);
-				context.logConfigClassMemberNotAvailable(typeasmtype.getInternalName(), fieldname,
-						typeasmtype.getDescriptor(), null);
+				context.logConfigClassMemberInaccessible(typeasmtype.getInternalName(), fieldname,
+						typeasmtype.getDescriptor(), new NoSuchFieldException(fieldname));
 			}
 		}
 		return null;

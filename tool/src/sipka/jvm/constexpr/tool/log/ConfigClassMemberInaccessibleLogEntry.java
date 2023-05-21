@@ -3,14 +3,14 @@ package sipka.jvm.constexpr.tool.log;
 import sipka.jvm.constexpr.tool.Utils;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 
-public final class ConfigClassMemberNotAvailableLogEntry implements LogEntry {
+public final class ConfigClassMemberInaccessibleLogEntry implements LogEntry {
 	private final String className;
 	private final String memberName;
 	private final String memberDescriptor;
 
 	private final transient Throwable exception;
 
-	public ConfigClassMemberNotAvailableLogEntry(String className, String memberName, String memberDescriptor,
+	public ConfigClassMemberInaccessibleLogEntry(String className, String memberName, String memberDescriptor,
 			Throwable exception) {
 		this.className = className;
 		this.memberName = memberName;
@@ -39,19 +39,31 @@ public final class ConfigClassMemberNotAvailableLogEntry implements LogEntry {
 	public String getMessage() {
 		StringBuilder sb = new StringBuilder();
 		if (memberName == null) {
-			sb.append("Class not found in current JVM: ");
+			sb.append("Class ");
+			if (exception instanceof ClassNotFoundException) {
+				sb.append("not found");
+			} else {
+				sb.append("inaccessible");
+			}
+			sb.append(" in current JVM: ");
 			sb.append(Type.getObjectType(className).getClassName());
 		} else {
 			Type memberdesc = Type.getType(memberDescriptor);
 			if (memberdesc.getSort() == Type.METHOD) {
 				if (Utils.CONSTRUCTOR_METHOD_NAME.equals(memberName)) {
-					sb.append("Constructor not found in current JVM: ");
+					sb.append("Constructor ");
 				} else {
-					sb.append("Method not found in current JVM: ");
+					sb.append("Method ");
 				}
 			} else {
-				sb.append("Field not found in current JVM: ");
+				sb.append("Field ");
 			}
+			if (exception instanceof NoSuchMethodException || exception instanceof NoSuchMethodException) {
+				sb.append("not found");
+			} else {
+				sb.append("inaccessible");
+			}
+			sb.append(" in current JVM: ");
 			Utils.appendMemberDescriptorPretty(sb, memberdesc, Type.getObjectType(className), memberName);
 		}
 		Throwable rc = exception;
@@ -81,7 +93,7 @@ public final class ConfigClassMemberNotAvailableLogEntry implements LogEntry {
 			return false;
 		if (getClass() != obj.getClass())
 			return false;
-		ConfigClassMemberNotAvailableLogEntry other = (ConfigClassMemberNotAvailableLogEntry) obj;
+		ConfigClassMemberInaccessibleLogEntry other = (ConfigClassMemberInaccessibleLogEntry) obj;
 		if (className == null) {
 			if (other.className != null)
 				return false;

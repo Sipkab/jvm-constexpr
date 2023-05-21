@@ -21,7 +21,7 @@ public interface ToolLogger {
 		this.log((LogEntry) logentry);
 	}
 
-	public default void log(ConfigClassMemberNotAvailableLogEntry logentry) {
+	public default void log(ConfigClassMemberInaccessibleLogEntry logentry) {
 		this.log((LogEntry) logentry);
 	}
 

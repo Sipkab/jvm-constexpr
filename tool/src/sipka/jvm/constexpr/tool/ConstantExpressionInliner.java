@@ -23,7 +23,7 @@ import java.util.TreeSet;
 
 import sipka.jvm.constexpr.tool.TransformedClass.TransformedField;
 import sipka.jvm.constexpr.tool.log.BytecodeLocation;
-import sipka.jvm.constexpr.tool.log.ConfigClassMemberNotAvailableLogEntry;
+import sipka.jvm.constexpr.tool.log.ConfigClassMemberInaccessibleLogEntry;
 import sipka.jvm.constexpr.tool.log.DeconstructionFailedLogEntry;
 import sipka.jvm.constexpr.tool.log.DeconstructorNotConfiguredLogEntry;
 import sipka.jvm.constexpr.tool.log.IndeterministicToStringLogEntry;
@@ -1835,7 +1835,7 @@ public class ConstantExpressionInliner {
 		}
 	}
 
-	void logConfigClassMemberNotAvailable(String classInternalName, String memberName, String memberDescriptor,
+	void logConfigClassMemberInaccessible(String classInternalName, String memberName, String memberDescriptor,
 			Throwable exception) {
 		if (logger == null) {
 			//no need for logging
@@ -1850,7 +1850,7 @@ public class ConstantExpressionInliner {
 			return;
 		}
 		logger.log(
-				new ConfigClassMemberNotAvailableLogEntry(classInternalName, memberName, memberDescriptor, exception));
+				new ConfigClassMemberInaccessibleLogEntry(classInternalName, memberName, memberDescriptor, exception));
 	}
 
 	void logDeconstructionFailure(Object value, DeconstructionDataAccessor accessor, Throwable cause) {

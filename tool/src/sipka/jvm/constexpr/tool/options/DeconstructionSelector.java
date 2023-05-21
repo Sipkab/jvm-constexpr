@@ -46,13 +46,14 @@ public interface DeconstructionSelector {
 		if (fields.length == 0) {
 			return null;
 		}
+		//defensive copy
+		fields = fields.clone();
 		for (int i = 0; i < fields.length; i++) {
 			if (fields[i] == null) {
 				throw new NullPointerException("fields[" + i + "]");
 			}
 		}
-		//defensive copy
-		return new StaticFieldEqualityDeconstructionSelector(fields.clone());
+		return new StaticFieldEqualityDeconstructionSelector(fields);
 	}
 
 	public static DeconstructionSelector getMultiSelector(DeconstructionSelector... delegates)
