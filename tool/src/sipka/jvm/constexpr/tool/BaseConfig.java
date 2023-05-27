@@ -22,6 +22,7 @@ import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Opcodes;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.AbstractInsnNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.LdcInsnNode;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodInsnNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodNode;
 
 /**
@@ -418,7 +419,7 @@ class BaseConfig {
 
 	}
 
-	private static final class ClassCanonicalNameConstantReconstructor extends ClassNameConstantReconstructor {
+	private static final class ClassCanonicalNameConstantReconstructor extends ClassMethodConstantReconstructor {
 		public static final ClassCanonicalNameConstantReconstructor INSTANCE = new ClassCanonicalNameConstantReconstructor(
 				"getCanonicalName");
 
@@ -427,17 +428,17 @@ class BaseConfig {
 		}
 
 		@Override
-		protected String getName(Type t) {
+		protected String getValue(ReconstructionContext context, Type t) {
 			return Utils.getCanonicalNameOfClass(t);
 		}
 
 		@Override
-		protected String getName(Class<?> c) {
+		protected String getValue(ReconstructionContext context, Class<?> c) {
 			return c.getCanonicalName();
 		}
 	}
 
-	private static final class ClassSimpleNameConstantReconstructor extends ClassNameConstantReconstructor {
+	private static final class ClassSimpleNameConstantReconstructor extends ClassMethodConstantReconstructor {
 		public static final ClassSimpleNameConstantReconstructor INSTANCE = new ClassSimpleNameConstantReconstructor(
 				"getSimpleName");
 
@@ -446,22 +447,38 @@ class BaseConfig {
 		}
 
 		@Override
-		protected String getName(Type t) {
+		protected String getValue(ReconstructionContext context, Type t) {
 			return Utils.getSimpleNameOfClass(t);
 		}
 
 		@Override
-		protected String getName(Class<?> c) {
+		protected String getValue(ReconstructionContext context, Class<?> c) {
 			return c.getSimpleName();
 		}
 	}
 
-	private static class ClassNameConstantReconstructor implements ConstantReconstructor {
+	private static final class ClassNameConstantReconstructor extends ClassMethodConstantReconstructor {
 		public static final ClassNameConstantReconstructor INSTANCE = new ClassNameConstantReconstructor("getName");
 
+		public ClassNameConstantReconstructor(String memberName) {
+			super(memberName);
+		}
+
+		@Override
+		protected String getValue(ReconstructionContext context, Type t) {
+			return Utils.getNameOfClass(t);
+		}
+
+		@Override
+		protected String getValue(ReconstructionContext context, Class<?> c) {
+			return c.getName();
+		}
+	}
+
+	private abstract static class ClassMethodConstantReconstructor implements ConstantReconstructor {
 		private final String memberName;
 
-		public ClassNameConstantReconstructor(String memberName) {
+		public ClassMethodConstantReconstructor(String memberName) {
 			this.memberName = memberName;
 		}
 
@@ -469,6 +486,7 @@ class BaseConfig {
 		public AsmStackReconstructedValue reconstructValue(ReconstructionContext context, AbstractInsnNode ins)
 				throws ReconstructionException {
 			AsmStackReconstructedValue typeval;
+			MethodInsnNode mins = (MethodInsnNode) ins;
 			try {
 				AbstractInsnNode previns = ins.getPrevious();
 				//if the previous one is an LDC instruction, then get the Type constant directly
@@ -481,8 +499,7 @@ class BaseConfig {
 							previns);
 				}
 			} catch (ReconstructionException e) {
-				throw context.newInstanceAccessFailureReconstructionException(e, ins, "java/lang/Class", memberName,
-						"()Ljava/lang/String;");
+				throw context.newInstanceAccessFailureReconstructionException(e, ins, mins.owner, mins.name, mins.desc);
 			}
 			if (typeval == null) {
 				return null;
@@ -491,36 +508,29 @@ class BaseConfig {
 			if (val == null) {
 				return null;
 			}
-			String result;
+			Object result;
 			if (val instanceof Type) {
-				result = getName((Type) val);
+				result = getValue(context, (Type) val);
 			} else if (val instanceof Class) {
-				result = getName((Class<?>) val);
+				result = getValue(context, (Class<?>) val);
 			} else {
 				//some unrecognized type for Class method call
 				//can't do much, maybe programming error, or something?
 				return null;
 			}
 			return new AsmStackReconstructedValue(typeval.getFirstIns(), ins.getNext(),
-					AsmStackInfo.createMethod(Type.getType(Class.class), memberName,
-							Type.getMethodType("()Ljava/lang/String;"), typeval.getStackInfo(),
-							AsmStackInfo.EMPTY_ASMSTACKINFO_ARRAY),
+					AsmStackInfo.createMethod(Type.getType(Class.class), mins.name, Type.getMethodType(mins.desc),
+							typeval.getStackInfo(), AsmStackInfo.EMPTY_ASMSTACKINFO_ARRAY),
 					result);
 		}
 
-		@SuppressWarnings("static-method")
-		protected String getName(Type t) {
-			return Utils.getNameOfClass(t);
-		}
+		protected abstract Object getValue(ReconstructionContext context, Type t);
 
-		@SuppressWarnings("static-method")
-		protected String getName(Class<?> c) {
-			return c.getName();
-		}
+		protected abstract Object getValue(ReconstructionContext context, Class<?> c);
 
 		@Override
 		public String toString() {
-			return getClass().getSimpleName() + "[]";
+			return getClass().getSimpleName() + "[" + memberName + "]";
 		}
 
 	}
