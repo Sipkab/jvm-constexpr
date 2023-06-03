@@ -1,5 +1,9 @@
 package sipka.jvm.constexpr.tool;
 
+import java.lang.reflect.Executable;
+import java.lang.reflect.Field;
+import java.lang.reflect.Member;
+
 class MemberKey {
 	protected final String owner;
 	protected final String memberName;
@@ -15,6 +19,13 @@ class MemberKey {
 			return new MethodKey(owner, membername, descriptor);
 		}
 		return new FieldKey(owner, membername, descriptor);
+	}
+
+	public static MemberKey create(Member member) {
+		if (member instanceof Executable) {
+			return MethodKey.create((Executable) member);
+		}
+		return FieldKey.create((Field) member);
 	}
 
 	public static String getDescriptor(MemberKey key) {

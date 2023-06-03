@@ -31,8 +31,8 @@ public class CustomConstantTypeTest extends SakerTestCase {
 								DeconstructionDataAccessor.createForMethod(MyConstantClass.class, "getVal"))));
 		opts.setDeconstructorConfigurations(deconstructorConfigurations);
 
-		opts.setConstantReconstructors(Arrays.asList(MyConstantClass.class.getMethod("create", int.class),
-				MyConstantClass.class.getMethod("hashCode")));
+		opts.setConstantReconstructors(TestUtils.allowAllMembers(Arrays.asList(
+				MyConstantClass.class.getMethod("create", int.class), MyConstantClass.class.getMethod("hashCode"))));
 
 		NavigableMap<String, ClassNode> outputs = TestUtils.performInliningClassNodes(opts);
 		assertEquals(outputs.size(), 1); // testing a single class

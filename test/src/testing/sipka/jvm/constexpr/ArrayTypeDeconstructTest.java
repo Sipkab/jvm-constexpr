@@ -30,7 +30,7 @@ public class ArrayTypeDeconstructTest extends SakerTestCase {
 		reconstructors.add(ReflectUtils.getDeclaredMethodAssert(Constants.class, "returnCloneObject", Object[].class));
 		reconstructors.add(ReflectUtils.getDeclaredMethodAssert(Constants.class, "length", OtherClass[].class));
 		reconstructors.add(ReflectUtils.getDeclaredMethodAssert(Constants.class, "makelen", int.class));
-		opts.setConstantReconstructors(reconstructors);
+		opts.setConstantReconstructors(TestUtils.allowAllMembers(reconstructors));
 
 		NavigableMap<String, ClassNode> outputs = TestUtils.performInliningClassNodes(opts);
 		assertEquals(outputs.size(), 1); // testing a single class

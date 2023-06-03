@@ -28,6 +28,10 @@ class FieldKey extends MemberKey {
 		this(Type.getInternalName(type), fieldname, Type.getDescriptor(fieldtype));
 	}
 
+	public static FieldKey create(Field field) {
+		return new FieldKey(field);
+	}
+
 	public String getFieldName() {
 		return memberName;
 	}

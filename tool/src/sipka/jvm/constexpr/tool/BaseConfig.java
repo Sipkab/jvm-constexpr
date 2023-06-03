@@ -8,6 +8,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.NoSuchFileException;
 import java.time.Duration;
@@ -19,6 +20,7 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 import sipka.jvm.constexpr.tool.options.DeconstructionDataAccessor;
+import sipka.jvm.constexpr.tool.options.ReconstructorPredicate;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Opcodes;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.AbstractInsnNode;
@@ -297,7 +299,9 @@ class BaseConfig {
 				Executable executable = Utils.getExecutableForDescriptor(type, methodkey.getOwner(),
 						methodkey.getMemberName(), methodkey.getMethodDescriptor());
 				if (executable instanceof Method) {
-					reconstructor = new MethodBasedConstantReconstructor((Method) executable);
+					reconstructor = new MethodBasedConstantReconstructor((Method) executable,
+							Modifier.isStatic(executable.getModifiers()) ? ReconstructorPredicate.ALLOW_ALL
+									: ReconstructorPredicate.ALLOW_INSTANCE_OF);
 				} else if (executable instanceof Constructor<?>) {
 					reconstructor = new ConstructorBasedConstantReconstructor((Constructor<?>) executable);
 				} else {

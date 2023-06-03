@@ -28,7 +28,7 @@ public class ArrayFieldTest extends SakerTestCase {
 				"CONST_Object", "CONSTEXPRD")));
 		List<Member> inlinemethods = new ArrayList<>();
 		inlinemethods.add(ReflectUtils.getDeclaredMethodAssert(Constants.class, "computer"));
-		opts.setConstantReconstructors(inlinemethods);
+		opts.setConstantReconstructors(TestUtils.allowAllMembers(inlinemethods));
 
 		NavigableMap<String, ClassNode> outputs = TestUtils.performInliningClassNodes(opts);
 		assertEquals(outputs.size(), 1); // testing a single class

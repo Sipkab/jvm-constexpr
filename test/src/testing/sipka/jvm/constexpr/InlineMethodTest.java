@@ -26,7 +26,7 @@ public class InlineMethodTest extends SakerTestCase {
 		inlinemethods.add(ReflectUtils.getDeclaredMethodAssert(Constants.class, "computer"));
 		inlinemethods.add(ReflectUtils.getDeclaredMethodAssert(System.class, "currentTimeMillis"));
 		inlinemethods.add(ReflectUtils.getDeclaredMethodAssert(System.class, "lineSeparator"));
-		opts.setConstantReconstructors(inlinemethods);
+		opts.setConstantReconstructors(TestUtils.allowAllMembers(inlinemethods));
 		NavigableMap<String, ClassNode> outputs = TestUtils.performInliningClassNodes(opts);
 		assertEquals(outputs.size(), 1); // testing a single class
 

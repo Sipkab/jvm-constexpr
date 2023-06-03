@@ -21,9 +21,10 @@ public class LimitedVisibilityInlineTest extends SakerTestCase {
 
 		opts.setConstantTypes(Arrays.asList(MyConstantClass.class, MySubClass.class));
 
-		opts.setConstantReconstructors(Arrays.asList(MyConstantClass.class.getDeclaredMethod("create", String.class),
-				MySubClass.class.getDeclaredMethod("create", String.class),
-				MySubClass.class.getDeclaredField("STATICVAL")));
+		opts.setConstantReconstructors(
+				TestUtils.allowAllMembers(Arrays.asList(MyConstantClass.class.getDeclaredMethod("create", String.class),
+						MySubClass.class.getDeclaredMethod("create", String.class),
+						MySubClass.class.getDeclaredField("STATICVAL"))));
 
 		opts.setConstantFields(Arrays.asList(Constants.class.getDeclaredField("PACK_VIS_CONST2")));
 

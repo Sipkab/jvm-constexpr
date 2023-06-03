@@ -37,7 +37,7 @@ public final class InlinerOptions {
 
 	protected Map<Class<?>, DeconstructionSelector> deconstructorConfigurations = new HashMap<>();
 
-	protected Collection<Member> constantReconstructors = new ArrayList<>();
+	protected Map<Member, ReconstructorPredicate> constantReconstructors = new HashMap<>();
 
 	protected ClassLoader classLoader;
 
@@ -291,7 +291,8 @@ public final class InlinerOptions {
 	 * @throws NullPointerException
 	 *             If the argument is <code>null</code>.
 	 */
-	public void setConstantReconstructors(Collection<Member> constantReconstructors) throws NullPointerException {
+	public void setConstantReconstructors(Map<Member, ReconstructorPredicate> constantReconstructors)
+			throws NullPointerException {
 		Objects.requireNonNull(constantReconstructors, "constantReconstructors");
 		this.constantReconstructors = constantReconstructors;
 	}
@@ -304,7 +305,7 @@ public final class InlinerOptions {
 	 * @return The constant reconstructors.
 	 * @see #setConstantReconstructors(Collection)
 	 */
-	public Collection<Member> getConstantReconstructors() {
+	public Map<Member, ReconstructorPredicate> getConstantReconstructors() {
 		return constantReconstructors;
 	}
 

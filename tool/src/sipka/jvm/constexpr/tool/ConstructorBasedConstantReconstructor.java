@@ -2,6 +2,7 @@ package sipka.jvm.constexpr.tool;
 
 import java.lang.reflect.Constructor;
 
+import sipka.jvm.constexpr.tool.options.ReconstructorPredicate;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Opcodes;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.AbstractInsnNode;
@@ -12,14 +13,20 @@ import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.TypeInsnNode;
  */
 final class ConstructorBasedConstantReconstructor implements ConstantReconstructor {
 	private final Constructor<?> constructor;
+	private final ReconstructorPredicate predicate;
 
 	private transient final String typeInternalName;
 	private transient final Class<?>[] parameterTypes;
 
-	public ConstructorBasedConstantReconstructor(Constructor<?> constructor) {
+	public ConstructorBasedConstantReconstructor(Constructor<?> constructor, ReconstructorPredicate predicate) {
+		this.constructor = constructor;
+		this.predicate = predicate;
 		this.parameterTypes = constructor.getParameterTypes();
 		this.typeInternalName = Type.getInternalName(constructor.getDeclaringClass());
-		this.constructor = constructor;
+	}
+
+	public ConstructorBasedConstantReconstructor(Constructor<?> constructor) {
+		this(constructor, ReconstructorPredicate.ALLOW_ALL);
 	}
 
 	@Override
@@ -56,6 +63,11 @@ final class ConstructorBasedConstantReconstructor implements ConstantReconstruct
 					+ " with NEW type on stack: " + typeins.desc);
 		}
 
+		if (!predicate.canReconstruct(null, constructor, args)) {
+			context.getInliner().logReconstructionNotAllowed(null, constructor, args);
+			return null;
+		}
+
 		Object instance;
 		try {
 			instance = constructor.newInstance(args);
@@ -74,6 +86,8 @@ final class ConstructorBasedConstantReconstructor implements ConstantReconstruct
 		StringBuilder builder = new StringBuilder(getClass().getSimpleName());
 		builder.append("[constructor=");
 		builder.append(constructor);
+		builder.append(", predicate=");
+		builder.append(predicate);
 		builder.append("]");
 		return builder.toString();
 	}

@@ -25,6 +25,7 @@ import sipka.jvm.constexpr.tool.options.DeconstructionDataAccessor;
 import sipka.jvm.constexpr.tool.options.DeconstructionSelector;
 import sipka.jvm.constexpr.tool.options.DeconstructorConfiguration;
 import sipka.jvm.constexpr.tool.options.InlinerOptions;
+import sipka.jvm.constexpr.tool.options.ReconstructorPredicate;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.AnnotationVisitor;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.ClassReader;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.ClassVisitor;
@@ -85,7 +86,7 @@ public class AnnotationAnalyzer {
 			//add the fields as enum reconstructors
 			for (Field field : type.getDeclaredFields()) {
 				if (field.isEnumConstant()) {
-					options.getConstantReconstructors().add(field);
+					options.getConstantReconstructors().put(field, ReconstructorPredicate.ALLOW_ALL);
 				}
 			}
 		}
@@ -94,13 +95,21 @@ public class AnnotationAnalyzer {
 			if (((member.getModifiers() & Modifier.STATIC) == Modifier.STATIC)) {
 				options.getConstantFields().add(member);
 			} else {
-				options.getConstantReconstructors().add(member);
+				options.getConstantReconstructors().put(member, ReconstructorPredicate.ALLOW_ALL);
 			}
 		}
 		for (NameDescriptor namedescriptor : analyzer.constantExpressionMethods) {
 			Method member = Utils.getMethodForMethodDescriptor(type, analyzer.classInternalName,
 					namedescriptor.descriptor, namedescriptor.name);
-			options.getConstantReconstructors().add(member);
+			ReconstructorPredicate predicate;
+			if (Modifier.isStatic(member.getModifiers())) {
+				predicate = ReconstructorPredicate.ALLOW_ALL;
+			} else {
+				//in case of instance methods
+				//only allow calling the annotated methods on the type itself, or on its subclasses
+				predicate = ReconstructorPredicate.allowInstanceOf(analyzer.classInternalName);
+			}
+			options.getConstantReconstructors().put(member, predicate);
 		}
 
 		List<Field> equalityfields = new ArrayList<>(analyzer.deconstructorFields.size());

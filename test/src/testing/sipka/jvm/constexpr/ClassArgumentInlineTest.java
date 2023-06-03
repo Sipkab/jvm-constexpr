@@ -22,7 +22,8 @@ public class ClassArgumentInlineTest extends SakerTestCase {
 		InlinerOptions opts = TestUtils.createOptionsForClasses(Constants.class);
 
 		//set the getter method as a constant reconstructor, so it can be called by the inliner
-		opts.setConstantReconstructors(Arrays.asList(Constants.class.getMethod("getTypeName", Class.class)));
+		opts.setConstantReconstructors(
+				TestUtils.allowAllMembers(Arrays.asList(Constants.class.getMethod("getTypeName", Class.class))));
 
 		NavigableMap<String, ClassNode> outputs = TestUtils.performInliningClassNodes(opts);
 		assertEquals(outputs.size(), 1); // testing a single class

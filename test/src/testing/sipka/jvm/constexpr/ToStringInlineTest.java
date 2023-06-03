@@ -51,7 +51,8 @@ public class ToStringInlineTest extends SakerTestCase {
 		{
 			InlinerOptions opts = TestUtils.createOptionsForClasses(NothingInlined.class);
 			opts.setConstantTypes(Arrays.asList(MyConstantType.class));
-			opts.setConstantReconstructors(Arrays.asList(MyNonConstantType.class.getConstructor()));
+			opts.setConstantReconstructors(
+					TestUtils.allowAllMembers(Arrays.asList(MyNonConstantType.class.getConstructor())));
 			NavigableMap<String, ClassNode> outputs = TestUtils.performInliningClassNodes(opts);
 			assertEquals(outputs.size(), 1); // testing a single class
 

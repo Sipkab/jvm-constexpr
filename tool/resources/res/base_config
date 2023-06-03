@@ -88,7 +88,6 @@ REC	java/lang/Enum	compareTo	(Ljava/lang/Enum;)I
 REC	java/lang/Enum	compareTo	(Ljava/lang/Object;)I
 REC	java/lang/Enum	getDeclaringClass	()Ljava/lang/Class;
 REC	java/lang/Enum	name	()Ljava/lang/String;
-REC	java/lang/Enum	ordinal	()I
 REC	java/lang/Enum	valueOf	(Ljava/lang/Class;Ljava/lang/String;)Ljava/lang/Enum;
 REC	java/lang/Float	hashCode	()I
 REC	java/lang/Float	parseFloat	(Ljava/lang/String;)F
@@ -193,6 +192,7 @@ REC	java/lang/Number	floatValue	()F
 REC	java/lang/Number	intValue	()I
 REC	java/lang/Number	longValue	()J
 REC	java/lang/Number	shortValue	()S
+REC	java/lang/Object	getClass	()Ljava/lang/Class;
 REC	java/lang/Short	decode	(Ljava/lang/String;)Ljava/lang/Short;
 REC	java/lang/Short	hashCode	()I
 REC	java/lang/Short	parseShort	(Ljava/lang/String;)S

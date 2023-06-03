@@ -7,29 +7,22 @@ import java.util.List;
 
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.AbstractInsnNode;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.FieldInsnNode;
 
 class DynamicInstanceFieldBasedConstantReconstructor implements ConstantReconstructor {
-	private final String fieldOwnerInternalName;
-	private final String fieldName;
-	private final String fieldDescriptor;
-
-	public DynamicInstanceFieldBasedConstantReconstructor(String fieldOwnerInternalName, String fieldName,
-			String fieldDescriptor) {
-		this.fieldOwnerInternalName = fieldOwnerInternalName;
-		this.fieldName = fieldName;
-		this.fieldDescriptor = fieldDescriptor;
-	}
+	public static final DynamicInstanceFieldBasedConstantReconstructor INSTANCE = new DynamicInstanceFieldBasedConstantReconstructor();
 
 	@Override
 	public AsmStackReconstructedValue reconstructValue(ReconstructionContext context, AbstractInsnNode ins)
 			throws ReconstructionException {
+		FieldInsnNode fieldins = (FieldInsnNode) ins;
 		//ins is GETFIELD
 		AsmStackReconstructedValue instanceval;
 		try {
 			instanceval = context.getInliner().reconstructStackValue(context.withReceiverType(null), ins.getPrevious());
 		} catch (ReconstructionException e) {
-			throw context.newInstanceAccessFailureReconstructionException(e, ins, fieldOwnerInternalName, fieldName,
-					fieldDescriptor);
+			throw context.newInstanceAccessFailureReconstructionException(e, ins, fieldins.owner, fieldins.name,
+					fieldins.desc);
 		}
 		if (instanceval == null) {
 			return null;
@@ -42,7 +35,7 @@ class DynamicInstanceFieldBasedConstantReconstructor implements ConstantReconstr
 		boolean foundowner = false;
 		for (Class<?> c = val.getClass(); c != null; c = c.getSuperclass()) {
 			if (!foundowner) {
-				if (fieldOwnerInternalName.equals(Type.getInternalName(c))) {
+				if (fieldins.owner.equals(Type.getInternalName(c))) {
 					foundowner = true;
 				} else {
 					//owner not yet found, dont attempt to get the field yet
@@ -52,7 +45,7 @@ class DynamicInstanceFieldBasedConstantReconstructor implements ConstantReconstr
 			Object fieldval;
 			Field field;
 			try {
-				field = Utils.getFieldForDescriptor(c, fieldName, fieldDescriptor);
+				field = Utils.getFieldForDescriptor(c, fieldins.name, fieldins.desc);
 			} catch (NoSuchFieldException e) {
 				if (notfoundexc == null) {
 					notfoundexc = new ArrayList<>();
@@ -64,8 +57,8 @@ class DynamicInstanceFieldBasedConstantReconstructor implements ConstantReconstr
 				field.setAccessible(true);
 				fieldval = field.get(instanceval.getValue());
 			} catch (Exception e) {
-				throw context.newFieldAccessFailureReconstructionException(e, ins, fieldOwnerInternalName, fieldName,
-						fieldDescriptor, instanceval);
+				throw context.newFieldAccessFailureReconstructionException(e, ins, fieldins.owner, fieldins.name,
+						fieldins.desc, instanceval);
 			}
 			return new AsmStackReconstructedValue(instanceval.getFirstIns(), ins.getNext(),
 					AsmStackInfo.createField(Type.getType(field.getDeclaringClass()), field.getName(),
@@ -76,14 +69,14 @@ class DynamicInstanceFieldBasedConstantReconstructor implements ConstantReconstr
 		if (notfoundexc == null) {
 			notfoundexc = new ArrayList<>();
 			//have at least 1 exception for the cause of the ReconstructionException
-			notfoundexc.add(new NoSuchFieldException(Type.getType(fieldDescriptor).getClassName() + " "
-					+ Type.getObjectType(fieldOwnerInternalName).getClassName() + "." + fieldName));
+			notfoundexc.add(new NoSuchFieldException(Type.getType(fieldins.desc).getClassName() + " "
+					+ Type.getObjectType(fieldins.owner).getClassName() + "." + fieldins.name));
 		}
 
 		Iterator<NoSuchFieldException> excit = notfoundexc.iterator();
 
 		ReconstructionException throwexc = context.newFieldNotFoundReconstructionException(excit.next(), ins,
-				fieldOwnerInternalName, fieldName, fieldDescriptor);
+				fieldins.owner, fieldins.name, fieldins.desc);
 		while (excit.hasNext()) {
 			throwexc.addSuppressed(excit.next());
 		}
@@ -93,11 +86,7 @@ class DynamicInstanceFieldBasedConstantReconstructor implements ConstantReconstr
 	@Override
 	public String toString() {
 		StringBuilder builder = new StringBuilder(getClass().getSimpleName());
-		builder.append("[fieldOwnerInternalName=");
-		builder.append(fieldOwnerInternalName);
-		builder.append(", fieldName=");
-		builder.append(fieldName);
-		builder.append("]");
+		builder.append("[]");
 		return builder.toString();
 	}
 

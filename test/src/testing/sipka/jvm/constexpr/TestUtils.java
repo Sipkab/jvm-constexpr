@@ -4,6 +4,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
+import java.lang.reflect.Member;
 import java.lang.reflect.Modifier;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
@@ -11,6 +12,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -37,6 +39,7 @@ import sipka.jvm.constexpr.tool.ConstantExpressionInliner;
 import sipka.jvm.constexpr.tool.OutputConsumer;
 import sipka.jvm.constexpr.tool.Utils;
 import sipka.jvm.constexpr.tool.options.InlinerOptions;
+import sipka.jvm.constexpr.tool.options.ReconstructorPredicate;
 import sipka.jvm.constexpr.tool.options.ToolInput;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.ClassReader;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.ClassWriter;
@@ -475,6 +478,14 @@ public class TestUtils {
 		} catch (Exception e) {
 			throw e;
 		}
+	}
+
+	public static Map<Member, ReconstructorPredicate> allowAllMembers(Collection<? extends Member> members) {
+		HashMap<Member, ReconstructorPredicate> result = new HashMap<>();
+		for (Member m : members) {
+			result.put(m, ReconstructorPredicate.ALLOW_ALL);
+		}
+		return result;
 	}
 
 	public static class MemoryClassLoaderDataFinder implements ClassLoaderDataFinder {

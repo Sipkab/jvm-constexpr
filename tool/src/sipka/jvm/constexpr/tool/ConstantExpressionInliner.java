@@ -1,11 +1,13 @@
 package sipka.jvm.constexpr.tool;
 
 import java.io.IOException;
+import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -35,6 +37,7 @@ import sipka.jvm.constexpr.tool.log.ToolLogger;
 import sipka.jvm.constexpr.tool.options.DeconstructionDataAccessor;
 import sipka.jvm.constexpr.tool.options.DeconstructionSelector;
 import sipka.jvm.constexpr.tool.options.InlinerOptions;
+import sipka.jvm.constexpr.tool.options.ReconstructorPredicate;
 import sipka.jvm.constexpr.tool.options.ToolInput;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.ClassReader;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.ClassWriter;
@@ -87,6 +90,12 @@ public class ConstantExpressionInliner {
 	 * Class internal name to deconstructors.
 	 */
 	private final Map<String, ConstantDeconstructor> constantDeconstructors = new TreeMap<>();
+	/**
+	 * The reconstructors that can be used by the inliner.
+	 * <p>
+	 * The map contains full {@link MemberKey} keys, as well as member keys with empty owner, that contains only the
+	 * member name and descriptor for instance methods.
+	 */
 	private final NavigableMap<MemberKey, TypeReferencedConstantReconstructor> constantReconstructors = new TreeMap<>(
 			MemberKey::compare);
 	/**
@@ -126,6 +135,18 @@ public class ConstantExpressionInliner {
 		constantDeconstructors.putAll(baseConstantDeconstructors);
 		constantReconstructors.putAll(baseConstantReconstructors);
 		constantTypes.putAll(baseConstantTypes);
+
+		//accumulate the general instance method constant reconstructors
+		for (Entry<MemberKey, TypeReferencedConstantReconstructor> entry : baseConstantReconstructors.entrySet()) {
+			if (entry.getValue().delegate instanceof MethodBasedConstantReconstructor) {
+				MethodBasedConstantReconstructor reconstructor = (MethodBasedConstantReconstructor) entry
+						.getValue().delegate;
+				if (!Modifier.isStatic(reconstructor.getMethod().getModifiers())) {
+					addGeneralInstanceMethodConstantReconstructor(reconstructor, (MethodKey) entry.getKey());
+				}
+			}
+		}
+
 		for (Field f : options.getConstantFields()) {
 			Field prev = optionsConstantFields.putIfAbsent(new FieldKey(f), f);
 			if (prev != null && !prev.equals(f)) {
@@ -143,30 +164,37 @@ public class ConstantExpressionInliner {
 				constantDeconstructors.put(typeinternalname, new ConfigSelectorConstantDeconstructor(selector));
 			}
 		}
-		for (Member e : options.getConstantReconstructors()) {
-			//so we can surely call it later
+		for (Entry<Member, ReconstructorPredicate> entry : options.getConstantReconstructors().entrySet()) {
+			Member e = entry.getKey();
+			ReconstructorPredicate predicate = entry.getValue();
+			//setAccessible so we can surely call it later
+			((AccessibleObject) e).setAccessible(true);
+
 			ConstantReconstructor reconstructor;
-			MemberKey memberkey;
+			MemberKey memberkey = MemberKey.create(e);
 			if (e instanceof Constructor<?>) {
 				Constructor<?> c = (Constructor<?>) e;
-				c.setAccessible(true);
-				reconstructor = new ConstructorBasedConstantReconstructor(c);
-				memberkey = MethodKey.create(c);
+				reconstructor = new ConstructorBasedConstantReconstructor(c, predicate);
 			} else if (e instanceof Method) {
 				Method m = (Method) e;
-				m.setAccessible(true);
-				reconstructor = new MethodBasedConstantReconstructor(m);
-				memberkey = MethodKey.create(m);
+				reconstructor = new MethodBasedConstantReconstructor(m, predicate);
 			} else if (e instanceof Field) {
 				Field f = (Field) e;
-				f.setAccessible(true);
-				reconstructor = new FieldBasedConstantReconstructor(f);
-				memberkey = new FieldKey(f);
+				reconstructor = new FieldBasedConstantReconstructor(f, predicate);
 			} else {
 				throw new IllegalArgumentException("Unrecognized Executable type: " + e);
 			}
 			constantReconstructors.put(memberkey,
 					new TypeReferencedConstantReconstructor(reconstructor, e.getDeclaringClass()));
+			if (e instanceof Method) {
+				Method m = (Method) e;
+				if (!Modifier.isStatic(m.getModifiers())) {
+					//merge the reconstructors without an owner type for instance methods
+					addGeneralInstanceMethodConstantReconstructor((MethodBasedConstantReconstructor) reconstructor,
+							(MethodKey) memberkey);
+				}
+			}
+
 		}
 		for (Class<?> ctype : options.getConstantTypes()) {
 			constantTypes.put(Type.getInternalName(ctype), new InlinerTypeReference(ctype));
@@ -276,6 +304,23 @@ public class ConstantExpressionInliner {
 			oc.put(transclass.input, cw.toByteArray());
 		}
 
+	}
+
+	private void addGeneralInstanceMethodConstantReconstructor(MethodBasedConstantReconstructor reconstructor,
+			MethodKey memberkey) {
+		MethodKey reducedkey = new MethodKey("", memberkey.getMemberName(), memberkey.getMethodDescriptor());
+		constantReconstructors.compute(reducedkey, (k, present) -> {
+			if (present == null) {
+				return new TypeReferencedConstantReconstructor(reconstructor);
+			}
+			if (present.delegate instanceof DynamicInstanceMethodBasedConstantReconstructor) {
+				((DynamicInstanceMethodBasedConstantReconstructor) present.delegate).addReconstructor(reconstructor);
+				return present;
+			} else {
+			}
+			return new TypeReferencedConstantReconstructor(new DynamicInstanceMethodBasedConstantReconstructor(
+					reconstructor, (MethodBasedConstantReconstructor) present.delegate));
+		});
 	}
 
 	/**
@@ -598,15 +643,17 @@ public class ConstantExpressionInliner {
 			switch (opcode) {
 				case Opcodes.LDC: {
 					LdcInsnNode ldc = (LdcInsnNode) ins;
-					Object ldcval = Utils.asmCastValueToReceiverType(ldc.cst, receivertype);
-					if (ldcval instanceof Type) {
+					Object ldcval;
+					if (ldc.cst instanceof Type) {
 						//convert Type to Class
 						try {
-							ldcval = findClass((Type) ldcval);
+							ldcval = findClass((Type) ldc.cst);
 						} catch (ClassNotFoundException e) {
 							throw context.newClassNotFoundReconstructionException(e, ins,
-									((Type) ldcval).getInternalName());
+									((Type) ldc.cst).getInternalName());
 						}
+					} else {
+						ldcval = Utils.asmCastValueToReceiverType(ldc.cst, receivertype);
 					}
 					return AsmStackReconstructedValue.createConstant(ins, endins, ldcval);
 				}
@@ -952,9 +999,10 @@ public class ConstantExpressionInliner {
 				//not found
 				break;
 			}
-			Class<?> reftype = entry.getValue().type;
-			if (reftype != null && Type.getInternalName(reftype).equals(typeinternalname)) {
-				return reftype;
+			for (Class<?> reftype : entry.getValue().types) {
+				if (reftype != null && Type.getInternalName(reftype).equals(typeinternalname)) {
+					return reftype;
+				}
 			}
 		}
 		return null;
@@ -1529,6 +1577,12 @@ public class ConstantExpressionInliner {
 			case Opcodes.INVOKEVIRTUAL:
 			case Opcodes.INVOKEINTERFACE: {
 				MethodInsnNode methodins = (MethodInsnNode) ins;
+
+				reconstructor = constantReconstructors.get(new MethodKey("", methodins.name, methodins.desc));
+				if (reconstructor != null) {
+					return reconstructor.reconstructValue(context, ins);
+				}
+
 				if ("toString".equals(methodins.name) && "()Ljava/lang/String;".equals(methodins.desc)) {
 					//handle toString specially
 					//if the reconstruction succeeds, then we can call toString on it and inline that result
@@ -1538,9 +1592,15 @@ public class ConstantExpressionInliner {
 				if (typeref != null) {
 					Class<?> type = typeref.getType(this);
 					if (type != null) {
-						if ("hashCode".equals(methodins.name) && "()I".equals(methodins.desc)) {
-							//don't inline hashCode by default on constant types, as that might not be stable
-							return null;
+						if ("()I".equals(methodins.desc)) {
+							if ("hashCode".equals(methodins.name)) {
+								//don't inline hashCode by default on constant types, as that might not be stable
+								break;
+							}
+							if ("ordinal".equals(methodins.name) && Enum.class.isAssignableFrom(type)) {
+								//ordinal reconstruction disabled for now, as it depends on source compatibility
+								break;
+							}
 						}
 						Method m;
 						try {
@@ -1549,14 +1609,11 @@ public class ConstantExpressionInliner {
 							throw context.newMethodNotFoundReconstructionException(e, methodins, methodins.owner,
 									methodins.name, methodins.desc);
 						}
-						return new MethodBasedConstantReconstructor(m).reconstructValue(context, ins);
+						return new MethodBasedConstantReconstructor(m, ReconstructorPredicate.ALLOW_ALL)
+								.reconstructValue(context, ins);
 					}
 				}
 
-				AsmStackReconstructedValue enumreconval = reconstructEnumMethodCall(context, ins);
-				if (enumreconval != null) {
-					return enumreconval;
-				}
 				break;
 			}
 			case Opcodes.INVOKESPECIAL: {
@@ -1621,8 +1678,7 @@ public class ConstantExpressionInliner {
 				if (constantTypes.get(fieldins.owner) != null) {
 					//getting field of a constant type
 					//allow it
-					return new DynamicInstanceFieldBasedConstantReconstructor(fieldins.owner, fieldins.name,
-							fieldins.desc).reconstructValue(context, ins);
+					return DynamicInstanceFieldBasedConstantReconstructor.INSTANCE.reconstructValue(context, ins);
 				}
 				break;
 			}
@@ -1633,9 +1689,7 @@ public class ConstantExpressionInliner {
 		if (context.isForceReconstruct()) {
 			switch (opcode) {
 				case Opcodes.GETFIELD: {
-					FieldInsnNode fieldins = (FieldInsnNode) ins;
-					return new DynamicInstanceFieldBasedConstantReconstructor(fieldins.owner, fieldins.name,
-							fieldins.desc).reconstructValue(context, ins);
+					return DynamicInstanceFieldBasedConstantReconstructor.INSTANCE.reconstructValue(context, ins);
 				}
 				case Opcodes.GETSTATIC: {
 					FieldInsnNode fieldins = (FieldInsnNode) ins;
@@ -1686,34 +1740,13 @@ public class ConstantExpressionInliner {
 						throw context.newMethodNotFoundReconstructionException(e, methodins, methodins.owner,
 								methodins.name, methodins.desc);
 					}
-					return new MethodBasedConstantReconstructor(method).reconstructValue(context, ins);
+					return new MethodBasedConstantReconstructor(method, ReconstructorPredicate.ALLOW_ALL)
+							.reconstructValue(context, ins);
 				}
 			}
 		}
 		//INSERT HERE: any further specially handled method calls
 		return null;
-	}
-
-	private static AsmStackReconstructedValue reconstructEnumMethodCall(ReconstructionContext context,
-			AbstractInsnNode ins) throws ReconstructionException {
-		int opcode = ins.getOpcode();
-		if (opcode != Opcodes.INVOKEVIRTUAL && opcode != Opcodes.INVOKEINTERFACE) {
-			return null;
-		}
-		//handle some Enum methods specially as a last fallback
-		//we don't know if the value will be an enum, the reconstructors will ignore if not
-		MethodInsnNode methodins = (MethodInsnNode) ins;
-		ConstantReconstructor enumreconstructor;
-		if ("name".equals(methodins.name) && "()Ljava/lang/String;".equals(methodins.desc)) {
-			enumreconstructor = EnumOnlyMethodConstantReconstructor.NAME_INSTANCE;
-		} else if ("ordinal".equals(methodins.name) && "()I".equals(methodins.desc)) {
-			enumreconstructor = EnumOnlyMethodConstantReconstructor.ORDINAL_INSTANCE;
-		} else if ("getDeclaringClass".equals(methodins.name) && "()Ljava/lang/Class;".equals(methodins.desc)) {
-			enumreconstructor = EnumOnlyMethodConstantReconstructor.GETDECLARINGCLASS_INSTANCE;
-		} else {
-			return null;
-		}
-		return enumreconstructor.reconstructValue(context, ins);
 	}
 
 	private Field findEnumConstantField(FieldInsnNode fieldins) {
@@ -1724,9 +1757,8 @@ public class ConstantExpressionInliner {
 			return null;
 		}
 		InlinerTypeReference typeref = constantTypes.get(fieldtype.getInternalName());
-		Class<?> type;
 		if (typeref != null) {
-			type = typeref.getType(this);
+			Class<?> type = typeref.getType(this);
 			if (type != null) {
 				try {
 					Field field = type.getField(fieldins.name);
@@ -1756,21 +1788,22 @@ public class ConstantExpressionInliner {
 				break;
 			}
 			//this reconstructor is associated with the same owner type that the field we're looking for
-			type = entry.getValue().type;
-			if (type == null) {
-				continue;
-			}
-			try {
-				Field field = type.getField(fieldins.name);
-				if (field.isEnumConstant()) {
-					return field;
+			for (Class<?> type : entry.getValue().types) {
+				if (type == null) {
+					continue;
 				}
-				return null;
-			} catch (NoSuchFieldException e) {
-				//no such field
-				//strange, because it seems to be referenced from other code,
-				//but we can't do much about this
-				return null;
+				try {
+					Field field = type.getField(fieldins.name);
+					if (field.isEnumConstant()) {
+						return field;
+					}
+					return null;
+				} catch (NoSuchFieldException e) {
+					//no such field
+					//strange, because it seems to be referenced from other code,
+					//but we can't do much about this
+					return null;
+				}
 			}
 		}
 		return null;
@@ -1867,5 +1900,9 @@ public class ConstantExpressionInliner {
 			return;
 		}
 		toStringLogEntries.put(classinternalname, new IndeterministicToStringLogEntry(classinternalname));
+	}
+
+	void logReconstructionNotAllowed(Object obj, Member member, Object[] args) {
+		//TODO do we need to log this?
 	}
 }

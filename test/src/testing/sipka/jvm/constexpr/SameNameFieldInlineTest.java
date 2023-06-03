@@ -55,7 +55,7 @@ public class SameNameFieldInlineTest extends SakerTestCase {
 		InlinerOptions opts = TestUtils.createOptionsForClasses(Constants.class);
 
 		opts.setConstantTypes(Arrays.asList(Class.forName(MyConstantClass.class.getName(), false, testcl)));
-		opts.setConstantReconstructors(Arrays.asList());
+		opts.setConstantReconstructors(TestUtils.allowAllMembers(Arrays.asList()));
 		opts.setConstantFields(Arrays.asList());
 
 		NavigableMap<String, ClassNode> outputs = TestUtils.performInliningClassNodes(opts);

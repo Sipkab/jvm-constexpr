@@ -850,6 +850,21 @@ public class Utils {
 		return null;
 	}
 
+	public static boolean hasSuperTypeInternalName(Class<?> type, String searchtype) {
+		if (type == null) {
+			return false;
+		}
+		if (Type.getInternalName(type).equals(searchtype)) {
+			return true;
+		}
+		for (Class<?> itf : type.getInterfaces()) {
+			if (hasSuperTypeInternalName(itf, searchtype)) {
+				return true;
+			}
+		}
+		return hasSuperTypeInternalName(type.getSuperclass(), searchtype);
+	}
+
 	private static boolean isMethodMatchesNameAndDescriptor(Method m, String descriptor, String name,
 			Type[] asmparamtypes) {
 		if (!name.equals(m.getName())) {
