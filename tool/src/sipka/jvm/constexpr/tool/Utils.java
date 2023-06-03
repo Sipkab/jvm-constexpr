@@ -20,7 +20,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
 
-import sipka.jvm.constexpr.tool.AsmStackInfo.Kind;
 import sipka.jvm.constexpr.tool.log.BytecodeLocation;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Opcodes;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
@@ -867,7 +866,7 @@ public class Utils {
 		}
 		return true;
 	}
-	
+
 	public static Executable getExecutableForDescriptor(Class<?> type, String owner, String name, String descriptor)
 			throws NoSuchMethodException {
 		if (CONSTRUCTOR_METHOD_NAME.equals(name)) {
@@ -1417,7 +1416,7 @@ public class Utils {
 			case ARRAY_LOAD: {
 				AsmStackInfo arrinfo = (AsmStackInfo) info.getObject();
 				AsmStackInfo indexinfo = info.getElements()[0];
-				if (arrinfo.getKind() == Kind.ARRAY && indexinfo.getKind() == Kind.CONSTANT) {
+				if (arrinfo.getKind() == AsmStackInfo.Kind.ARRAY && indexinfo.getKind() == AsmStackInfo.Kind.CONSTANT) {
 					//only display the loaded item, to reduce verbosity
 					Type componenttype = arrinfo.getType();
 					AsmStackInfo[] elements = arrinfo.getElements();
@@ -1457,7 +1456,7 @@ public class Utils {
 			case ARRAY_LENGTH: {
 				AsmStackInfo arrinfo = (AsmStackInfo) info.getObject();
 
-				if (arrinfo.getKind() == Kind.ARRAY) {
+				if (arrinfo.getKind() == AsmStackInfo.Kind.ARRAY) {
 					//don't display the elements
 					Type componenttype = arrinfo.getType();
 					AsmStackInfo[] elements = arrinfo.getElements();
