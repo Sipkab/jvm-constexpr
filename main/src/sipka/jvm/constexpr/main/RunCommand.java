@@ -248,15 +248,7 @@ public class RunCommand {
 	private static InlinerOptions createBaseOptions(PrintStream outstream) {
 		InlinerOptions options = new InlinerOptions();
 		options.setLogger(new PrintStreamToolLogger(outstream));
-		options.setOutputConsumer(new OutputConsumer() {
-			@Override
-			public void put(ToolInput<?> input, byte[] resultBytes) throws IOException {
-				Object inputkey = input.getInputKey();
-				if (inputkey instanceof OutputHandler) {
-					((OutputHandler) inputkey).handle(resultBytes);
-				}
-			}
-		});
+		options.setOutputConsumer(OutputHandlerForwardingOutputConsumer.INSTANCE);
 		return options;
 	}
 
@@ -374,19 +366,6 @@ public class RunCommand {
 		}
 	}
 
-	private static class ClassBytes {
-		protected final Path source;
-		protected final byte[] bytes;
-
-		protected boolean individualClassFile;
-		protected ZipEntry zipEntry;
-
-		public ClassBytes(Path source, byte[] bytes) {
-			this.source = source;
-			this.bytes = bytes;
-		}
-	}
-
 	/**
 	 * @param classinternalname
 	 * @param filepath
@@ -424,6 +403,33 @@ public class RunCommand {
 		return nentry;
 	}
 
+	private static void toPaths(Collection<Path> classpathurls, Collection<String> paths) throws InvalidPathException {
+		if (paths == null) {
+			return;
+		}
+		for (String cp : paths) {
+			for (String url : cp.split(";+")) {
+				if (url.isEmpty()) {
+					continue;
+				}
+				classpathurls.add(Paths.get(url).toAbsolutePath().normalize());
+			}
+		}
+	}
+
+	private static class ClassBytes {
+		protected final Path source;
+		protected final byte[] bytes;
+
+		protected boolean individualClassFile;
+		protected ZipEntry zipEntry;
+
+		public ClassBytes(Path source, byte[] bytes) {
+			this.source = source;
+			this.bytes = bytes;
+		}
+	}
+
 	private static final class InputLoadingURLClassLoader extends URLClassLoader {
 		private Map<String, byte[]> individualClassFiles = new TreeMap<>();
 
@@ -447,6 +453,10 @@ public class RunCommand {
 				throw e;
 			}
 		}
+	}
+
+	private interface OutputHandler {
+		public void handle(byte[] bytes);
 	}
 
 	private final class ZipOutputHandler implements OutputHandler {
@@ -491,24 +501,6 @@ public class RunCommand {
 		}
 	}
 
-	private interface OutputHandler {
-		public void handle(byte[] bytes);
-	}
-
-	private static void toPaths(Collection<Path> classpathurls, Collection<String> paths) throws InvalidPathException {
-		if (paths == null) {
-			return;
-		}
-		for (String cp : paths) {
-			for (String url : cp.split(";+")) {
-				if (url.isEmpty()) {
-					continue;
-				}
-				classpathurls.add(Paths.get(url).toAbsolutePath().normalize());
-			}
-		}
-	}
-
 	private static final class ZipEntryBytes {
 		protected final ZipEntry zipEntry;
 		protected final byte[] bytes;
@@ -529,6 +521,18 @@ public class RunCommand {
 		@Override
 		public void log(LogEntry entry) {
 			outstream.println(entry.getMessage());
+		}
+	}
+
+	private static final class OutputHandlerForwardingOutputConsumer implements OutputConsumer {
+		public static final OutputHandlerForwardingOutputConsumer INSTANCE = new OutputHandlerForwardingOutputConsumer();
+
+		@Override
+		public void put(ToolInput<?> input, byte[] resultBytes) throws IOException {
+			Object inputkey = input.getInputKey();
+			if (inputkey instanceof OutputHandler) {
+				((OutputHandler) inputkey).handle(resultBytes);
+			}
 		}
 	}
 }
