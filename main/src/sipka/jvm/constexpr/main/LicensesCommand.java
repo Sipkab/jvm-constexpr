@@ -1,9 +1,11 @@
 package sipka.jvm.constexpr.main;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
 import java.util.jar.Manifest;
 
+import sipka.jvm.constexpr.annotations.ConstantExpression;
 import sipka.jvm.constexpr.tool.Utils;
 
 /**
@@ -20,16 +22,7 @@ public class LicensesCommand {
 		ClassLoader classloader = CliMain.class.getClassLoader();
 		PrintStream out = System.out;
 
-		String version = "<unknown>";
-		try (InputStream in = classloader.getResourceAsStream("META-INF/MANIFEST.MF")) {
-			if (in != null) {
-				//just in case, the code might get bundled a different way
-				Manifest mf = new Manifest(in);
-				version = mf.getMainAttributes().getValue(MANIFEST_VERSION_ATTRIBUTE_NAME);
-			}
-		}
-
-		out.println("jvm-constexpr version " + version);
+		out.println("jvm-constexpr version " + getVersion());
 		out.println("Copyright (C) 2023 Bence Sipka");
 		out.println();
 		try (InputStream in = classloader.getResourceAsStream("META-INF/LICENSE")) {
@@ -46,5 +39,17 @@ public class LicensesCommand {
 				Utils.copyStream(in, out);
 			}
 		}
+	}
+
+	@ConstantExpression
+	private static String getVersion() throws IOException {
+		try (InputStream in = CliMain.class.getClassLoader().getResourceAsStream("META-INF/MANIFEST.MF")) {
+			if (in != null) {
+				//just in case, the code might get bundled a different way
+				Manifest mf = new Manifest(in);
+				return mf.getMainAttributes().getValue(MANIFEST_VERSION_ATTRIBUTE_NAME);
+			}
+		}
+		return "<unknown>";
 	}
 }
