@@ -356,7 +356,7 @@ class BaseConfig {
 		}
 	}
 
-	private static final class MemberNotAvailableConstantDeconstructor implements ConstantDeconstructor {
+	static final class MemberNotAvailableConstantDeconstructor implements ConstantDeconstructor {
 		private final String memberName;
 		private final String memberDescriptor;
 		private final String classInternalName;

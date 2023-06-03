@@ -10,44 +10,60 @@ import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodNode;
  * {@link ConstantDeconstructor} for the {@link LocalTime} class.
  */
 final class LocalTimeConstantDeconstructor implements ConstantDeconstructor {
-	public static final ConstantDeconstructor INSTANCE;
+	private static final ConstantDeconstructor fieldEqualityDeconstructor = new StaticFieldEqualityConstantDeconstructor(
+			Type.getType(LocalTime.class), LocalTime.class, "MIN", "MAX", "MIDNIGHT", "NOON");
+
+	private static final ConstantDeconstructor hourMinDecon;
+	private static final ConstantDeconstructor hourMinSecDecon;
+	private static final ConstantDeconstructor allDecon;
+
 	static {
-		ConstantDeconstructor instance = null;
+		ConstantDeconstructor hourmindecon = null;
+		ConstantDeconstructor hourminsecdecon = null;
+		ConstantDeconstructor alldecon = null;
 		try {
-			ConstantDeconstructor hourmindecon = StaticMethodBasedDeconstructor.createStaticFactoryDeconstructor(
-					LocalTime.class, "of", DeconstructionDataAccessor.createForMethod(LocalTime.class, "getHour"),
+			hourmindecon = StaticMethodBasedDeconstructor.createStaticFactoryDeconstructor(LocalTime.class, "of",
+					DeconstructionDataAccessor.createForMethod(LocalTime.class, "getHour"),
 					DeconstructionDataAccessor.createForMethod(LocalTime.class, "getMinute"));
-			ConstantDeconstructor hourminsecdecon = StaticMethodBasedDeconstructor.createStaticFactoryDeconstructor(
-					LocalTime.class, "of", DeconstructionDataAccessor.createForMethod(LocalTime.class, "getHour"),
-					DeconstructionDataAccessor.createForMethod(LocalTime.class, "getMinute"),
-					DeconstructionDataAccessor.createForMethod(LocalTime.class, "getSecond"));
-			ConstantDeconstructor alldecon = StaticMethodBasedDeconstructor.createStaticFactoryDeconstructor(
-					LocalTime.class, "of", DeconstructionDataAccessor.createForMethod(LocalTime.class, "getHour"),
-					DeconstructionDataAccessor.createForMethod(LocalTime.class, "getMinute"),
-					DeconstructionDataAccessor.createForMethod(LocalTime.class, "getSecond"),
-					DeconstructionDataAccessor.createForMethod(LocalTime.class, "getNano"));
-			instance = new LocalTimeConstantDeconstructor(hourmindecon, hourminsecdecon, alldecon);
+
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		INSTANCE = MultiConstantDeconstructor.getMulti(new StaticFieldEqualityConstantDeconstructor(
-				Type.getType(LocalTime.class), LocalTime.class, "MIN", "MAX", "MIDNIGHT", "NOON"), instance);
+		try {
+			hourminsecdecon = StaticMethodBasedDeconstructor.createStaticFactoryDeconstructor(LocalTime.class, "of",
+					DeconstructionDataAccessor.createForMethod(LocalTime.class, "getHour"),
+					DeconstructionDataAccessor.createForMethod(LocalTime.class, "getMinute"),
+					DeconstructionDataAccessor.createForMethod(LocalTime.class, "getSecond"));
+
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		try {
+			alldecon = StaticMethodBasedDeconstructor.createStaticFactoryDeconstructor(LocalTime.class, "of",
+					DeconstructionDataAccessor.createForMethod(LocalTime.class, "getHour"),
+					DeconstructionDataAccessor.createForMethod(LocalTime.class, "getMinute"),
+					DeconstructionDataAccessor.createForMethod(LocalTime.class, "getSecond"),
+					DeconstructionDataAccessor.createForMethod(LocalTime.class, "getNano"));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		hourMinDecon = hourmindecon;
+		hourMinSecDecon = hourminsecdecon;
+		allDecon = alldecon;
 	}
+	public static final ConstantDeconstructor INSTANCE = new LocalTimeConstantDeconstructor();
 
-	private final ConstantDeconstructor hourMinDecon;
-	private final ConstantDeconstructor hourMinSecDecon;
-	private final ConstantDeconstructor allDecon;
-
-	private LocalTimeConstantDeconstructor(ConstantDeconstructor hourmindecon, ConstantDeconstructor hourminsecdecon,
-			ConstantDeconstructor alldecon) {
-		this.hourMinDecon = hourmindecon;
-		this.hourMinSecDecon = hourminsecdecon;
-		this.allDecon = alldecon;
+	public LocalTimeConstantDeconstructor() {
 	}
 
 	@Override
 	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass,
 			MethodNode methodnode, Object value) {
+		DeconstructionResult fieldres = fieldEqualityDeconstructor.deconstructValue(context, transclass, methodnode,
+				value);
+		if (fieldres != null) {
+			return fieldres;
+		}
 		LocalTime lt = (LocalTime) value;
 		if (lt.getNano() == 0) {
 			if (lt.getSecond() == 0) {

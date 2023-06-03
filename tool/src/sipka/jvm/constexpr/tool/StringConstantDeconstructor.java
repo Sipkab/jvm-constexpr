@@ -12,7 +12,7 @@ import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodNode;
 final class StringConstantDeconstructor implements ConstantDeconstructor {
 	public static final StringConstantDeconstructor INSTANCE = new StringConstantDeconstructor();
 
-	private StringConstantDeconstructor() {
+	public StringConstantDeconstructor() {
 	}
 
 	@Override

@@ -10,48 +10,64 @@ import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodNode;
  * {@link ConstantDeconstructor} for the {@link Duration} class.
  */
 final class DurationConstantDeconstructor implements ConstantDeconstructor {
-	public static final ConstantDeconstructor INSTANCE;
-	static {
-		ConstantDeconstructor instance = null;
-		try {
-			ConstantDeconstructor nanosbaseddeconstructor = StaticMethodBasedDeconstructor
-					.createStaticFactoryDeconstructor(Duration.class, "ofSeconds",
-							DeconstructionDataAccessor.createForMethod(Duration.class, "getSeconds"),
-							DeconstructionDataAccessor.createForMethodWithReceiver(Duration.class, "getNano",
-									long.class));
-			ConstantDeconstructor secondsbaseddeconstructor = StaticMethodBasedDeconstructor
-					.createStaticFactoryDeconstructor(Duration.class, "ofSeconds",
-							DeconstructionDataAccessor.createForMethod(Duration.class, "getSeconds"));
-			ConstantDeconstructor millisdeconstructor = StaticMethodBasedDeconstructor.createStaticFactoryDeconstructor(
-					Duration.class, "ofMillis", DeconstructionDataAccessor.createForMethod(Duration.class, "toMillis"));
+	private static final ConstantDeconstructor fieldEqualityDeconstructor = new StaticFieldEqualityConstantDeconstructor(
+			Type.getType(Duration.class), Duration.class, "ZERO");
 
-			ConstantDeconstructor nanosdecosntructor = StaticMethodBasedDeconstructor.createStaticFactoryDeconstructor(
-					Duration.class, "ofNanos", DeconstructionDataAccessor.createForMethod(Duration.class, "toNanos"));
-			instance = new DurationConstantDeconstructor(nanosbaseddeconstructor, secondsbaseddeconstructor,
-					millisdeconstructor, nanosdecosntructor);
+	private static final ConstantDeconstructor secondsAndNanosDeconstructor;
+	private static final ConstantDeconstructor secondsDeconstructor;
+	private static final ConstantDeconstructor millisDeconstructor;
+	private static final ConstantDeconstructor nanosDeconstructor;
+	static {
+		ConstantDeconstructor secondsandnanosdeconstructor = null;
+		ConstantDeconstructor secondsdeconstructor = null;
+		ConstantDeconstructor millisdeconstructor = null;
+		ConstantDeconstructor nanosdeconstructor = null;
+
+		try {
+			secondsandnanosdeconstructor = StaticMethodBasedDeconstructor.createStaticFactoryDeconstructor(
+					Duration.class, "ofSeconds",
+					DeconstructionDataAccessor.createForMethod(Duration.class, "getSeconds"),
+					DeconstructionDataAccessor.createForMethodWithReceiver(Duration.class, "getNano", long.class));
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		INSTANCE = MultiConstantDeconstructor.getMulti(new StaticFieldEqualityConstantDeconstructor(
-				Type.getType(Duration.class), Duration.class, "ZERO"), instance);
+		try {
+			secondsdeconstructor = StaticMethodBasedDeconstructor.createStaticFactoryDeconstructor(Duration.class,
+					"ofSeconds", DeconstructionDataAccessor.createForMethod(Duration.class, "getSeconds"));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		try {
+			millisdeconstructor = StaticMethodBasedDeconstructor.createStaticFactoryDeconstructor(Duration.class,
+					"ofMillis", DeconstructionDataAccessor.createForMethod(Duration.class, "toMillis"));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		try {
+			nanosdeconstructor = StaticMethodBasedDeconstructor.createStaticFactoryDeconstructor(Duration.class,
+					"ofNanos", DeconstructionDataAccessor.createForMethod(Duration.class, "toNanos"));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		secondsAndNanosDeconstructor = secondsandnanosdeconstructor;
+		secondsDeconstructor = secondsdeconstructor;
+		millisDeconstructor = millisdeconstructor;
+		nanosDeconstructor = nanosdeconstructor;
 	}
-	private final ConstantDeconstructor secondsAndNanosDeconstructor;
-	private final ConstantDeconstructor secondsDeconstructor;
-	private final ConstantDeconstructor millisDeconstructor;
-	private final ConstantDeconstructor nanosDeconstructor;
 
-	private DurationConstantDeconstructor(ConstantDeconstructor secondsAndNanosDeconstructor,
-			ConstantDeconstructor secondsDeconstructor, ConstantDeconstructor millisDeconstructor,
-			ConstantDeconstructor nanosDeconstructor) {
-		this.secondsAndNanosDeconstructor = secondsAndNanosDeconstructor;
-		this.secondsDeconstructor = secondsDeconstructor;
-		this.millisDeconstructor = millisDeconstructor;
-		this.nanosDeconstructor = nanosDeconstructor;
+	public static final ConstantDeconstructor INSTANCE = new DurationConstantDeconstructor();
+
+	public DurationConstantDeconstructor() {
 	}
 
 	@Override
 	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass,
 			MethodNode methodnode, Object value) {
+		DeconstructionResult fieldres = fieldEqualityDeconstructor.deconstructValue(context, transclass, methodnode,
+				value);
+		if (fieldres != null) {
+			return fieldres;
+		}
 		Duration dur = (Duration) value;
 		int nano = dur.getNano();
 		if (nano == 0) {
