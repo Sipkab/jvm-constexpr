@@ -15,6 +15,9 @@ import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodNode;
 final class EnumFieldConstantDeconstructor implements ConstantDeconstructor {
 	public static final EnumFieldConstantDeconstructor INSTANCE = new EnumFieldConstantDeconstructor();
 
+	private EnumFieldConstantDeconstructor() {
+	}
+
 	@Override
 	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass,
 			MethodNode methodnode, Object value) {
@@ -28,5 +31,12 @@ final class EnumFieldConstantDeconstructor implements ConstantDeconstructor {
 		result.add(new FieldInsnNode(Opcodes.GETSTATIC, enumclasstype.getInternalName(), fieldname,
 				enumclasstype.getDescriptor()));
 		return DeconstructionResult.createField(result, enumclasstype, fieldname, enumclasstype);
+	}
+
+	@Override
+	public String toString() {
+		StringBuilder builder = new StringBuilder(getClass().getSimpleName());
+		builder.append("[]");
+		return builder.toString();
 	}
 }

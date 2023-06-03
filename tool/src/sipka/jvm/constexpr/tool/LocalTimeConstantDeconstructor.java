@@ -3,6 +3,7 @@ package sipka.jvm.constexpr.tool;
 import java.time.LocalTime;
 
 import sipka.jvm.constexpr.tool.options.DeconstructionDataAccessor;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodNode;
 
 /**
@@ -29,8 +30,8 @@ final class LocalTimeConstantDeconstructor implements ConstantDeconstructor {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		instance = new StaticFieldEqualityDelegateConstantDeconstructor(instance, LocalTime.class, "MIN", "MAX",
-				"MIDNIGHT", "NOON");
+		instance = new StaticFieldEqualityDelegateConstantDeconstructor(instance, Type.getType(LocalTime.class),
+				LocalTime.class, "MIN", "MAX", "MIDNIGHT", "NOON");
 		INSTANCE = instance;
 	}
 
@@ -38,7 +39,7 @@ final class LocalTimeConstantDeconstructor implements ConstantDeconstructor {
 	private final ConstantDeconstructor hourMinSecDecon;
 	private final ConstantDeconstructor allDecon;
 
-	public LocalTimeConstantDeconstructor(ConstantDeconstructor hourmindecon, ConstantDeconstructor hourminsecdecon,
+	private LocalTimeConstantDeconstructor(ConstantDeconstructor hourmindecon, ConstantDeconstructor hourminsecdecon,
 			ConstantDeconstructor alldecon) {
 		this.hourMinDecon = hourmindecon;
 		this.hourMinSecDecon = hourminsecdecon;
@@ -56,5 +57,12 @@ final class LocalTimeConstantDeconstructor implements ConstantDeconstructor {
 			return hourMinSecDecon.deconstructValue(context, transclass, methodnode, value);
 		}
 		return allDecon.deconstructValue(context, transclass, methodnode, value);
+	}
+
+	@Override
+	public String toString() {
+		StringBuilder builder = new StringBuilder(getClass().getSimpleName());
+		builder.append("[]");
+		return builder.toString();
 	}
 }

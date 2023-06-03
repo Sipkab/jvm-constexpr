@@ -14,7 +14,7 @@ import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.TypeInsnNode;
 /**
  * {@link ConstantDeconstructor} that deconstructs the value into an array.
  */
-class ArrayConstantDeconstructor implements ConstantDeconstructor {
+final class ArrayConstantDeconstructor implements ConstantDeconstructor {
 	public static final ArrayConstantDeconstructor INSTANCE = new ArrayConstantDeconstructor();
 
 	@Override
@@ -65,6 +65,13 @@ class ArrayConstantDeconstructor implements ConstantDeconstructor {
 		}
 		return DeconstructionResult.createArray(result, componentasmtype, AsmStackInfo.createConstant(length),
 				elementinfos);
+	}
+
+	@Override
+	public String toString() {
+		StringBuilder builder = new StringBuilder(getClass().getSimpleName());
+		builder.append("[]");
+		return builder.toString();
 	}
 
 }

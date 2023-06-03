@@ -1,5 +1,7 @@
 package sipka.jvm.constexpr.tool;
 
+import java.util.Arrays;
+
 import sipka.jvm.constexpr.tool.options.DeconstructionDataAccessor;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Opcodes;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
@@ -78,6 +80,21 @@ final class StaticMethodBasedDeconstructor implements ConstantDeconstructor {
 
 		return DeconstructionResult.createStaticMethod(insnlist, Type.getObjectType(methodOwnerTypeInternalName),
 				methodName, Type.getType(initins.desc), arginfos);
+	}
+
+	@Override
+	public String toString() {
+		StringBuilder builder = new StringBuilder(getClass().getSimpleName());
+		builder.append("[methodOwnerTypeInternalName=");
+		builder.append(methodOwnerTypeInternalName);
+		builder.append(", methodName=");
+		builder.append(methodName);
+		builder.append(", returnType=");
+		builder.append(returnType);
+		builder.append(", dataAccessors=");
+		builder.append(Arrays.toString(dataAccessors));
+		builder.append("]");
+		return builder.toString();
 	}
 
 	/**

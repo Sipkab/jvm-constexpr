@@ -22,6 +22,9 @@ final class StringBuilderConstantDeconstructor implements ConstantDeconstructor 
 
 	public static final StringBuilderConstantDeconstructor INSTANCE = new StringBuilderConstantDeconstructor();
 
+	private StringBuilderConstantDeconstructor() {
+	}
+
 	@Override
 	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass,
 			MethodNode methodnode, Object value) {
@@ -35,5 +38,12 @@ final class StringBuilderConstantDeconstructor implements ConstantDeconstructor 
 			return NOARG_DECONSTRUCTOR.deconstructValue(context, transclass, methodnode, value);
 		}
 		return TOSTRING_DECONSTRUCTOR.deconstructValue(context, transclass, methodnode, value);
+	}
+
+	@Override
+	public String toString() {
+		StringBuilder builder = new StringBuilder(getClass().getSimpleName());
+		builder.append("[]");
+		return builder.toString();
 	}
 }

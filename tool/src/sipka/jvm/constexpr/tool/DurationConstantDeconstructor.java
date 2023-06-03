@@ -3,6 +3,7 @@ package sipka.jvm.constexpr.tool;
 import java.time.Duration;
 
 import sipka.jvm.constexpr.tool.options.DeconstructionDataAccessor;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodNode;
 
 /**
@@ -31,7 +32,8 @@ final class DurationConstantDeconstructor implements ConstantDeconstructor {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		instance = new StaticFieldEqualityDelegateConstantDeconstructor(instance, Duration.class, "ZERO");
+		instance = new StaticFieldEqualityDelegateConstantDeconstructor(instance, Type.getType(Duration.class), Duration.class,
+				"ZERO");
 		INSTANCE = instance;
 	}
 	private final ConstantDeconstructor secondsAndNanosDeconstructor;
@@ -39,7 +41,7 @@ final class DurationConstantDeconstructor implements ConstantDeconstructor {
 	private final ConstantDeconstructor millisDeconstructor;
 	private final ConstantDeconstructor nanosDeconstructor;
 
-	public DurationConstantDeconstructor(ConstantDeconstructor secondsAndNanosDeconstructor,
+	private DurationConstantDeconstructor(ConstantDeconstructor secondsAndNanosDeconstructor,
 			ConstantDeconstructor secondsDeconstructor, ConstantDeconstructor millisDeconstructor,
 			ConstantDeconstructor nanosDeconstructor) {
 		this.secondsAndNanosDeconstructor = secondsAndNanosDeconstructor;
@@ -77,5 +79,12 @@ final class DurationConstantDeconstructor implements ConstantDeconstructor {
 			}
 		}
 		return secondsAndNanosDeconstructor.deconstructValue(context, transclass, methodnode, value);
+	}
+
+	@Override
+	public String toString() {
+		StringBuilder builder = new StringBuilder(getClass().getSimpleName());
+		builder.append("[]");
+		return builder.toString();
 	}
 }

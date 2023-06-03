@@ -135,20 +135,19 @@ class BaseConfig {
 							}
 
 							Class<?> deconstructedtype;
+							String deconstructedasmtypeinternalname = deconstructedasmtype.getInternalName();
 							try {
 								deconstructedtype = Class.forName(deconstructedasmtype.getClassName(), false,
 										loadclassloader);
 							} catch (ClassNotFoundException e) {
-								baseConstantDeconstructors.compute(ownerasmtype.getInternalName(), (k, v) -> {
-									return new MemberNotAvailableConstantDeconstructor(
-											deconstructedasmtype.getInternalName(), null, null, e, v);
+								baseConstantDeconstructors.compute(deconstructedasmtypeinternalname, (k, v) -> {
+									return new MemberNotAvailableConstantDeconstructor(k, null, null, e, v);
 								});
 								continue reader_loop;
 							}
 
 							Type[] argumenttypes = membertype.getArgumentTypes();
-							int argc = argumenttypes.length;
-							DeconstructionDataAccessor[] fieldaccessors = new DeconstructionDataAccessor[argc];
+							DeconstructionDataAccessor[] fieldaccessors = new DeconstructionDataAccessor[argumenttypes.length];
 							int lastidx = 4;
 							for (int i = 0; i < fieldaccessors.length; i++) {
 								String getter = split[lastidx++];
@@ -166,10 +165,9 @@ class BaseConfig {
 									method = Utils.getMethodForMethodDescriptor(deconstructedtype, null,
 											gettermethoddesc, gettername);
 								} catch (NoSuchMethodException e) {
-									baseConstantDeconstructors.compute(ownerasmtype.getInternalName(), (k, v) -> {
-										return new MemberNotAvailableConstantDeconstructor(
-												deconstructedasmtype.getInternalName(), gettername, gettermethoddesc, e,
-												v);
+									baseConstantDeconstructors.compute(deconstructedasmtypeinternalname, (k, v) -> {
+										return new MemberNotAvailableConstantDeconstructor(k, gettername,
+												gettermethoddesc, e, v);
 									});
 									continue reader_loop;
 								}
@@ -185,11 +183,11 @@ class BaseConfig {
 								deconstructor = StaticMethodBasedDeconstructor.createStaticMethodDeconstructor(
 										deconstructedasmtype, ownerasmtype, membername, fieldaccessors);
 							}
-							baseConstantDeconstructors.compute(deconstructedasmtype.getInternalName(),
-									(k, v) -> mergeMethodDeconstructorBaseConfig(deconstructor, deconstructedtype, v));
+							baseConstantDeconstructors.compute(deconstructedasmtypeinternalname,
+									(k, v) -> mergeMethodDeconstructorBaseConfig(deconstructor, k, v));
 						} else {
 							//it is a field
-							if (!Type.getType(descriptor).equals(ownerasmtype)) {
+							if (!membertype.equals(ownerasmtype)) {
 								//only support fields that are declared in the same type for now
 								throw new UnsupportedOperationException("unsupported deconstructor type: " + line);
 							}
@@ -198,14 +196,13 @@ class BaseConfig {
 							try {
 								ownertype = Class.forName(ownerasmtype.getClassName(), false, loadclassloader);
 							} catch (ClassNotFoundException e) {
-								baseConstantDeconstructors.compute(ownerasmtype.getInternalName(), (k, v) -> {
-									return new MemberNotAvailableConstantDeconstructor(ownerclassinternalname, null,
-											null, e, v);
+								baseConstantDeconstructors.compute(membertype.getInternalName(), (k, v) -> {
+									return new MemberNotAvailableConstantDeconstructor(k, null, null, e, v);
 								});
 								continue reader_loop;
 							}
-							baseConstantDeconstructors.compute(ownerasmtype.getInternalName(),
-									(k, v) -> mergeFieldDeconstructorBaseConfig(membername, ownertype, v));
+							baseConstantDeconstructors.compute(membertype.getInternalName(),
+									(k, v) -> mergeFieldDeconstructorBaseConfig(membername, membertype, ownertype, v));
 						}
 						break;
 					}
@@ -217,35 +214,50 @@ class BaseConfig {
 		}
 	}
 
-	private static ConstantDeconstructor mergeFieldDeconstructorBaseConfig(String fieldname, Class<?> ownertype,
-			ConstantDeconstructor currentdeconstructor) {
-		if (currentdeconstructor == null) {
-			return new StaticFieldEqualityDelegateConstantDeconstructor(null, ownertype, fieldname);
-		}
+	private static ConstantDeconstructor mergeFieldDeconstructorBaseConfig(String fieldname, Type fieldtype,
+			Class<?> ownertype, ConstantDeconstructor currentdeconstructor) {
 		if (currentdeconstructor instanceof StaticFieldEqualityDelegateConstantDeconstructor) {
 			StaticFieldEqualityDelegateConstantDeconstructor fcd = (StaticFieldEqualityDelegateConstantDeconstructor) currentdeconstructor;
 			return fcd.withField(fieldname);
 		}
 
-		return new StaticFieldEqualityDelegateConstantDeconstructor(currentdeconstructor, ownertype, fieldname);
+		return new StaticFieldEqualityDelegateConstantDeconstructor(currentdeconstructor, fieldtype, ownertype,
+				fieldname);
 	}
 
 	private static ConstantDeconstructor mergeMethodDeconstructorBaseConfig(ConstantDeconstructor deconstructor,
-			Class<?> deconstructedtype, ConstantDeconstructor currentdeconstructor) {
+			String deconstructedtypeinternalname, ConstantDeconstructor currentdeconstructor) {
 		if (currentdeconstructor == null) {
 			return deconstructor;
 		}
 
 		if (currentdeconstructor instanceof StaticFieldEqualityDelegateConstantDeconstructor) {
 			StaticFieldEqualityDelegateConstantDeconstructor fcd = (StaticFieldEqualityDelegateConstantDeconstructor) currentdeconstructor;
+			ConstantDeconstructor use;
 			if (fcd.getDelegate() != null) {
-				throw new IllegalArgumentException("Duplicate constant deconstructor for: " + deconstructedtype);
+				use = mergeMethodDeconstructorBaseConfig(deconstructor, deconstructedtypeinternalname,
+						fcd.getDelegate());
+			} else {
+				use = deconstructor;
 			}
 
-			return new StaticFieldEqualityDelegateConstantDeconstructor(deconstructor, fcd.getType(),
-					fcd.getFieldNames());
+			return new StaticFieldEqualityDelegateConstantDeconstructor(use, fcd.getFieldType(),
+					fcd.getFieldOwnerType(), fcd.getFieldNames());
 		}
-		throw new IllegalArgumentException("Duplicate constant deconstructor for: " + deconstructedtype);
+		if (currentdeconstructor instanceof MemberNotAvailableConstantDeconstructor) {
+			MemberNotAvailableConstantDeconstructor nad = (MemberNotAvailableConstantDeconstructor) currentdeconstructor;
+			ConstantDeconstructor use;
+			if (nad.getDelegate() != null) {
+				use = mergeMethodDeconstructorBaseConfig(deconstructor, deconstructedtypeinternalname,
+						nad.getDelegate());
+			} else {
+				use = deconstructor;
+			}
+			return new MemberNotAvailableConstantDeconstructor(nad.getClassInternalName(), nad.getMemberName(),
+					nad.getMemberDescriptor(), nad.getException(), use);
+		}
+		throw new IllegalArgumentException("Duplicate constant deconstructor for: " + deconstructedtypeinternalname
+				+ " with " + deconstructor + " and " + currentdeconstructor);
 	}
 
 	private static void initReconstructors(
@@ -360,12 +372,50 @@ class BaseConfig {
 			this.delegate = delegate;
 		}
 
+		public String getClassInternalName() {
+			return classInternalName;
+		}
+
+		public String getMemberName() {
+			return memberName;
+		}
+
+		public String getMemberDescriptor() {
+			return memberDescriptor;
+		}
+
+		public ReflectiveOperationException getException() {
+			return exception;
+		}
+
+		public ConstantDeconstructor getDelegate() {
+			return delegate;
+		}
+
 		@Override
 		public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass,
 				MethodNode methodnode, Object value) {
 			context.logConfigClassMemberInaccessible(classInternalName, memberName, memberDescriptor, exception);
 			return delegate == null ? null : delegate.deconstructValue(context, transclass, methodnode, value);
 		}
+
+		@Override
+		public String toString() {
+			StringBuilder builder = new StringBuilder(getClass().getSimpleName());
+			builder.append("[memberName=");
+			builder.append(memberName);
+			builder.append(", memberDescriptor=");
+			builder.append(memberDescriptor);
+			builder.append(", classInternalName=");
+			builder.append(classInternalName);
+			builder.append(", exception=");
+			builder.append(exception);
+			builder.append(", delegate=");
+			builder.append(delegate);
+			builder.append("]");
+			return builder.toString();
+		}
+
 	}
 
 	private static final class MemberNotAvailableInlinerTypeReference extends InlinerTypeReference {

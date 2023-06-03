@@ -61,7 +61,7 @@ import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.TypeInsnNode;
 public class ConstantExpressionInliner {
 	public static final int ASM_API = Opcodes.ASM9;
 
-	private static final Map<String, ConstantDeconstructor> baseConstantDeconstructors = new HashMap<>();
+	private static final Map<String, ConstantDeconstructor> baseConstantDeconstructors = new TreeMap<>();
 
 	/**
 	 * Internal names mapped to the type that are considered constants. That is, they don't have a mutable state, and
@@ -138,12 +138,10 @@ public class ConstantExpressionInliner {
 
 		//accumulate the general instance method constant reconstructors
 		for (Entry<MemberKey, TypeReferencedConstantReconstructor> entry : baseConstantReconstructors.entrySet()) {
-			if (entry.getValue().delegate instanceof MethodBasedConstantReconstructor) {
-				MethodBasedConstantReconstructor reconstructor = (MethodBasedConstantReconstructor) entry
-						.getValue().delegate;
-				if (!Modifier.isStatic(reconstructor.getMethod().getModifiers())) {
-					addGeneralInstanceMethodConstantReconstructor(reconstructor, (MethodKey) entry.getKey());
-				}
+			ConstantReconstructor delegate = entry.getValue().delegate;
+			if (delegate instanceof MethodBasedConstantReconstructor) {
+				addGeneralInstanceMethodConstantReconstructor((MethodBasedConstantReconstructor) delegate,
+						(MethodKey) entry.getKey());
 			}
 		}
 
@@ -186,13 +184,9 @@ public class ConstantExpressionInliner {
 			}
 			constantReconstructors.put(memberkey,
 					new TypeReferencedConstantReconstructor(reconstructor, e.getDeclaringClass()));
-			if (e instanceof Method) {
-				Method m = (Method) e;
-				if (!Modifier.isStatic(m.getModifiers())) {
-					//merge the reconstructors without an owner type for instance methods
-					addGeneralInstanceMethodConstantReconstructor((MethodBasedConstantReconstructor) reconstructor,
-							(MethodKey) memberkey);
-				}
+			if (reconstructor instanceof MethodBasedConstantReconstructor) {
+				addGeneralInstanceMethodConstantReconstructor((MethodBasedConstantReconstructor) reconstructor,
+						(MethodKey) memberkey);
 			}
 
 		}
@@ -308,6 +302,10 @@ public class ConstantExpressionInliner {
 
 	private void addGeneralInstanceMethodConstantReconstructor(MethodBasedConstantReconstructor reconstructor,
 			MethodKey memberkey) {
+		if (Modifier.isStatic(reconstructor.getMethod().getModifiers())) {
+			//don't add, only for instance methods
+			return;
+		}
 		MethodKey reducedkey = new MethodKey("", memberkey.getMemberName(), memberkey.getMethodDescriptor());
 		constantReconstructors.compute(reducedkey, (k, present) -> {
 			if (present == null) {

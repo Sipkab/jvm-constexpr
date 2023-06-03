@@ -45,4 +45,13 @@ final class ConfigSelectorConstantDeconstructor implements ConstantDeconstructor
 		}
 		return deconstructor.deconstructValue(context, transclass, methodnode, value);
 	}
+
+	@Override
+	public String toString() {
+		StringBuilder builder = new StringBuilder(getClass().getSimpleName());
+		builder.append("[selector=");
+		builder.append(selector);
+		builder.append("]");
+		return builder.toString();
+	}
 }

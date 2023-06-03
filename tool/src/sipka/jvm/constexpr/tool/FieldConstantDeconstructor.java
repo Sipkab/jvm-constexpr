@@ -33,4 +33,17 @@ final class FieldConstantDeconstructor implements ConstantDeconstructor {
 		return DeconstructionResult.createField(result, Type.getObjectType(ownerInternalName), fieldName,
 				Type.getType(fieldDescriptor));
 	}
+
+	@Override
+	public String toString() {
+		StringBuilder builder = new StringBuilder(getClass().getSimpleName());
+		builder.append("[ownerInternalName=");
+		builder.append(ownerInternalName);
+		builder.append(", fieldName=");
+		builder.append(fieldName);
+		builder.append(", fieldDescriptor=");
+		builder.append(fieldDescriptor);
+		builder.append("]");
+		return builder.toString();
+	}
 }

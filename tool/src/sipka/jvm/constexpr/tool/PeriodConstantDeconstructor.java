@@ -3,6 +3,7 @@ package sipka.jvm.constexpr.tool;
 import java.time.Period;
 
 import sipka.jvm.constexpr.tool.options.DeconstructionDataAccessor;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodNode;
 
 /**
@@ -27,7 +28,8 @@ final class PeriodConstantDeconstructor implements ConstantDeconstructor {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		instance = new StaticFieldEqualityDelegateConstantDeconstructor(instance, Period.class, "ZERO");
+		instance = new StaticFieldEqualityDelegateConstantDeconstructor(instance, Type.getType(Period.class),
+				Period.class, "ZERO");
 		INSTANCE = instance;
 	}
 
@@ -36,7 +38,7 @@ final class PeriodConstantDeconstructor implements ConstantDeconstructor {
 	private final ConstantDeconstructor daysDecon;
 	private final ConstantDeconstructor allDecon;
 
-	public PeriodConstantDeconstructor(ConstantDeconstructor yearsdecon, ConstantDeconstructor monthsdecon,
+	private PeriodConstantDeconstructor(ConstantDeconstructor yearsdecon, ConstantDeconstructor monthsdecon,
 			ConstantDeconstructor daysdecon, ConstantDeconstructor alldecon) {
 		this.yearsDecon = yearsdecon;
 		this.monthsDecon = monthsdecon;
@@ -61,5 +63,12 @@ final class PeriodConstantDeconstructor implements ConstantDeconstructor {
 			return yearsDecon.deconstructValue(context, transclass, methodnode, value);
 		}
 		return allDecon.deconstructValue(context, transclass, methodnode, value);
+	}
+
+	@Override
+	public String toString() {
+		StringBuilder builder = new StringBuilder(getClass().getSimpleName());
+		builder.append("[]");
+		return builder.toString();
 	}
 }

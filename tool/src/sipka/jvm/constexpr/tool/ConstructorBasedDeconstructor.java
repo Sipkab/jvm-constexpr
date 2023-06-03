@@ -1,5 +1,7 @@
 package sipka.jvm.constexpr.tool;
 
+import java.util.Arrays;
+
 import sipka.jvm.constexpr.tool.options.DeconstructionDataAccessor;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Opcodes;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
@@ -83,5 +85,16 @@ final class ConstructorBasedDeconstructor implements ConstantDeconstructor {
 
 	public static ConstantDeconstructor create(Type type, DeconstructionDataAccessor... argumentdataaccessors) {
 		return new ConstructorBasedDeconstructor(type.getInternalName(), argumentdataaccessors);
+	}
+
+	@Override
+	public String toString() {
+		StringBuilder builder = new StringBuilder(getClass().getSimpleName());
+		builder.append("[typeInternalName=");
+		builder.append(typeInternalName);
+		builder.append(", dataAccessors=");
+		builder.append(Arrays.toString(dataAccessors));
+		builder.append("]");
+		return builder.toString();
 	}
 }
