@@ -28,9 +28,8 @@ final class PeriodConstantDeconstructor implements ConstantDeconstructor {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		instance = new StaticFieldEqualityDelegateConstantDeconstructor(instance, Type.getType(Period.class),
-				Period.class, "ZERO");
-		INSTANCE = instance;
+		INSTANCE = MultiConstantDeconstructor.getMulti(instance,
+				new StaticFieldEqualityConstantDeconstructor(Type.getType(Period.class), Period.class, "ZERO"));
 	}
 
 	private final ConstantDeconstructor yearsDecon;

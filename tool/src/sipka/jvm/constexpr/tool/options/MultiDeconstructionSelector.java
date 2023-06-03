@@ -1,9 +1,11 @@
 package sipka.jvm.constexpr.tool.options;
 
-final class MultiDeconstructionSelector implements DeconstructionSelector {
-	private final Iterable<? extends DeconstructionSelector> delegates;
+import java.util.List;
 
-	public MultiDeconstructionSelector(Iterable<? extends DeconstructionSelector> delegates) {
+final class MultiDeconstructionSelector implements DeconstructionSelector {
+	private final List<? extends DeconstructionSelector> delegates;
+
+	public MultiDeconstructionSelector(List<? extends DeconstructionSelector> delegates) {
 		this.delegates = delegates;
 	}
 
@@ -18,7 +20,7 @@ final class MultiDeconstructionSelector implements DeconstructionSelector {
 		return null;
 	}
 
-	public Iterable<? extends DeconstructionSelector> getDelegates() {
+	public List<? extends DeconstructionSelector> getDelegates() {
 		return delegates;
 	}
 }

@@ -11,33 +11,25 @@ import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodNode;
 
 /**
  * {@link ConstantDeconstructor} that searches the given type with an equal static field to the inlined value. If found,
- * then a {@link Opcodes#GETSTATIC GETSTATIC} instruction is used to retrieve that field. Otherwise a delegate
- * {@link ConstantDeconstructor} is called.
+ * then a {@link Opcodes#GETSTATIC GETSTATIC} instruction is used to retrieve that field.
  * <p>
  * Fields are expected to have the same type as the declaring type.
  */
-final class StaticFieldEqualityDelegateConstantDeconstructor implements ConstantDeconstructor {
-	private final ConstantDeconstructor delegate;
+final class StaticFieldEqualityConstantDeconstructor implements ConstantDeconstructor {
 	private final Type fieldType;
 	private final Class<?> fieldOwnerType;
 	private final String[] fieldNames;
 
-	public StaticFieldEqualityDelegateConstantDeconstructor(ConstantDeconstructor delegate, Type fieldtype,
-			Class<?> fieldownertype, String... fieldNames) {
-		this.delegate = delegate;
+	public StaticFieldEqualityConstantDeconstructor(Type fieldtype, Class<?> fieldownertype, String... fieldNames) {
 		this.fieldType = fieldtype;
 		this.fieldOwnerType = fieldownertype;
 		this.fieldNames = fieldNames;
 	}
 
-	public StaticFieldEqualityDelegateConstantDeconstructor withField(String fieldname) {
+	public StaticFieldEqualityConstantDeconstructor withField(String fieldname) {
 		String[] narray = Arrays.copyOf(fieldNames, fieldNames.length + 1);
 		narray[fieldNames.length] = fieldname;
-		return new StaticFieldEqualityDelegateConstantDeconstructor(delegate, fieldType, fieldOwnerType, narray);
-	}
-
-	public ConstantDeconstructor getDelegate() {
-		return delegate;
+		return new StaticFieldEqualityConstantDeconstructor(fieldType, fieldOwnerType, narray);
 	}
 
 	public Type getFieldType() {
@@ -55,17 +47,7 @@ final class StaticFieldEqualityDelegateConstantDeconstructor implements Constant
 	@Override
 	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass,
 			MethodNode methodnode, Object value) {
-		DeconstructionResult fielddeconstruct = tryDeconstructEqualStaticField(context, transclass, fieldOwnerType,
-				fieldType, value, fieldNames);
-		if (fielddeconstruct != null) {
-			return fielddeconstruct;
-		}
-
-		if (delegate == null) {
-			return null;
-		}
-
-		return delegate.deconstructValue(context, transclass, methodnode, value);
+		return tryDeconstructEqualStaticField(context, transclass, fieldOwnerType, fieldType, value, fieldNames);
 	}
 
 	private static DeconstructionResult tryDeconstructEqualStaticField(ConstantExpressionInliner context,
@@ -115,8 +97,6 @@ final class StaticFieldEqualityDelegateConstantDeconstructor implements Constant
 		builder.append(fieldType);
 		builder.append(", fieldNames=");
 		builder.append(Arrays.toString(fieldNames));
-		builder.append(", delegate=");
-		builder.append(delegate);
 		builder.append("]");
 		return builder.toString();
 	}

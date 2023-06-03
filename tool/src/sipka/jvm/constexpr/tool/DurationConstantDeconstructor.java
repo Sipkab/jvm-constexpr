@@ -32,9 +32,8 @@ final class DurationConstantDeconstructor implements ConstantDeconstructor {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		instance = new StaticFieldEqualityDelegateConstantDeconstructor(instance, Type.getType(Duration.class), Duration.class,
-				"ZERO");
-		INSTANCE = instance;
+		INSTANCE = MultiConstantDeconstructor.getMulti(new StaticFieldEqualityConstantDeconstructor(
+				Type.getType(Duration.class), Duration.class, "ZERO"), instance);
 	}
 	private final ConstantDeconstructor secondsAndNanosDeconstructor;
 	private final ConstantDeconstructor secondsDeconstructor;

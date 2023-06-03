@@ -68,9 +68,7 @@ public interface DeconstructionSelector {
 				continue;
 			}
 			if (selector instanceof MultiDeconstructionSelector) {
-				for (DeconstructionSelector subselector : ((MultiDeconstructionSelector) selector).getDelegates()) {
-					createdelegates.add(subselector);
-				}
+				createdelegates.addAll(((MultiDeconstructionSelector) selector).getDelegates());
 			} else {
 				createdelegates.add(selector);
 			}

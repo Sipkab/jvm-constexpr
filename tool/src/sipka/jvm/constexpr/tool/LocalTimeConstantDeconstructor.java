@@ -30,9 +30,8 @@ final class LocalTimeConstantDeconstructor implements ConstantDeconstructor {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		instance = new StaticFieldEqualityDelegateConstantDeconstructor(instance, Type.getType(LocalTime.class),
-				LocalTime.class, "MIN", "MAX", "MIDNIGHT", "NOON");
-		INSTANCE = instance;
+		INSTANCE = MultiConstantDeconstructor.getMulti(new StaticFieldEqualityConstantDeconstructor(
+				Type.getType(LocalTime.class), LocalTime.class, "MIN", "MAX", "MIDNIGHT", "NOON"), instance);
 	}
 
 	private final ConstantDeconstructor hourMinDecon;

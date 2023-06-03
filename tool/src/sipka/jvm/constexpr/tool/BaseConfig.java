@@ -15,6 +15,8 @@ import java.time.Duration;
 import java.time.LocalTime;
 import java.time.Period;
 import java.time.temporal.ChronoField;
+import java.util.List;
+import java.util.ListIterator;
 import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -141,7 +143,8 @@ class BaseConfig {
 										loadclassloader);
 							} catch (ClassNotFoundException e) {
 								baseConstantDeconstructors.compute(deconstructedasmtypeinternalname, (k, v) -> {
-									return new MemberNotAvailableConstantDeconstructor(k, null, null, e, v);
+									return MultiConstantDeconstructor
+											.getMulti(new MemberNotAvailableConstantDeconstructor(k, e), v);
 								});
 								continue reader_loop;
 							}
@@ -166,8 +169,9 @@ class BaseConfig {
 											gettermethoddesc, gettername);
 								} catch (NoSuchMethodException e) {
 									baseConstantDeconstructors.compute(deconstructedasmtypeinternalname, (k, v) -> {
-										return new MemberNotAvailableConstantDeconstructor(k, gettername,
-												gettermethoddesc, e, v);
+										return MultiConstantDeconstructor
+												.getMulti(new MemberNotAvailableConstantDeconstructor(k, gettername,
+														gettermethoddesc, e), v);
 									});
 									continue reader_loop;
 								}
@@ -197,7 +201,8 @@ class BaseConfig {
 								ownertype = Class.forName(ownerasmtype.getClassName(), false, loadclassloader);
 							} catch (ClassNotFoundException e) {
 								baseConstantDeconstructors.compute(membertype.getInternalName(), (k, v) -> {
-									return new MemberNotAvailableConstantDeconstructor(k, null, null, e, v);
+									return MultiConstantDeconstructor.getMulti(
+											new MemberNotAvailableConstantDeconstructor(ownerclassinternalname, e), v);
 								});
 								continue reader_loop;
 							}
@@ -216,13 +221,38 @@ class BaseConfig {
 
 	private static ConstantDeconstructor mergeFieldDeconstructorBaseConfig(String fieldname, Type fieldtype,
 			Class<?> ownertype, ConstantDeconstructor currentdeconstructor) {
-		if (currentdeconstructor instanceof StaticFieldEqualityDelegateConstantDeconstructor) {
-			StaticFieldEqualityDelegateConstantDeconstructor fcd = (StaticFieldEqualityDelegateConstantDeconstructor) currentdeconstructor;
-			return fcd.withField(fieldname);
+		if (currentdeconstructor instanceof StaticFieldEqualityConstantDeconstructor) {
+			StaticFieldEqualityConstantDeconstructor fcd = (StaticFieldEqualityConstantDeconstructor) currentdeconstructor;
+			if (fcd.getFieldOwnerType() == ownertype) {
+				return fcd.withField(fieldname);
+			}
+		} else if (currentdeconstructor instanceof MultiConstantDeconstructor) {
+			MultiConstantDeconstructor multi = (MultiConstantDeconstructor) currentdeconstructor;
+			List<? extends ConstantDeconstructor> delegates = multi.getDeconstructors();
+			for (ListIterator<? extends ConstantDeconstructor> it = delegates.listIterator(); it.hasNext();) {
+				ConstantDeconstructor decons = it.next();
+				if (decons instanceof StaticFieldEqualityConstantDeconstructor) {
+					StaticFieldEqualityConstantDeconstructor fcd = (StaticFieldEqualityConstantDeconstructor) decons;
+					if (fcd.getFieldOwnerType() == ownertype) {
+						return multi.replacedAt(it.previousIndex(), fcd.withField(fieldname));
+					}
+				}
+			}
 		}
 
-		return new StaticFieldEqualityDelegateConstantDeconstructor(currentdeconstructor, fieldtype, ownertype,
-				fieldname);
+		return MultiConstantDeconstructor.getMulti(currentdeconstructor,
+				new StaticFieldEqualityConstantDeconstructor(fieldtype, ownertype, fieldname));
+	}
+
+	private static boolean isAllMethodMergeableDeconstructor(Iterable<? extends ConstantDeconstructor> deconstructors) {
+		for (ConstantDeconstructor cd : deconstructors) {
+			if (cd instanceof StaticFieldEqualityConstantDeconstructor
+					|| cd instanceof MemberNotAvailableConstantDeconstructor) {
+				continue;
+			}
+			return false;
+		}
+		return true;
 	}
 
 	private static ConstantDeconstructor mergeMethodDeconstructorBaseConfig(ConstantDeconstructor deconstructor,
@@ -231,30 +261,13 @@ class BaseConfig {
 			return deconstructor;
 		}
 
-		if (currentdeconstructor instanceof StaticFieldEqualityDelegateConstantDeconstructor) {
-			StaticFieldEqualityDelegateConstantDeconstructor fcd = (StaticFieldEqualityDelegateConstantDeconstructor) currentdeconstructor;
-			ConstantDeconstructor use;
-			if (fcd.getDelegate() != null) {
-				use = mergeMethodDeconstructorBaseConfig(deconstructor, deconstructedtypeinternalname,
-						fcd.getDelegate());
-			} else {
-				use = deconstructor;
-			}
-
-			return new StaticFieldEqualityDelegateConstantDeconstructor(use, fcd.getFieldType(),
-					fcd.getFieldOwnerType(), fcd.getFieldNames());
+		if (currentdeconstructor instanceof StaticFieldEqualityConstantDeconstructor
+				|| currentdeconstructor instanceof MemberNotAvailableConstantDeconstructor) {
+			return MultiConstantDeconstructor.getMulti(currentdeconstructor, deconstructor);
 		}
-		if (currentdeconstructor instanceof MemberNotAvailableConstantDeconstructor) {
-			MemberNotAvailableConstantDeconstructor nad = (MemberNotAvailableConstantDeconstructor) currentdeconstructor;
-			ConstantDeconstructor use;
-			if (nad.getDelegate() != null) {
-				use = mergeMethodDeconstructorBaseConfig(deconstructor, deconstructedtypeinternalname,
-						nad.getDelegate());
-			} else {
-				use = deconstructor;
-			}
-			return new MemberNotAvailableConstantDeconstructor(nad.getClassInternalName(), nad.getMemberName(),
-					nad.getMemberDescriptor(), nad.getException(), use);
+		if (currentdeconstructor instanceof MultiConstantDeconstructor && isAllMethodMergeableDeconstructor(
+				((MultiConstantDeconstructor) currentdeconstructor).getDeconstructors())) {
+			return MultiConstantDeconstructor.getMulti(currentdeconstructor, deconstructor);
 		}
 		throw new IllegalArgumentException("Duplicate constant deconstructor for: " + deconstructedtypeinternalname
 				+ " with " + deconstructor + " and " + currentdeconstructor);
@@ -348,28 +361,24 @@ class BaseConfig {
 		private final String memberDescriptor;
 		private final String classInternalName;
 		private final ReflectiveOperationException exception;
-		private final ConstantDeconstructor delegate;
 
-		private MemberNotAvailableConstantDeconstructor(MemberKey memberkey, ReflectiveOperationException e) {
-			this(memberkey, e, null);
-		}
-
-		private MemberNotAvailableConstantDeconstructor(MemberKey memberkey, ReflectiveOperationException e,
-				ConstantDeconstructor delegate) {
+		MemberNotAvailableConstantDeconstructor(MemberKey memberkey, ReflectiveOperationException e) {
 			this.memberName = memberkey.getMemberName();
 			this.classInternalName = memberkey.getOwner();
 			this.memberDescriptor = MemberKey.getDescriptor(memberkey);
 			this.exception = e;
-			this.delegate = delegate;
 		}
 
-		private MemberNotAvailableConstantDeconstructor(String internalname, String membername, String memberdescr,
-				ReflectiveOperationException e, ConstantDeconstructor delegate) {
+		MemberNotAvailableConstantDeconstructor(String internalname, String membername, String memberdescr,
+				ReflectiveOperationException e) {
 			this.memberName = membername;
 			this.memberDescriptor = memberdescr;
 			this.classInternalName = internalname;
 			this.exception = e;
-			this.delegate = delegate;
+		}
+
+		MemberNotAvailableConstantDeconstructor(String classinternalname, ClassNotFoundException e) {
+			this(classinternalname, null, null, e);
 		}
 
 		public String getClassInternalName() {
@@ -388,15 +397,12 @@ class BaseConfig {
 			return exception;
 		}
 
-		public ConstantDeconstructor getDelegate() {
-			return delegate;
-		}
-
 		@Override
 		public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass,
 				MethodNode methodnode, Object value) {
+			//only for logging.
 			context.logConfigClassMemberInaccessible(classInternalName, memberName, memberDescriptor, exception);
-			return delegate == null ? null : delegate.deconstructValue(context, transclass, methodnode, value);
+			return null;
 		}
 
 		@Override
@@ -410,8 +416,6 @@ class BaseConfig {
 			builder.append(classInternalName);
 			builder.append(", exception=");
 			builder.append(exception);
-			builder.append(", delegate=");
-			builder.append(delegate);
 			builder.append("]");
 			return builder.toString();
 		}
