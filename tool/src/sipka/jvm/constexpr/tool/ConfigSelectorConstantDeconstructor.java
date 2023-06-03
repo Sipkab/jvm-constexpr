@@ -18,8 +18,8 @@ final class ConfigSelectorConstantDeconstructor implements ConstantDeconstructor
 	@Override
 	public DeconstructionResult deconstructValue(ConstantExpressionInliner context, TransformedClass transclass,
 			MethodNode methodnode, Object value) {
-		DeconstructorConfiguration config = selector.chooseDeconstructorConfiguration(
-				new MemberReference(transclass.classNode.name, methodnode.name, methodnode.desc), value);
+		DeconstructorConfiguration config = selector.chooseDeconstructorConfiguration(new DeconstructionContextImpl(
+				context, new MemberReference(transclass.classNode.name, methodnode.name, methodnode.desc)), value);
 		if (config == null) {
 			return null;
 		}

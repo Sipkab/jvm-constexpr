@@ -17,9 +17,9 @@ public final class DeconstructionFailedLogEntry implements LogEntry {
 
 	@Override
 	public String getMessage() {
-		StringBuilder sb = new StringBuilder();
-
 		String ls = System.lineSeparator();
+
+		StringBuilder sb = new StringBuilder();
 		sb.append("Failed to deconstruct object: ");
 		sb.append(object);
 		if (dataAccessor != null) {

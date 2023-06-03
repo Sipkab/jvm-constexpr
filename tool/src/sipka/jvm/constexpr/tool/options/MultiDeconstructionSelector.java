@@ -10,9 +10,10 @@ final class MultiDeconstructionSelector implements DeconstructionSelector {
 	}
 
 	@Override
-	public DeconstructorConfiguration chooseDeconstructorConfiguration(MemberReference optimizedmethod, Object value) {
+	public DeconstructorConfiguration chooseDeconstructorConfiguration(DeconstructionContext deconstructioncontext,
+			Object value) {
 		for (DeconstructionSelector selector : delegates) {
-			DeconstructorConfiguration config = selector.chooseDeconstructorConfiguration(optimizedmethod, value);
+			DeconstructorConfiguration config = selector.chooseDeconstructorConfiguration(deconstructioncontext, value);
 			if (config != null) {
 				return config;
 			}

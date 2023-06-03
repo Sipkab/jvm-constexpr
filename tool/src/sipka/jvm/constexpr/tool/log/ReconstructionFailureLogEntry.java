@@ -26,9 +26,9 @@ public final class ReconstructionFailureLogEntry implements LogEntry {
 
 	@Override
 	public String getMessage() {
-		StringBuilder sb = new StringBuilder();
-
 		String ls = System.lineSeparator();
+
+		StringBuilder sb = new StringBuilder();
 
 		List<LogContextInfo> contextstack = getContextStack();
 		for (ListIterator<LogContextInfo> it = contextstack.listIterator(contextstack.size()); it.hasPrevious();) {

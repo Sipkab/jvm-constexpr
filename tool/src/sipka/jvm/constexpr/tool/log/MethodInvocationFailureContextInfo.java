@@ -44,6 +44,8 @@ public final class MethodInvocationFailureContextInfo extends BaseLogContextInfo
 
 	@Override
 	public String getMessage() {
+		String ls = System.lineSeparator();
+
 		StringBuilder sb = new StringBuilder();
 		if (Utils.CONSTRUCTOR_METHOD_NAME.equals(methodName)) {
 			sb.append("Failed to create new instance ");
@@ -53,7 +55,6 @@ public final class MethodInvocationFailureContextInfo extends BaseLogContextInfo
 
 		Utils.appendMemberDescriptorPretty(sb, Type.getType(methodDescriptor), Type.getObjectType(className),
 				methodName);
-		String ls = System.lineSeparator();
 		if (instance != null) {
 			sb.append(ls);
 			sb.append("\t\ton instance: ");

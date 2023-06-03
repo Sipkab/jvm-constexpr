@@ -13,7 +13,9 @@ final class StaticFieldEqualityDeconstructionSelector implements DeconstructionS
 	}
 
 	@Override
-	public DeconstructorConfiguration chooseDeconstructorConfiguration(MemberReference optimizedmethod, Object value) {
+	public DeconstructorConfiguration chooseDeconstructorConfiguration(DeconstructionContext deconstructioncontext,
+			Object value) {
+		MemberReference optimizedmethod = deconstructioncontext.getOptimizedMethod();
 		boolean inclinit = Utils.STATIC_INITIALIZER_METHOD_NAME.equals(optimizedmethod.getMemberName());
 		for (Field field : fields) {
 			if (inclinit
@@ -26,9 +28,9 @@ final class StaticFieldEqualityDeconstructionSelector implements DeconstructionS
 				if (value.equals(field.get(null))) {
 					return DeconstructorConfiguration.createStaticField(field);
 				}
-			} catch (IllegalAccessException e) {
-				// TODO logging?
-				e.printStackTrace();
+			} catch (Exception e) {
+				deconstructioncontext.logConfigClassMemberInaccessible(Type.getInternalName(field.getDeclaringClass()),
+						field.getName(), Type.getType(field.getType()).getDescriptor(), e);
 			}
 		}
 		return null;

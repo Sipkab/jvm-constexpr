@@ -37,9 +37,10 @@ public final class InstructionReplacementLogEntry implements LogEntry {
 
 	@Override
 	public String getMessage() {
+		String ls = System.lineSeparator();
+
 		Type locationdescriptortype = Type.getType(bytecodeLocation.getMemberDescriptor());
 		StringBuilder sb = new StringBuilder();
-		String ls = System.lineSeparator();
 		if (locationdescriptortype.getSort() == Type.METHOD) {
 			//inlining a method with a different instruction(s)
 			sb.append("Optimized instructions in ");

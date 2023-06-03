@@ -11,7 +11,8 @@ final class SimpleDeconstructionSelector implements DeconstructionSelector {
 	}
 
 	@Override
-	public DeconstructorConfiguration chooseDeconstructorConfiguration(MemberReference optimizedmethod, Object val) {
+	public DeconstructorConfiguration chooseDeconstructorConfiguration(DeconstructionContext deconstructioncontext,
+			Object val) {
 		return config;
 	}
 
