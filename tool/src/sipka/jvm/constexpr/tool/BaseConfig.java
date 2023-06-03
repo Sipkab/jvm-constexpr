@@ -16,6 +16,7 @@ import java.time.Period;
 import java.time.temporal.ChronoField;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import sipka.jvm.constexpr.tool.options.DeconstructionDataAccessor;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Opcodes;
@@ -35,6 +36,7 @@ class BaseConfig {
 	private static final String CONFIG_TYPE_DECONSTRUCTOR = "DEC";
 	private static final String CONFIG_TYPE_ENUM_TYPE = "EN";
 	private static final String CONFIG_TYPE_RECONSTRUCTOR = "REC";
+	private static final Pattern PATTERN_WHITESPACE = Pattern.compile("[ \\t]+");
 
 	public static void configure(Map<String, InlinerTypeReference> baseConstantTypes,
 			Map<MemberKey, TypeReferencedConstantReconstructor> baseConstantReconstructors,
@@ -48,163 +50,8 @@ class BaseConfig {
 				throw new NoSuchFileException(filename, null,
 						"jvm-constexpr ClassLoader resource not found: " + filename);
 			}
-			try (BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
-				reader_loop:
-				for (String line; (line = reader.readLine()) != null;) {
-					if (line.isEmpty()) {
-						continue;
-					}
-					int idx1 = line.indexOf('\t');
-					switch (line.substring(0, idx1)) {
-						case CONFIG_TYPE_CONSTANT_TYPE: {
-							String classinternalname = line.substring(idx1 + 1);
-							String classname = Type.getObjectType(classinternalname).getClassName();
-							InlinerTypeReference typeref;
-							try {
-								Class<?> type = Class.forName(classname, false, loadclassloader);
-								typeref = new InlinerTypeReference(type);
-							} catch (ClassNotFoundException e) {
-								typeref = new MemberNotAvailableInlinerTypeReference(classinternalname, e);
-							}
-							baseConstantTypes.put(classinternalname, typeref);
-							break;
-						}
-						case CONFIG_TYPE_ENUM_TYPE: {
-							String classinternalname = line.substring(idx1 + 1);
-							Type asmtype = Type.getObjectType(classinternalname);
-							String classname = asmtype.getClassName();
-							MethodKey valueofmethodkey = new MethodKey(classinternalname, "valueOf",
-									Type.getMethodDescriptor(asmtype, Type.getType(String.class)));
-
-							InlinerTypeReference typeref;
-							try {
-								Class<?> type = Class.forName(classname, false, loadclassloader);
-								typeref = new InlinerTypeReference(type);
-
-								addConstantReconstructor(baseConstantReconstructors, valueofmethodkey, loadclassloader);
-							} catch (ClassNotFoundException e) {
-								typeref = new MemberNotAvailableInlinerTypeReference(classinternalname, e);
-								baseConstantReconstructors.put(valueofmethodkey,
-										new TypeReferencedConstantReconstructor(
-												new MemberNotAvailableConstantReconstructor(valueofmethodkey, e)));
-							}
-							baseConstantTypes.put(classinternalname, typeref);
-							break;
-						}
-						case CONFIG_TYPE_RECONSTRUCTOR: {
-							int idx2 = line.indexOf('\t', idx1 + 1);
-							int idx3 = line.indexOf('\t', idx2 + 1);
-							String classinternalname = line.substring(idx1 + 1, idx2);
-							String membername = line.substring(idx2 + 1, idx3);
-							String descriptor = line.substring(idx3 + 1);
-							MemberKey memberkey = MemberKey.create(classinternalname, membername, descriptor);
-							addConstantReconstructor(baseConstantReconstructors, memberkey, loadclassloader);
-
-							break;
-						}
-						case CONFIG_TYPE_DECONSTRUCTOR: {
-							int idx2 = line.indexOf('\t', idx1 + 1);
-							int idx3 = line.indexOf('\t', idx2 + 1);
-							int idx4 = line.indexOf('\t', idx3 + 1);
-							String ownerclassinternalname = line.substring(idx1 + 1, idx2);
-							String membername = line.substring(idx2 + 1, idx3);
-							String descriptor = line.substring(idx3 + 1, idx4 < 0 ? line.length() : idx4);
-
-							Type membertype = Type.getType(descriptor);
-							Type ownerasmtype = Type.getObjectType(ownerclassinternalname);
-							if (membertype.getSort() == Type.METHOD) {
-								Type deconstructedasmtype;
-								boolean constructormethod = Utils.CONSTRUCTOR_METHOD_NAME.equals(membername);
-								if (constructormethod) {
-									deconstructedasmtype = ownerasmtype;
-								} else {
-									deconstructedasmtype = membertype.getReturnType();
-								}
-
-								Class<?> deconstructedtype;
-								try {
-									deconstructedtype = Class.forName(deconstructedasmtype.getClassName(), false,
-											loadclassloader);
-								} catch (ClassNotFoundException e) {
-									baseConstantDeconstructors.compute(ownerasmtype.getInternalName(), (k, v) -> {
-										return new MemberNotAvailableConstantDeconstructor(
-												deconstructedasmtype.getInternalName(), null, null, e, v);
-									});
-									continue reader_loop;
-								}
-
-								Type[] argumenttypes = membertype.getArgumentTypes();
-								int argc = argumenttypes.length;
-								DeconstructionDataAccessor[] fieldaccessors = new DeconstructionDataAccessor[argc];
-								int lastidx = idx4;
-								for (int i = 0; i < fieldaccessors.length; i++) {
-									int nextidx = line.indexOf('\t', lastidx + 1);
-									String getter = line.substring(lastidx + 1, nextidx < 0 ? line.length() : nextidx);
-									int parenidx = getter.indexOf('(');
-									if (parenidx < 0) {
-										throw new IllegalArgumentException(
-												"Unrecognized data accessof format: " + getter + " in " + line);
-									}
-									//only method accessors supported for now
-									String gettername = getter.substring(0, parenidx);
-									String gettermethoddesc = getter.substring(parenidx);
-
-									Method method;
-									try {
-										method = Utils.getMethodForMethodDescriptor(deconstructedtype, null,
-												gettermethoddesc, gettername);
-									} catch (NoSuchMethodException e) {
-										baseConstantDeconstructors.compute(ownerasmtype.getInternalName(), (k, v) -> {
-											return new MemberNotAvailableConstantDeconstructor(
-													deconstructedasmtype.getInternalName(), gettername,
-													gettermethoddesc, e, v);
-										});
-										continue reader_loop;
-									}
-									fieldaccessors[i] = DeconstructionDataAccessor.createForMethodWithReceiver(method,
-											argumenttypes[i]);
-
-									lastidx = nextidx;
-								}
-
-								ConstantDeconstructor deconstructor;
-								if (constructormethod) {
-									deconstructor = ConstructorBasedDeconstructor.create(deconstructedasmtype,
-											fieldaccessors);
-								} else {
-									deconstructor = StaticMethodBasedDeconstructor.createStaticMethodDeconstructor(
-											deconstructedasmtype, ownerasmtype, membername, fieldaccessors);
-								}
-								baseConstantDeconstructors.compute(deconstructedasmtype.getInternalName(), (k,
-										v) -> mergeMethodDeconstructorBaseConfig(deconstructor, deconstructedtype, v));
-							} else {
-								//it is a field
-								if (!Type.getType(descriptor).equals(ownerasmtype)) {
-									//only support fields that are declared in the same type for now
-									throw new UnsupportedOperationException("unsupported deconstructor type: " + line);
-								}
-
-								Class<?> ownertype;
-								try {
-									ownertype = Class.forName(ownerasmtype.getClassName(), false, loadclassloader);
-								} catch (ClassNotFoundException e) {
-									baseConstantDeconstructors.compute(ownerasmtype.getInternalName(), (k, v) -> {
-										return new MemberNotAvailableConstantDeconstructor(ownerclassinternalname, null,
-												null, e, v);
-									});
-									continue reader_loop;
-								}
-								baseConstantDeconstructors.compute(ownerasmtype.getInternalName(),
-										(k, v) -> mergeFieldDeconstructorBaseConfig(membername, ownertype, v));
-							}
-							break;
-						}
-						default: {
-							throw new IllegalArgumentException("Unrecognized base config type: " + line);
-						}
-					}
-				}
-			}
+			loadConfigStream(in, loadclassloader, baseConstantTypes, baseConstantReconstructors,
+					baseConstantDeconstructors);
 		} catch (IOException e) {
 			throw new RuntimeException("Failed to initialize " + BaseConfig.class.getSimpleName() + " unable to read "
 					+ filename + " config file from classpath.", e);
@@ -212,6 +59,160 @@ class BaseConfig {
 
 		initReconstructors(baseConstantReconstructors);
 		initDeconstructors(baseConstantDeconstructors);
+	}
+
+	private static void loadConfigStream(InputStream in, ClassLoader loadclassloader,
+			Map<String, InlinerTypeReference> baseConstantTypes,
+			Map<MemberKey, TypeReferencedConstantReconstructor> baseConstantReconstructors,
+			Map<String, ConstantDeconstructor> baseConstantDeconstructors) throws IOException {
+		try (BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
+			reader_loop:
+			for (String line; (line = reader.readLine()) != null;) {
+				if (line.isEmpty()) {
+					continue;
+				}
+				String[] split = PATTERN_WHITESPACE.split(line);
+				switch (split[0]) {
+					case CONFIG_TYPE_CONSTANT_TYPE: {
+						String classinternalname = split[1];
+						String classname = Type.getObjectType(classinternalname).getClassName();
+						InlinerTypeReference typeref;
+						try {
+							Class<?> type = Class.forName(classname, false, loadclassloader);
+							typeref = new InlinerTypeReference(type);
+						} catch (ClassNotFoundException e) {
+							typeref = new MemberNotAvailableInlinerTypeReference(classinternalname, e);
+						}
+						baseConstantTypes.put(classinternalname, typeref);
+						break;
+					}
+					case CONFIG_TYPE_ENUM_TYPE: {
+						String classinternalname = split[1];
+						Type asmtype = Type.getObjectType(classinternalname);
+						String classname = asmtype.getClassName();
+						MethodKey valueofmethodkey = new MethodKey(classinternalname, "valueOf",
+								Type.getMethodDescriptor(asmtype, Type.getType(String.class)));
+
+						InlinerTypeReference typeref;
+						try {
+							Class<?> type = Class.forName(classname, false, loadclassloader);
+							typeref = new InlinerTypeReference(type);
+
+							addConstantReconstructor(baseConstantReconstructors, valueofmethodkey, loadclassloader);
+						} catch (ClassNotFoundException e) {
+							typeref = new MemberNotAvailableInlinerTypeReference(classinternalname, e);
+							baseConstantReconstructors.put(valueofmethodkey, new TypeReferencedConstantReconstructor(
+									new MemberNotAvailableConstantReconstructor(valueofmethodkey, e)));
+						}
+						baseConstantTypes.put(classinternalname, typeref);
+						break;
+					}
+					case CONFIG_TYPE_RECONSTRUCTOR: {
+						String classinternalname = split[1];
+						String membername = split[2];
+						String descriptor = split[3];
+						MemberKey memberkey = MemberKey.create(classinternalname, membername, descriptor);
+						addConstantReconstructor(baseConstantReconstructors, memberkey, loadclassloader);
+
+						break;
+					}
+					case CONFIG_TYPE_DECONSTRUCTOR: {
+						String ownerclassinternalname = split[1];
+						String membername = split[2];
+						String descriptor = split[3];
+
+						Type membertype = Type.getType(descriptor);
+						Type ownerasmtype = Type.getObjectType(ownerclassinternalname);
+						if (membertype.getSort() == Type.METHOD) {
+							Type deconstructedasmtype;
+							boolean constructormethod = Utils.CONSTRUCTOR_METHOD_NAME.equals(membername);
+							if (constructormethod) {
+								deconstructedasmtype = ownerasmtype;
+							} else {
+								deconstructedasmtype = membertype.getReturnType();
+							}
+
+							Class<?> deconstructedtype;
+							try {
+								deconstructedtype = Class.forName(deconstructedasmtype.getClassName(), false,
+										loadclassloader);
+							} catch (ClassNotFoundException e) {
+								baseConstantDeconstructors.compute(ownerasmtype.getInternalName(), (k, v) -> {
+									return new MemberNotAvailableConstantDeconstructor(
+											deconstructedasmtype.getInternalName(), null, null, e, v);
+								});
+								continue reader_loop;
+							}
+
+							Type[] argumenttypes = membertype.getArgumentTypes();
+							int argc = argumenttypes.length;
+							DeconstructionDataAccessor[] fieldaccessors = new DeconstructionDataAccessor[argc];
+							int lastidx = 4;
+							for (int i = 0; i < fieldaccessors.length; i++) {
+								String getter = split[lastidx++];
+								int parenidx = getter.indexOf('(');
+								if (parenidx < 0) {
+									throw new IllegalArgumentException(
+											"Unrecognized data accessor format: " + getter + " in " + line);
+								}
+								//only method accessors supported for now
+								String gettername = getter.substring(0, parenidx);
+								String gettermethoddesc = getter.substring(parenidx);
+
+								Method method;
+								try {
+									method = Utils.getMethodForMethodDescriptor(deconstructedtype, null,
+											gettermethoddesc, gettername);
+								} catch (NoSuchMethodException e) {
+									baseConstantDeconstructors.compute(ownerasmtype.getInternalName(), (k, v) -> {
+										return new MemberNotAvailableConstantDeconstructor(
+												deconstructedasmtype.getInternalName(), gettername, gettermethoddesc, e,
+												v);
+									});
+									continue reader_loop;
+								}
+								fieldaccessors[i] = DeconstructionDataAccessor.createForMethodWithReceiver(method,
+										argumenttypes[i]);
+							}
+
+							ConstantDeconstructor deconstructor;
+							if (constructormethod) {
+								deconstructor = ConstructorBasedDeconstructor.create(deconstructedasmtype,
+										fieldaccessors);
+							} else {
+								deconstructor = StaticMethodBasedDeconstructor.createStaticMethodDeconstructor(
+										deconstructedasmtype, ownerasmtype, membername, fieldaccessors);
+							}
+							baseConstantDeconstructors.compute(deconstructedasmtype.getInternalName(),
+									(k, v) -> mergeMethodDeconstructorBaseConfig(deconstructor, deconstructedtype, v));
+						} else {
+							//it is a field
+							if (!Type.getType(descriptor).equals(ownerasmtype)) {
+								//only support fields that are declared in the same type for now
+								throw new UnsupportedOperationException("unsupported deconstructor type: " + line);
+							}
+
+							Class<?> ownertype;
+							try {
+								ownertype = Class.forName(ownerasmtype.getClassName(), false, loadclassloader);
+							} catch (ClassNotFoundException e) {
+								baseConstantDeconstructors.compute(ownerasmtype.getInternalName(), (k, v) -> {
+									return new MemberNotAvailableConstantDeconstructor(ownerclassinternalname, null,
+											null, e, v);
+								});
+								continue reader_loop;
+							}
+							baseConstantDeconstructors.compute(ownerasmtype.getInternalName(),
+									(k, v) -> mergeFieldDeconstructorBaseConfig(membername, ownertype, v));
+						}
+						break;
+					}
+					default: {
+						throw new IllegalArgumentException("Unrecognized config type: " + line);
+					}
+				}
+			}
+		}
 	}
 
 	private static ConstantDeconstructor mergeFieldDeconstructorBaseConfig(String fieldname, Class<?> ownertype,
