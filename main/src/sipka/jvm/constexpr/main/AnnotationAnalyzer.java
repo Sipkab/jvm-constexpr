@@ -39,7 +39,7 @@ public class AnnotationAnalyzer {
 		throw new UnsupportedOperationException();
 	}
 
-	static void analyzeClassFile(InlinerOptions options, Iterable<? extends byte[]> classbytes, ClassLoader cl)
+	public static void analyzeClassFile(InlinerOptions options, Iterable<? extends byte[]> classbytes, ClassLoader cl)
 			throws Exception {
 		Map<Class<?>, DeconstructorSettings> deconstructorSettings = new HashMap<>();
 		for (byte[] bytes : classbytes) {
@@ -55,6 +55,12 @@ public class AnnotationAnalyzer {
 			}
 			options.getDeconstructorConfigurations().put(entry.getKey(), selector);
 		}
+	}
+
+	public static Collection<? extends Method> searchGetter(Class<?> type, Class<?> paramtype, String paramname) {
+		Map<NameDescriptor, Method> methods = new TreeMap<>();
+		searchGetterImpl(type, paramtype, paramname.toLowerCase(Locale.ROOT), methods);
+		return methods.values();
 	}
 
 	private static void analyzeClassFile(InlinerOptions options, byte[] bytes, ClassLoader cl,
@@ -153,12 +159,6 @@ public class AnnotationAnalyzer {
 		}
 	}
 
-	public static Collection<? extends Method> searchGetter(Class<?> type, Class<?> paramtype, String paramname) {
-		Map<NameDescriptor, Method> methods = new TreeMap<>();
-		searchGetterImpl(type, paramtype, paramname.toLowerCase(Locale.ROOT), methods);
-		return methods.values();
-	}
-
 	private static void searchGetterImpl(Class<?> type, Class<?> paramtype, String paramname,
 			Map<NameDescriptor, ? super Method> methods) {
 		if (type == null) {
@@ -211,7 +211,7 @@ public class AnnotationAnalyzer {
 		}
 	}
 
-	static final class AnalyzerClassVisitor extends ClassVisitor {
+	private static final class AnalyzerClassVisitor extends ClassVisitor {
 		protected static final String CONSTANTEXPRESSION_DESCRIPTOR = Type.getDescriptor(ConstantExpression.class);
 		protected static final String DECONSTRUCTOR_DESCRIPTOR = Type.getDescriptor(Deconstructor.class);
 
