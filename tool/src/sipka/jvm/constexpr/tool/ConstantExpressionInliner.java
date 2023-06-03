@@ -68,7 +68,7 @@ public class ConstantExpressionInliner {
 	 * <p>
 	 * If the type is an enum, then the enum fields are retrievable via GETSTATIC, and is considered a constant.
 	 * <p>
-	 * Map if internal names to classes.
+	 * Map of internal names to classes.
 	 */
 	private static final Map<String, InlinerTypeReference> baseConstantTypes = new TreeMap<>();
 	private static final NavigableMap<MemberKey, TypeReferencedConstantReconstructor> baseConstantReconstructors = new TreeMap<>(
