@@ -12,14 +12,21 @@ import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.NoSuchFileException;
 import java.time.temporal.ChronoField;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.TreeMap;
 import java.util.regex.Pattern;
 
+import sipka.jvm.constexpr.tool.options.DeconstructionContext;
 import sipka.jvm.constexpr.tool.options.DeconstructionDataAccessor;
 import sipka.jvm.constexpr.tool.options.DeconstructionSelector;
+import sipka.jvm.constexpr.tool.options.DeconstructorConfiguration;
+import sipka.jvm.constexpr.tool.options.MemberReference;
 import sipka.jvm.constexpr.tool.options.ReconstructorPredicate;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Opcodes;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
@@ -40,7 +47,7 @@ class BaseConfig {
 	private static final String CONFIG_TYPE_RECONSTRUCTOR = "REC";
 	private static final Pattern PATTERN_WHITESPACE = Pattern.compile("[ \\t]+");
 
-	public static void configure(Map<String, InlinerTypeReference> baseConstantTypes,
+	public static void loadBaseConfig(Map<String, InlinerTypeReference> baseConstantTypes,
 			Map<MemberKey, TypeReferencedConstantReconstructor> baseConstantReconstructors,
 			Map<String, ConstantDeconstructor> baseConstantDeconstructors) {
 
@@ -52,8 +59,14 @@ class BaseConfig {
 				throw new NoSuchFileException(filename, null,
 						"jvm-constexpr ClassLoader resource not found: " + filename);
 			}
-			loadConfigStream(in, loadclassloader, baseConstantTypes, baseConstantReconstructors,
-					baseConstantDeconstructors);
+			Map<String, DeconstructionSelector> deconstructors = new TreeMap<>();
+
+			loadConfigStream(in, loadclassloader, baseConstantTypes, baseConstantReconstructors, deconstructors);
+
+			for (Entry<String, DeconstructionSelector> entry : deconstructors.entrySet()) {
+				baseConstantDeconstructors.put(entry.getKey(),
+						new ConfigSelectorConstantDeconstructor(entry.getValue()));
+			}
 		} catch (IOException e) {
 			throw new RuntimeException("Failed to initialize " + BaseConfig.class.getSimpleName() + " unable to read "
 					+ filename + " config file from classpath.", e);
@@ -66,7 +79,8 @@ class BaseConfig {
 	private static void loadConfigStream(InputStream in, ClassLoader loadclassloader,
 			Map<String, InlinerTypeReference> baseConstantTypes,
 			Map<MemberKey, TypeReferencedConstantReconstructor> baseConstantReconstructors,
-			Map<String, ConstantDeconstructor> baseConstantDeconstructors) throws IOException {
+			Map<String, DeconstructionSelector> deconstructorSelectors) throws IOException {
+		Map<String, DeconstructorConfigs> typedeconsconfigs = new TreeMap<>();
 		try (BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
 			reader_loop:
 			for (String line; (line = reader.readLine()) != null;) {
@@ -78,51 +92,55 @@ class BaseConfig {
 				switch (split[0]) {
 					case CONFIG_TYPE_CONSTANT_TYPE: {
 						String classinternalname = split[1];
+
 						String classname = Type.getObjectType(classinternalname).getClassName();
-						InlinerTypeReference typeref;
 						try {
 							Class<?> type = Class.forName(classname, false, loadclassloader);
-							typeref = new InlinerTypeReference(type);
+							baseConstantTypes.put(classinternalname, new InlinerTypeReference(type));
 						} catch (ClassNotFoundException e) {
-							typeref = new MemberNotAvailableInlinerTypeReference(classinternalname, e);
+							baseConstantTypes.put(classinternalname,
+									new MemberNotAvailableInlinerTypeReference(classinternalname, e));
 						}
-						baseConstantTypes.put(classinternalname, typeref);
 						break;
 					}
 					case CONFIG_TYPE_ENUM_TYPE: {
 						String classinternalname = split[1];
+
 						Type asmtype = Type.getObjectType(classinternalname);
 						String classname = asmtype.getClassName();
 						MethodKey valueofmethodkey = new MethodKey(classinternalname, "valueOf",
 								Type.getMethodDescriptor(asmtype, Type.getType(String.class)));
 
-						InlinerTypeReference typeref;
 						try {
 							Class<?> type = Class.forName(classname, false, loadclassloader);
-							typeref = new InlinerTypeReference(type);
 
 							addConstantReconstructor(baseConstantReconstructors, valueofmethodkey, loadclassloader);
+							baseConstantTypes.put(classinternalname, new InlinerTypeReference(type));
 						} catch (ClassNotFoundException e) {
-							typeref = new MemberNotAvailableInlinerTypeReference(classinternalname, e);
+							baseConstantTypes.put(classinternalname,
+									new MemberNotAvailableInlinerTypeReference(classinternalname, e));
 							baseConstantReconstructors.put(valueofmethodkey, new TypeReferencedConstantReconstructor(
 									new MemberNotAvailableConstantReconstructor(valueofmethodkey, e)));
 						}
-						baseConstantTypes.put(classinternalname, typeref);
 						break;
 					}
 					case CONFIG_TYPE_RECONSTRUCTOR: {
 						String classinternalname = split[1];
 						String membername = split[2];
 						String descriptor = split[3];
+
 						MemberKey memberkey = MemberKey.create(classinternalname, membername, descriptor);
 						addConstantReconstructor(baseConstantReconstructors, memberkey, loadclassloader);
-
 						break;
 					}
 					case CONFIG_TYPE_DECONSTRUCTOR: {
 						String ownerclassinternalname = split[1];
+
 						String membername = split[2];
 						if (membername.startsWith("SELECTOR:")) {
+							DeconstructorConfigs deconsconfig = typedeconsconfigs
+									.computeIfAbsent(ownerclassinternalname, x -> new DeconstructorConfigs());
+
 							//use the specified class as a DeconstructionSelector
 							String selectorclass = membername.substring("SELECTOR:".length());
 							try {
@@ -131,15 +149,10 @@ class BaseConfig {
 										.asSubclass(DeconstructionSelector.class).getConstructor();
 								constructor.setAccessible(true);
 								DeconstructionSelector selector = constructor.newInstance();
+								deconsconfig.selectors.add(selector);
 
-								baseConstantDeconstructors.compute(ownerclassinternalname,
-										(k, v) -> mergeMethodDeconstructorBaseConfig(
-												new ConfigSelectorConstantDeconstructor(selector), k, v));
 							} catch (Exception e) {
-								baseConstantDeconstructors.compute(ownerclassinternalname, (k, v) -> {
-									return MultiConstantDeconstructor
-											.getMulti(new MemberNotAvailableConstantDeconstructor(k, e), v);
-								});
+								deconsconfig.classNotAvailable(selectorclass, e);
 							}
 							continue reader_loop;
 						}
@@ -156,16 +169,18 @@ class BaseConfig {
 								deconstructedasmtype = membertype.getReturnType();
 							}
 
-							Class<?> deconstructedtype;
 							String deconstructedasmtypeinternalname = deconstructedasmtype.getInternalName();
+
+							DeconstructorConfigs deconsconfig = typedeconsconfigs
+									.computeIfAbsent(deconstructedasmtypeinternalname, x -> new DeconstructorConfigs());
+
+							Class<?> deconstructedtype;
 							try {
 								deconstructedtype = Class.forName(deconstructedasmtype.getClassName(), false,
 										loadclassloader);
 							} catch (ClassNotFoundException e) {
-								baseConstantDeconstructors.compute(deconstructedasmtypeinternalname, (k, v) -> {
-									return MultiConstantDeconstructor
-											.getMulti(new MemberNotAvailableConstantDeconstructor(k, e), v);
-								});
+
+								deconsconfig.classNotAvailable(deconstructedasmtypeinternalname, e);
 								continue reader_loop;
 							}
 
@@ -188,27 +203,48 @@ class BaseConfig {
 									method = Utils.getMethodForMethodDescriptor(deconstructedtype, null,
 											gettermethoddesc, gettername);
 								} catch (NoSuchMethodException e) {
-									baseConstantDeconstructors.compute(deconstructedasmtypeinternalname, (k, v) -> {
-										return MultiConstantDeconstructor
-												.getMulti(new MemberNotAvailableConstantDeconstructor(k, gettername,
-														gettermethoddesc, e), v);
-									});
+									deconsconfig.memberNotAvailable(deconstructedasmtypeinternalname, gettername,
+											gettermethoddesc, e);
 									continue reader_loop;
 								}
 								fieldaccessors[i] = DeconstructionDataAccessor.createForMethodWithReceiver(method,
 										argumenttypes[i]);
 							}
 
-							ConstantDeconstructor deconstructor;
+							Executable executable;
+
 							if (constructormethod) {
-								deconstructor = ConstructorBasedDeconstructor.create(deconstructedasmtype,
-										fieldaccessors);
+								try {
+									executable = Utils.getConstructorForMethodDescriptor(deconstructedtype, descriptor);
+								} catch (NoSuchMethodException e) {
+									deconsconfig.memberNotAvailable(deconstructedasmtypeinternalname, membername,
+											descriptor, e);
+									continue reader_loop;
+								}
 							} else {
-								deconstructor = StaticMethodBasedDeconstructor.createStaticMethodDeconstructor(
-										deconstructedasmtype, ownerasmtype, membername, fieldaccessors);
+								Class<?> methodownertype;
+								if (ownerasmtype.equals(deconstructedasmtype)) {
+									methodownertype = deconstructedtype;
+								} else {
+									try {
+										methodownertype = Class.forName(ownerasmtype.getClassName(), false,
+												loadclassloader);
+									} catch (ClassNotFoundException e) {
+										deconsconfig.classNotAvailable(ownerclassinternalname, e);
+										continue reader_loop;
+									}
+								}
+								try {
+									executable = Utils.getMethodForMethodDescriptor(methodownertype,
+											ownerclassinternalname, descriptor, membername);
+								} catch (NoSuchMethodException e) {
+									deconsconfig.memberNotAvailable(ownerclassinternalname, membername, descriptor, e);
+									continue reader_loop;
+								}
 							}
-							baseConstantDeconstructors.compute(deconstructedasmtypeinternalname,
-									(k, v) -> mergeMethodDeconstructorBaseConfig(deconstructor, k, v));
+
+							deconsconfig.selectors.add(DeconstructionSelector.getForConfiguration(
+									DeconstructorConfiguration.createExecutable(executable, fieldaccessors)));
 						} else {
 							//it is a field
 							if (!membertype.equals(ownerasmtype)) {
@@ -216,18 +252,25 @@ class BaseConfig {
 								throw new UnsupportedOperationException("unsupported deconstructor type: " + line);
 							}
 
+							DeconstructorConfigs deconsconfig = typedeconsconfigs
+									.computeIfAbsent(membertype.getInternalName(), x -> new DeconstructorConfigs());
+
 							Class<?> ownertype;
 							try {
 								ownertype = Class.forName(ownerasmtype.getClassName(), false, loadclassloader);
 							} catch (ClassNotFoundException e) {
-								baseConstantDeconstructors.compute(membertype.getInternalName(), (k, v) -> {
-									return MultiConstantDeconstructor.getMulti(
-											new MemberNotAvailableConstantDeconstructor(ownerclassinternalname, e), v);
-								});
+
+								deconsconfig.classNotAvailable(ownerclassinternalname, e);
 								continue reader_loop;
 							}
-							baseConstantDeconstructors.compute(membertype.getInternalName(),
-									(k, v) -> mergeFieldDeconstructorBaseConfig(membername, membertype, ownertype, v));
+
+							try {
+								Field field = Utils.getFieldForDescriptor(ownertype, membername, descriptor);
+								deconsconfig.selectors.add(DeconstructionSelector.getStaticFieldEquality(field));
+							} catch (NoSuchFieldException e) {
+								deconsconfig.memberNotAvailable(ownerclassinternalname, membername, descriptor, e);
+								continue reader_loop;
+							}
 						}
 						break;
 					}
@@ -237,60 +280,14 @@ class BaseConfig {
 				}
 			}
 		}
-	}
 
-	private static ConstantDeconstructor mergeFieldDeconstructorBaseConfig(String fieldname, Type fieldtype,
-			Class<?> ownertype, ConstantDeconstructor currentdeconstructor) {
-		if (currentdeconstructor instanceof StaticFieldEqualityConstantDeconstructor) {
-			StaticFieldEqualityConstantDeconstructor fcd = (StaticFieldEqualityConstantDeconstructor) currentdeconstructor;
-			if (fcd.getFieldOwnerType() == ownertype) {
-				return fcd.withField(fieldname);
-			}
-		} else if (currentdeconstructor instanceof MultiConstantDeconstructor) {
-			MultiConstantDeconstructor multi = (MultiConstantDeconstructor) currentdeconstructor;
-			List<? extends ConstantDeconstructor> delegates = multi.getDeconstructors();
-			for (ListIterator<? extends ConstantDeconstructor> it = delegates.listIterator(); it.hasNext();) {
-				ConstantDeconstructor decons = it.next();
-				if (decons instanceof StaticFieldEqualityConstantDeconstructor) {
-					StaticFieldEqualityConstantDeconstructor fcd = (StaticFieldEqualityConstantDeconstructor) decons;
-					if (fcd.getFieldOwnerType() == ownertype) {
-						return multi.replacedAt(it.previousIndex(), fcd.withField(fieldname));
-					}
-				}
-			}
-		}
-
-		return MultiConstantDeconstructor.getMulti(currentdeconstructor,
-				new StaticFieldEqualityConstantDeconstructor(fieldtype, ownertype, fieldname));
-	}
-
-	private static boolean isAllMethodMergeableDeconstructor(Iterable<? extends ConstantDeconstructor> deconstructors) {
-		for (ConstantDeconstructor cd : deconstructors) {
-			if (cd instanceof StaticFieldEqualityConstantDeconstructor
-					|| cd instanceof MemberNotAvailableConstantDeconstructor) {
+		for (Entry<String, DeconstructorConfigs> entry : typedeconsconfigs.entrySet()) {
+			DeconstructionSelector selector = entry.getValue().toDeconstructionSelector();
+			if (selector == null) {
 				continue;
 			}
-			return false;
+			deconstructorSelectors.put(entry.getKey(), selector);
 		}
-		return true;
-	}
-
-	private static ConstantDeconstructor mergeMethodDeconstructorBaseConfig(ConstantDeconstructor deconstructor,
-			String deconstructedtypeinternalname, ConstantDeconstructor currentdeconstructor) {
-		if (currentdeconstructor == null) {
-			return deconstructor;
-		}
-
-		if (currentdeconstructor instanceof StaticFieldEqualityConstantDeconstructor
-				|| currentdeconstructor instanceof MemberNotAvailableConstantDeconstructor) {
-			return MultiConstantDeconstructor.getMulti(currentdeconstructor, deconstructor);
-		}
-		if (currentdeconstructor instanceof MultiConstantDeconstructor && isAllMethodMergeableDeconstructor(
-				((MultiConstantDeconstructor) currentdeconstructor).getDeconstructors())) {
-			return MultiConstantDeconstructor.getMulti(currentdeconstructor, deconstructor);
-		}
-		throw new IllegalArgumentException("Duplicate constant deconstructor for: " + deconstructedtypeinternalname
-				+ " with " + deconstructor + " and " + currentdeconstructor);
 	}
 
 	private static void initReconstructors(
@@ -370,24 +367,25 @@ class BaseConfig {
 		}
 	}
 
-	static final class MemberNotAvailableConstantDeconstructor implements ConstantDeconstructor {
+	static final class MemberNotAvailableConstantDeconstructor
+			implements ConstantDeconstructor, DeconstructionSelector {
+		private final String classInternalName;
 		private final String memberName;
 		private final String memberDescriptor;
-		private final String classInternalName;
 		private final Exception exception;
 
 		MemberNotAvailableConstantDeconstructor(MemberKey memberkey, Exception e) {
-			this.memberName = memberkey.getMemberName();
 			this.classInternalName = memberkey.getOwner();
+			this.memberName = memberkey.getMemberName();
 			this.memberDescriptor = MemberKey.getDescriptor(memberkey);
 			this.exception = e;
 		}
 
-		MemberNotAvailableConstantDeconstructor(String internalname, String membername, String memberdescr,
+		MemberNotAvailableConstantDeconstructor(String classinternalname, String membername, String memberdescr,
 				Exception e) {
+			this.classInternalName = classinternalname;
 			this.memberName = membername;
 			this.memberDescriptor = memberdescr;
-			this.classInternalName = internalname;
 			this.exception = e;
 		}
 
@@ -420,6 +418,15 @@ class BaseConfig {
 		}
 
 		@Override
+		public DeconstructorConfiguration chooseDeconstructorConfiguration(DeconstructionContext deconstructioncontext,
+				Object value) {
+			//only for logging.
+			deconstructioncontext.logConfigClassMemberInaccessible(classInternalName, memberName, memberDescriptor,
+					exception);
+			return null;
+		}
+
+		@Override
 		public String toString() {
 			StringBuilder builder = new StringBuilder(getClass().getSimpleName());
 			builder.append("[memberName=");
@@ -433,7 +440,6 @@ class BaseConfig {
 			builder.append("]");
 			return builder.toString();
 		}
-
 	}
 
 	private static final class MemberNotAvailableInlinerTypeReference extends InlinerTypeReference {
@@ -606,5 +612,32 @@ class BaseConfig {
 			return getClass().getSimpleName() + "[" + memberName + "]";
 		}
 
+	}
+
+	private static final class DeconstructorConfigs {
+		protected final Map<FieldKey, Field> fields = new TreeMap<>(MemberKey::compare);
+		protected final Map<MemberReference, MemberNotAvailableConstantDeconstructor> notAvailableDeconstructors = new TreeMap<>();
+		protected final Set<DeconstructionSelector> selectors = new LinkedHashSet<>();
+
+		public DeconstructionSelector toDeconstructionSelector() {
+			List<DeconstructionSelector> selectors = new ArrayList<>();
+			selectors.addAll(notAvailableDeconstructors.values());
+			if (!fields.isEmpty()) {
+				selectors.add(DeconstructionSelector.getStaticFieldEquality(fields.values().toArray(new Field[0])));
+			}
+			selectors.addAll(this.selectors);
+			return DeconstructionSelector.getMultiSelector(selectors.toArray(new DeconstructionSelector[0]));
+		}
+
+		public void classNotAvailable(String classinternamname, Exception exc) {
+			this.notAvailableDeconstructors.put(new MemberReference(classinternamname, "", ""),
+					new MemberNotAvailableConstantDeconstructor(classinternamname, exc));
+		}
+
+		public void memberNotAvailable(String classinternamname, String membername, String memberdescriptor,
+				Exception exc) {
+			this.notAvailableDeconstructors.put(new MemberReference(classinternamname, membername, memberdescriptor),
+					new MemberNotAvailableConstantDeconstructor(classinternamname, membername, memberdescriptor, exc));
+		}
 	}
 }

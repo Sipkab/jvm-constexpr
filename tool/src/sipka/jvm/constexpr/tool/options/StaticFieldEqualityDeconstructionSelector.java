@@ -15,14 +15,25 @@ final class StaticFieldEqualityDeconstructionSelector implements DeconstructionS
 	@Override
 	public DeconstructorConfiguration chooseDeconstructorConfiguration(DeconstructionContext deconstructioncontext,
 			Object value) {
+		if (value == null) {
+			//sanity check
+			return null;
+		}
 		MemberReference optimizedmethod = deconstructioncontext.getOptimizedMethod();
 		boolean inclinit = Utils.STATIC_INITIALIZER_METHOD_NAME.equals(optimizedmethod.getMemberName());
 		for (Field field : fields) {
-			if (inclinit
-					&& Type.getInternalName(field.getDeclaringClass()).equals(optimizedmethod.getOwnerInternalName())) {
-				//ignore this one, as we're currently deconstructing in the static initializer of the
-				//field declaring class
-				continue;
+			if (inclinit) {
+				if (Utils.hasSuperTypeInternalName(value.getClass(), optimizedmethod.getOwnerInternalName())) {
+					//we're in the static initializer of the super type of the value type
+					//this means that the value object cannot exist before this static initializer runs
+					//so we cannot optimize it.
+					continue;
+				}
+				if (Utils.hasSuperTypeInternalName(field.getDeclaringClass(), optimizedmethod.getOwnerInternalName())) {
+					//ignore this one, as we're currently deconstructing in the static initializer of the
+					//field declaring class (or one of its supertype)
+					continue;
+				}
 			}
 			try {
 				if (value.equals(field.get(null))) {

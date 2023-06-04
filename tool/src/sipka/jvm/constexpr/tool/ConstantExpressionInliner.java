@@ -77,7 +77,7 @@ public class ConstantExpressionInliner {
 	private static final NavigableMap<MemberKey, TypeReferencedConstantReconstructor> baseConstantReconstructors = new TreeMap<>(
 			MemberKey::compare);
 	static {
-		BaseConfig.configure(baseConstantTypes, baseConstantReconstructors, baseConstantDeconstructors);
+		BaseConfig.loadBaseConfig(baseConstantTypes, baseConstantReconstructors, baseConstantDeconstructors);
 	}
 
 	private final NavigableMap<FieldKey, Field> optionsConstantFields = new TreeMap<>(MemberKey::compare);
@@ -124,14 +124,15 @@ public class ConstantExpressionInliner {
 			throw new IllegalArgumentException("Output consumer is not set.");
 		}
 
-		logger = options.getLogger();
-		classLoader = options.getClassLoader();
-
 		Collection<? extends ToolInput<?>> inputs = options.getInputs();
 
 		if (inputs.isEmpty()) {
 			return;
 		}
+
+		logger = options.getLogger();
+		classLoader = options.getClassLoader();
+
 		constantDeconstructors.putAll(baseConstantDeconstructors);
 		constantReconstructors.putAll(baseConstantReconstructors);
 		constantTypes.putAll(baseConstantTypes);

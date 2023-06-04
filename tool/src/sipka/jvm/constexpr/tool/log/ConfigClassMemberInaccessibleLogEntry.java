@@ -13,9 +13,18 @@ public final class ConfigClassMemberInaccessibleLogEntry implements LogEntry {
 	public ConfigClassMemberInaccessibleLogEntry(String className, String memberName, String memberDescriptor,
 			Throwable exception) {
 		this.className = className;
-		this.memberName = memberName;
-		this.memberDescriptor = memberDescriptor;
+		//change empty to null
+		this.memberName = memberName != null && memberName.isEmpty() ? null : memberName;
+		if (this.memberName != null) {
+			this.memberDescriptor = memberDescriptor;
+		} else {
+			this.memberDescriptor = null;
+		}
 		this.exception = exception;
+	}
+
+	public ConfigClassMemberInaccessibleLogEntry(String className, Throwable exception) {
+		this(className, null, null, exception);
 	}
 
 	public String getClassName() {
