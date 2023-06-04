@@ -124,7 +124,7 @@ class BaseConfig {
 						String membername = split[2];
 						if (membername.startsWith("SELECTOR:")) {
 							//use the specified class as a DeconstructionSelector
-							String selectorclass = split[2].substring("SELECTOR:".length());
+							String selectorclass = membername.substring("SELECTOR:".length());
 							try {
 								Constructor<? extends DeconstructionSelector> constructor = Class
 										.forName(selectorclass, false, loadclassloader)
