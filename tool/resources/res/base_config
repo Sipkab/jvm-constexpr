@@ -20,7 +20,8 @@ CT	java/time/ZoneOffset
 CT	java/time/chrono/JapaneseEra
 CT	java/time/temporal/ValueRange
 CT	java/util/UUID
-DEC	java/lang/Boolean	valueOf	(Z)Ljava/lang/Boolean;	booleanValue()Z
+DEC	java/lang/Boolean	TRUE	Ljava/lang/Boolean;
+DEC	java/lang/Boolean	FALSE	Ljava/lang/Boolean;
 DEC	java/lang/Byte	valueOf	(B)Ljava/lang/Byte;	byteValue()B
 DEC	java/lang/Character	valueOf	(C)Ljava/lang/Character;	charValue()C
 DEC	java/lang/Double	valueOf	(D)Ljava/lang/Double;	doubleValue()D
@@ -69,6 +70,8 @@ EN	java/time/temporal/ChronoField
 EN	java/time/temporal/ChronoUnit
 EN	java/util/concurrent/TimeUnit
 EN	javax/lang/model/SourceVersion
+REC	java/lang/Boolean	TRUE	Ljava/lang/Boolean;
+REC	java/lang/Boolean	FALSE	Ljava/lang/Boolean;
 REC	java/lang/Boolean	hashCode	()I
 REC	java/lang/Boolean	parseBoolean	(Ljava/lang/String;)Z
 REC	java/lang/Boolean	valueOf	(Ljava/lang/String;)Ljava/lang/Boolean;
