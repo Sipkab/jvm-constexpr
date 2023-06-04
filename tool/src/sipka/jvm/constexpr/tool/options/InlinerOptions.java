@@ -386,6 +386,7 @@ public final class InlinerOptions {
 	 * Modifications to the returned collection may or may not be propagated back to the backing collection.
 	 * 
 	 * @return The config files.
+	 * @see #setConfigFiles(Collection)
 	 */
 	public Collection<Path> getConfigFiles() {
 		return configFiles;
