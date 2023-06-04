@@ -41,10 +41,6 @@ import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodNode;
 //this class is separate from ConstantExpressionInliner because if this code were in clinit, then that could run
 //slower, because the static initializer may be slower to run 
 class BaseConfig {
-	private static final String CONFIG_TYPE_CONSTANT_TYPE = "CT";
-	private static final String CONFIG_TYPE_DECONSTRUCTOR = "DEC";
-	private static final String CONFIG_TYPE_ENUM_TYPE = "EN";
-	private static final String CONFIG_TYPE_RECONSTRUCTOR = "REC";
 	private static final Pattern PATTERN_WHITESPACE = Pattern.compile("[ \\t]+");
 
 	public static void loadBaseConfig(Map<String, InlinerTypeReference> baseConstantTypes,
@@ -83,8 +79,9 @@ class BaseConfig {
 					continue;
 				}
 				String[] split = PATTERN_WHITESPACE.split(line);
-				switch (split[0]) {
-					case CONFIG_TYPE_CONSTANT_TYPE: {
+				switch (split[0].toUpperCase(Locale.ROOT)) {
+					case "CT":
+					case "CONSTANTTYPE": {
 						String classinternalname = split[1];
 
 						String classname = Type.getObjectType(classinternalname).getClassName();
@@ -97,7 +94,8 @@ class BaseConfig {
 						}
 						break;
 					}
-					case CONFIG_TYPE_ENUM_TYPE: {
+					case "EN":
+					case "ENUMTYPE": {
 						String classinternalname = split[1];
 
 						Type asmtype = Type.getObjectType(classinternalname);
@@ -118,7 +116,8 @@ class BaseConfig {
 						}
 						break;
 					}
-					case CONFIG_TYPE_RECONSTRUCTOR: {
+					case "REC":
+					case "RECONSTRUCTOR": {
 						String classinternalname = split[1];
 						String membername = split[2];
 						String descriptor = split[3];
@@ -127,7 +126,8 @@ class BaseConfig {
 						addConstantReconstructor(baseConstantReconstructors, memberkey, loadclassloader);
 						break;
 					}
-					case CONFIG_TYPE_DECONSTRUCTOR: {
+					case "DEC":
+					case "DECONSTRUCTOR": {
 						String ownerclassinternalname = split[1];
 
 						String membername = split[2];
