@@ -303,14 +303,6 @@ class BaseConfig {
 						ChronoField.class));
 	}
 
-	private static void setDeconstructor(Map<String, ConstantDeconstructor> constantDeconstructors, Class<?> type,
-			ConstantDeconstructor deconstructor) {
-		Object prev = constantDeconstructors.putIfAbsent(Type.getInternalName(type), deconstructor);
-		if (prev != null) {
-			throw new IllegalArgumentException("Duplicate constant deconstructor for: " + type);
-		}
-	}
-
 	private static void addConstantReconstructor(
 			Map<? super MemberKey, ? super TypeReferencedConstantReconstructor> reconstructors, MemberKey memberkey,
 			ClassLoader loadclassloader) {
