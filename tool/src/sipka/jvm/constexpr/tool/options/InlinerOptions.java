@@ -4,12 +4,14 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.Month;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -40,6 +42,8 @@ public final class InlinerOptions {
 	protected Map<Member, ReconstructorPredicate> constantReconstructors = new HashMap<>();
 
 	protected ClassLoader classLoader;
+
+	protected Collection<Path> configFiles = new LinkedHashSet<>();
 
 	protected ToolLogger logger;
 
@@ -350,6 +354,41 @@ public final class InlinerOptions {
 	 */
 	public ClassLoader getClassLoader() {
 		return classLoader;
+	}
+
+	/**
+	 * Sets the config files to parse and use by the inliner tool.
+	 * <p>
+	 * The config files contain lower level configurations that are interpreted by the tool and applied accordingly.
+	 * <p>
+	 * These options are parsed and applied <b>before</b> other configurations in this {@link InlinerOptions} instance.
+	 * <p>
+	 * In general, config files can be used to mark Java elements on which the client cannot place the annotation
+	 * markers to be used by the inliner tool. E.g. if your code uses a third party library, the config files can be
+	 * used to mark methods, types, etc... as constable.
+	 * <p>
+	 * The config files have the same format as the default configuration of the tool, in the internal
+	 * <code>base_config</code> resource. (Exact format TBD)
+	 * 
+	 * @param configFiles
+	 *            The config files.
+	 * @throws NullPointerException
+	 *             If the argument is <code>null</code>.
+	 */
+	public void setConfigFiles(Collection<Path> configFiles) throws NullPointerException {
+		Objects.requireNonNull(configFiles, "configFiles");
+		this.configFiles = configFiles;
+	}
+
+	/**
+	 * Gets the config files that are used by the inliner tool.
+	 * <p>
+	 * Modifications to the returned collection may or may not be propagated back to the backing collection.
+	 * 
+	 * @return The config files.
+	 */
+	public Collection<Path> getConfigFiles() {
+		return configFiles;
 	}
 
 }

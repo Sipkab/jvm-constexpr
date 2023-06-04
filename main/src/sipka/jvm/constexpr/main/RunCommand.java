@@ -96,6 +96,18 @@ public class RunCommand {
 	@Parameter(value = { "-output" })
 	public String output;
 
+	/**
+	 * <pre>
+	 * Specifies config files to load.
+	 * 
+	 * The config files contain information about additional elements that can be
+	 * used for constant optimization.
+	 * </pre>
+	 */
+	@Parameter(value = { "-config" }, required = false)
+	@MultiParameter(String.class)
+	public Collection<String> configFiles = new LinkedHashSet<>();
+
 	private boolean outputZip;
 	private boolean outputDir;
 
@@ -149,8 +161,10 @@ public class RunCommand {
 		Collection<URL> classloaderurls = new LinkedHashSet<>();
 		Collection<Path> classpathpaths = new LinkedHashSet<>();
 		Collection<Path> inputpaths = new LinkedHashSet<>();
+		LinkedHashSet<Path> configfilepaths = new LinkedHashSet<>();
 		toPaths(classpathpaths, classpath);
 		toPaths(inputpaths, input);
+		toPaths(configfilepaths, configFiles);
 		for (Path clpath : classpathpaths) {
 			classloaderurls.add(clpath.toUri().toURL());
 		}
@@ -160,6 +174,8 @@ public class RunCommand {
 			}
 		}
 		InlinerOptions options = createBaseOptions();
+
+		options.setConfigFiles(configfilepaths);
 
 		//scan the complete classpath for annotations
 		Map<String, ClassBytes> classestoanalyze = new LinkedHashMap<>();

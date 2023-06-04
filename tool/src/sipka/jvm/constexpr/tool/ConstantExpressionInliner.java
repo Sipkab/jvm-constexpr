@@ -1,6 +1,7 @@
 package sipka.jvm.constexpr.tool;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
@@ -8,6 +9,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -61,7 +64,7 @@ import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.TypeInsnNode;
 public class ConstantExpressionInliner {
 	public static final int ASM_API = Opcodes.ASM9;
 
-	private static final Map<String, ConstantDeconstructor> baseConstantDeconstructors = new TreeMap<>();
+	private static final NavigableMap<String, DeconstructionSelector> baseConstantDeconstructors = new TreeMap<>();
 
 	/**
 	 * Internal names mapped to the type that are considered constants. That is, they don't have a mutable state, and
@@ -73,7 +76,7 @@ public class ConstantExpressionInliner {
 	 * <p>
 	 * Map of internal names to classes.
 	 */
-	private static final Map<String, InlinerTypeReference> baseConstantTypes = new TreeMap<>();
+	private static final NavigableMap<String, InlinerTypeReference> baseConstantTypes = new TreeMap<>();
 	private static final NavigableMap<MemberKey, TypeReferencedConstantReconstructor> baseConstantReconstructors = new TreeMap<>(
 			MemberKey::compare);
 	static {
@@ -133,36 +136,64 @@ public class ConstantExpressionInliner {
 		logger = options.getLogger();
 		classLoader = options.getClassLoader();
 
-		constantDeconstructors.putAll(baseConstantDeconstructors);
-		constantReconstructors.putAll(baseConstantReconstructors);
-		constantTypes.putAll(baseConstantTypes);
+		/*
+		 * Initialize the base config.
+		 */
+		NavigableMap<String, DeconstructionSelector> configConstantDeconstructors = new TreeMap<>(
+				baseConstantDeconstructors);
+		NavigableMap<String, InlinerTypeReference> configConstantTypes = new TreeMap<>(baseConstantTypes);
+		NavigableMap<MemberKey, TypeReferencedConstantReconstructor> configConstantReconstructors = new TreeMap<>(
+				baseConstantReconstructors);
 
-		//accumulate the general instance method constant reconstructors
-		for (Entry<MemberKey, TypeReferencedConstantReconstructor> entry : baseConstantReconstructors.entrySet()) {
-			ConstantReconstructor delegate = entry.getValue().delegate;
-			if (delegate instanceof MethodBasedConstantReconstructor) {
-				addGeneralInstanceMethodConstantReconstructor((MethodBasedConstantReconstructor) delegate,
-						(MethodKey) entry.getKey());
+		/*
+		 * Load the config files if any
+		 */
+		Collection<Path> configfiles = options.getConfigFiles();
+		if (configfiles != null && !configfiles.isEmpty()) {
+			for (Path conffilepath : configfiles) {
+				try (InputStream in = Files.newInputStream(conffilepath)) {
+					BaseConfig.loadConfigStream(in, classLoader, configConstantTypes, configConstantReconstructors,
+							configConstantDeconstructors);
+				}
 			}
 		}
 
+		/*
+		 * Set the constant fields
+		 */
 		for (Field f : options.getConstantFields()) {
 			Field prev = optionsConstantFields.putIfAbsent(new FieldKey(f), f);
 			if (prev != null && !prev.equals(f)) {
 				throw new IllegalArgumentException("Multiple equal constant fields specified: " + f + " and " + prev);
 			}
 		}
+
 		for (Entry<Class<?>, ? extends DeconstructionSelector> configentry : options.getDeconstructorConfigurations()
 				.entrySet()) {
 			DeconstructionSelector selector = configentry.getValue();
 			String typeinternalname = Type.getInternalName(configentry.getKey());
 			if (selector == null) {
 				//override to remove
-				constantDeconstructors.remove(typeinternalname);
+				configConstantDeconstructors.remove(typeinternalname);
 			} else {
-				constantDeconstructors.put(typeinternalname, new ConfigSelectorConstantDeconstructor(selector));
+				configConstantDeconstructors.put(typeinternalname, selector);
 			}
 		}
+
+		/*
+		 * Setup the constant deconstructors.
+		 * Add the built in defaults for some classes
+		 */
+		constantDeconstructors.put(Type.getInternalName(String.class), StringConstantDeconstructor.INSTANCE);
+		constantDeconstructors.put(Type.getInternalName(StringBuilder.class),
+				StringBuilderConstantDeconstructor.INSTANCE);
+		for (Entry<String, DeconstructionSelector> entry : configConstantDeconstructors.entrySet()) {
+			constantDeconstructors.put(entry.getKey(), new ConfigSelectorConstantDeconstructor(entry.getValue()));
+		}
+
+		/*
+		 * Load the constant reconstructors
+		 */
 		for (Entry<Member, ReconstructorPredicate> entry : options.getConstantReconstructors().entrySet()) {
 			Member e = entry.getKey();
 			ReconstructorPredicate predicate = entry.getValue();
@@ -183,14 +214,25 @@ public class ConstantExpressionInliner {
 			} else {
 				throw new IllegalArgumentException("Unrecognized Executable type: " + e);
 			}
-			constantReconstructors.put(memberkey,
+			configConstantReconstructors.put(memberkey,
 					new TypeReferencedConstantReconstructor(reconstructor, e.getDeclaringClass()));
-			if (reconstructor instanceof MethodBasedConstantReconstructor) {
-				addGeneralInstanceMethodConstantReconstructor((MethodBasedConstantReconstructor) reconstructor,
-						(MethodKey) memberkey);
-			}
-
 		}
+
+		//accumulate the general instance method constant reconstructors
+		for (Entry<MemberKey, TypeReferencedConstantReconstructor> entry : configConstantReconstructors.entrySet()) {
+			constantReconstructors.put(entry.getKey(), entry.getValue());
+
+			ConstantReconstructor delegate = entry.getValue().delegate;
+			if (delegate instanceof MethodBasedConstantReconstructor) {
+				addGeneralInstanceMethodConstantReconstructor((MethodBasedConstantReconstructor) delegate,
+						(MethodKey) entry.getKey());
+			}
+		}
+
+		/*
+		 * Load the constant types
+		 */
+		constantTypes.putAll(configConstantTypes);
 		for (Class<?> ctype : options.getConstantTypes()) {
 			constantTypes.put(Type.getInternalName(ctype), new InlinerTypeReference(ctype));
 		}

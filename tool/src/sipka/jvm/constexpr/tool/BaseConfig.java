@@ -49,7 +49,7 @@ class BaseConfig {
 
 	public static void loadBaseConfig(Map<String, InlinerTypeReference> baseConstantTypes,
 			Map<MemberKey, TypeReferencedConstantReconstructor> baseConstantReconstructors,
-			Map<String, ConstantDeconstructor> baseConstantDeconstructors) {
+			Map<String, DeconstructionSelector> baseConstantDeconstructors) {
 
 		ClassLoader resourceclassloader = BaseConfig.class.getClassLoader();
 		ClassLoader loadclassloader = BaseConfig.class.getClassLoader();
@@ -59,24 +59,18 @@ class BaseConfig {
 				throw new NoSuchFileException(filename, null,
 						"jvm-constexpr ClassLoader resource not found: " + filename);
 			}
-			Map<String, DeconstructionSelector> deconstructors = new TreeMap<>();
 
-			loadConfigStream(in, loadclassloader, baseConstantTypes, baseConstantReconstructors, deconstructors);
-
-			for (Entry<String, DeconstructionSelector> entry : deconstructors.entrySet()) {
-				baseConstantDeconstructors.put(entry.getKey(),
-						new ConfigSelectorConstantDeconstructor(entry.getValue()));
-			}
+			loadConfigStream(in, loadclassloader, baseConstantTypes, baseConstantReconstructors,
+					baseConstantDeconstructors);
 		} catch (IOException e) {
 			throw new RuntimeException("Failed to initialize " + BaseConfig.class.getSimpleName() + " unable to read "
 					+ filename + " config file from classpath.", e);
 		}
 
 		initReconstructors(baseConstantReconstructors);
-		initDeconstructors(baseConstantDeconstructors);
 	}
 
-	private static void loadConfigStream(InputStream in, ClassLoader loadclassloader,
+	public static void loadConfigStream(InputStream in, ClassLoader loadclassloader,
 			Map<String, InlinerTypeReference> baseConstantTypes,
 			Map<MemberKey, TypeReferencedConstantReconstructor> baseConstantReconstructors,
 			Map<String, DeconstructionSelector> deconstructorSelectors) throws IOException {
@@ -307,12 +301,6 @@ class BaseConfig {
 						Type.getMethodDescriptor(Type.getType(String.class), Type.getType(Locale.class))),
 				new TypeReferencedConstantReconstructor(NotReconstructableConstantReconstructor.INSTANCE,
 						ChronoField.class));
-	}
-
-	private static void initDeconstructors(Map<String, ConstantDeconstructor> baseConstantDeconstructors) {
-		//specifies ways of writing the type instances to the stack
-		setDeconstructor(baseConstantDeconstructors, String.class, StringConstantDeconstructor.INSTANCE);
-		setDeconstructor(baseConstantDeconstructors, StringBuilder.class, StringBuilderConstantDeconstructor.INSTANCE);
 	}
 
 	private static void setDeconstructor(Map<String, ConstantDeconstructor> constantDeconstructors, Class<?> type,

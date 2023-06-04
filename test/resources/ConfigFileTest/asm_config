@@ -1,0 +1,3 @@
+CT	sipka/jvm/constexpr/tool/thirdparty/org/objectweb/asm/Type
+REC	sipka/jvm/constexpr/tool/thirdparty/org/objectweb/asm/Type	getType (Ljava/lang/Class;)Lsipka/jvm/constexpr/tool/thirdparty/org/objectweb/asm/Type;
+REC	sipka/jvm/constexpr/tool/thirdparty/org/objectweb/asm/Type	getInternalName (Ljava/lang/Class;)Ljava/lang/String;
