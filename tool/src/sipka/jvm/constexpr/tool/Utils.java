@@ -21,6 +21,8 @@ import java.util.Set;
 import java.util.TreeMap;
 
 import sipka.jvm.constexpr.tool.log.BytecodeLocation;
+import sipka.jvm.constexpr.tool.options.DeconstructionContext;
+import sipka.jvm.constexpr.tool.options.DeconstructorConfiguration;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Opcodes;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.AbstractInsnNode;
@@ -1188,6 +1190,56 @@ public class Utils {
 		int line = getLineNumber(methodnode, locationins);
 		return new BytecodeLocation(transclass.input, transclass.classNode.name, methodnode.name, methodnode.desc,
 				line);
+	}
+
+	public static Method getMethodReportInaccessible(DeconstructionContext context, Class<?> type, Class<?> returntype,
+			String methodname, Class<?>... paramtypes) throws NoSuchMethodException {
+		try {
+			return type.getMethod(methodname, paramtypes);
+		} catch (NoSuchMethodException e) {
+			context.logConfigClassMemberInaccessible(Type.getInternalName(type), methodname,
+					Type.getMethodDescriptor(Type.getType(returntype), toAsmTypes(paramtypes)), e);
+			throw e;
+		}
+	}
+
+	public static Field getFieldReportInaccessible(DeconstructionContext context, Class<?> type, Class<?> fieldtype,
+			String fieldname) throws NoSuchFieldException {
+		try {
+			return type.getDeclaredField(fieldname);
+		} catch (NoSuchFieldException e) {
+			context.logConfigClassMemberInaccessible(Type.getInternalName(type), fieldname,
+					Type.getDescriptor(fieldtype), e);
+			throw e;
+		}
+	}
+
+	public static DeconstructorConfiguration createCheckStaticFieldEqualityDeconstructorConfiguration(
+			DeconstructionContext context, Object value, Class<?> type, String... fieldnames) {
+		if (value == null) {
+			return null;
+		}
+		for (String fieldname : fieldnames) {
+			Field field;
+			try {
+				//the value should have the same class, so that's what we pass as the field type
+				field = getFieldReportInaccessible(context, type, value.getClass(), fieldname);
+			} catch (NoSuchFieldException e) {
+				continue;
+			}
+			Object fieldval;
+			try {
+				fieldval = field.get(null);
+			} catch (Exception e) {
+				context.logConfigClassMemberInaccessible(Type.getInternalName(type), fieldname,
+						Type.getDescriptor(field.getType()), e);
+				continue;
+			}
+			if (value.equals(fieldval)) {
+				return DeconstructorConfiguration.createStaticField(field);
+			}
+		}
+		return null;
 	}
 
 	public static String memberDescriptorToPrettyString(Type desctype, Type classtype, String name) {

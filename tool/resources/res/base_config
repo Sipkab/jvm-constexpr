@@ -28,6 +28,7 @@ DEC	java/lang/Float	valueOf	(F)Ljava/lang/Float;	floatValue()F
 DEC	java/lang/Integer	valueOf	(I)Ljava/lang/Integer;	intValue()I
 DEC	java/lang/Long	valueOf	(J)Ljava/lang/Long;	longValue()J
 DEC	java/lang/Short	valueOf	(S)Ljava/lang/Short;	shortValue()S
+DEC	java/time/Duration	SELECTOR:sipka.jvm.constexpr.tool.DurationDeconstructionSelector
 DEC	java/time/Instant	ofEpochSecond	(JJ)Ljava/time/Instant;	getEpochSecond()J	getNano()I
 DEC	java/time/LocalDate	MAX	Ljava/time/LocalDate;
 DEC	java/time/LocalDate	MIN	Ljava/time/LocalDate;
@@ -35,6 +36,7 @@ DEC	java/time/LocalDate	of	(ILjava/time/Month;I)Ljava/time/LocalDate;	getYear()I
 DEC	java/time/LocalDateTime	MAX	Ljava/time/LocalDateTime;
 DEC	java/time/LocalDateTime	MIN	Ljava/time/LocalDateTime;
 DEC	java/time/LocalDateTime	of	(Ljava/time/LocalDate;Ljava/time/LocalTime;)Ljava/time/LocalDateTime;	toLocalDate()Ljava/time/LocalDate;	toLocalTime()Ljava/time/LocalTime;
+DEC	java/time/LocalTime	SELECTOR:sipka.jvm.constexpr.tool.LocalTimeDeconstructionSelector
 DEC	java/time/MonthDay	of	(Ljava/time/Month;I)Ljava/time/MonthDay;	getMonth()Ljava/time/Month;	getDayOfMonth()I
 DEC	java/time/OffsetDateTime	MAX	Ljava/time/OffsetDateTime;
 DEC	java/time/OffsetDateTime	MIN	Ljava/time/OffsetDateTime;
@@ -42,6 +44,7 @@ DEC	java/time/OffsetDateTime	of	(Ljava/time/LocalDateTime;Ljava/time/ZoneOffset;
 DEC	java/time/OffsetTime	MAX	Ljava/time/OffsetTime;
 DEC	java/time/OffsetTime	MIN	Ljava/time/OffsetTime;
 DEC	java/time/OffsetTime	of	(Ljava/time/LocalTime;Ljava/time/ZoneOffset;)Ljava/time/OffsetTime;	toLocalTime()Ljava/time/LocalTime;	getOffset()Ljava/time/ZoneOffset;
+DEC	java/time/Period	SELECTOR:sipka.jvm.constexpr.tool.PeriodDeconstructionSelector
 DEC	java/time/Year	of	(I)Ljava/time/Year;	getValue()I
 DEC	java/time/YearMonth	of	(II)Ljava/time/YearMonth;	getYear()I	getMonthValue()I
 DEC	java/time/ZoneOffset	MAX	Ljava/time/ZoneOffset;

@@ -44,8 +44,8 @@ public class DeconstructorConfiguration {
 		if (((method.getModifiers() & Modifier.STATIC) != Modifier.STATIC)) {
 			throw new IllegalArgumentException("Method is not static: " + method);
 		}
-		return createStaticMethod(Type.getType(method.getDeclaringClass()), method.getName(),
-				Type.getType(method.getReturnType()), parameterdataaccessors);
+		return createStaticMethod(Type.getType(method.getDeclaringClass()), method.getName(), Type.getType(method),
+				parameterdataaccessors);
 	}
 
 	public static DeconstructorConfiguration createStaticMethod(Type methodowner, String methodname,

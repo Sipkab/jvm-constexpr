@@ -11,9 +11,6 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.NoSuchFileException;
-import java.time.Duration;
-import java.time.LocalTime;
-import java.time.Period;
 import java.time.temporal.ChronoField;
 import java.util.List;
 import java.util.ListIterator;
@@ -22,6 +19,7 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 import sipka.jvm.constexpr.tool.options.DeconstructionDataAccessor;
+import sipka.jvm.constexpr.tool.options.DeconstructionSelector;
 import sipka.jvm.constexpr.tool.options.ReconstructorPredicate;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Opcodes;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
@@ -72,7 +70,8 @@ class BaseConfig {
 		try (BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
 			reader_loop:
 			for (String line; (line = reader.readLine()) != null;) {
-				if (line.isEmpty()) {
+				line = line.trim();
+				if (line.isEmpty() || line.startsWith("#")) {
 					continue;
 				}
 				String[] split = PATTERN_WHITESPACE.split(line);
@@ -123,6 +122,27 @@ class BaseConfig {
 					case CONFIG_TYPE_DECONSTRUCTOR: {
 						String ownerclassinternalname = split[1];
 						String membername = split[2];
+						if (membername.startsWith("SELECTOR:")) {
+							//use the specified class as a DeconstructionSelector
+							String selectorclass = split[2].substring("SELECTOR:".length());
+							try {
+								Constructor<? extends DeconstructionSelector> constructor = Class
+										.forName(selectorclass, false, loadclassloader)
+										.asSubclass(DeconstructionSelector.class).getConstructor();
+								constructor.setAccessible(true);
+								DeconstructionSelector selector = constructor.newInstance();
+
+								baseConstantDeconstructors.compute(ownerclassinternalname,
+										(k, v) -> mergeMethodDeconstructorBaseConfig(
+												new ConfigSelectorConstantDeconstructor(selector), k, v));
+							} catch (Exception e) {
+								baseConstantDeconstructors.compute(ownerclassinternalname, (k, v) -> {
+									return MultiConstantDeconstructor
+											.getMulti(new MemberNotAvailableConstantDeconstructor(k, e), v);
+								});
+							}
+							continue reader_loop;
+						}
 						String descriptor = split[3];
 
 						Type membertype = Type.getType(descriptor);
@@ -295,13 +315,7 @@ class BaseConfig {
 	private static void initDeconstructors(Map<String, ConstantDeconstructor> baseConstantDeconstructors) {
 		//specifies ways of writing the type instances to the stack
 		setDeconstructor(baseConstantDeconstructors, String.class, StringConstantDeconstructor.INSTANCE);
-
-		setDeconstructor(baseConstantDeconstructors, Duration.class, DurationConstantDeconstructor.INSTANCE);
-		setDeconstructor(baseConstantDeconstructors, Period.class, PeriodConstantDeconstructor.INSTANCE);
-		setDeconstructor(baseConstantDeconstructors, LocalTime.class, LocalTimeConstantDeconstructor.INSTANCE);
-
 		setDeconstructor(baseConstantDeconstructors, StringBuilder.class, StringBuilderConstantDeconstructor.INSTANCE);
-
 	}
 
 	private static void setDeconstructor(Map<String, ConstantDeconstructor> constantDeconstructors, Class<?> type,
@@ -360,9 +374,9 @@ class BaseConfig {
 		private final String memberName;
 		private final String memberDescriptor;
 		private final String classInternalName;
-		private final ReflectiveOperationException exception;
+		private final Exception exception;
 
-		MemberNotAvailableConstantDeconstructor(MemberKey memberkey, ReflectiveOperationException e) {
+		MemberNotAvailableConstantDeconstructor(MemberKey memberkey, Exception e) {
 			this.memberName = memberkey.getMemberName();
 			this.classInternalName = memberkey.getOwner();
 			this.memberDescriptor = MemberKey.getDescriptor(memberkey);
@@ -370,14 +384,14 @@ class BaseConfig {
 		}
 
 		MemberNotAvailableConstantDeconstructor(String internalname, String membername, String memberdescr,
-				ReflectiveOperationException e) {
+				Exception e) {
 			this.memberName = membername;
 			this.memberDescriptor = memberdescr;
 			this.classInternalName = internalname;
 			this.exception = e;
 		}
 
-		MemberNotAvailableConstantDeconstructor(String classinternalname, ClassNotFoundException e) {
+		MemberNotAvailableConstantDeconstructor(String classinternalname, Exception e) {
 			this(classinternalname, null, null, e);
 		}
 
@@ -393,7 +407,7 @@ class BaseConfig {
 			return memberDescriptor;
 		}
 
-		public ReflectiveOperationException getException() {
+		public Exception getException() {
 			return exception;
 		}
 
