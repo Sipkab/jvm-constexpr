@@ -195,13 +195,11 @@ public class RunCommand {
 			outputpath = null;
 		}
 
+		Collection<Path> classpathpaths = toPaths(classpath);
+		Collection<Path> inputpaths = toPaths(input);
+		Collection<Path> configfilepaths = toPaths(configFiles);
+
 		Collection<URL> classloaderurls = new LinkedHashSet<>();
-		Collection<Path> classpathpaths = new LinkedHashSet<>();
-		Collection<Path> inputpaths = new LinkedHashSet<>();
-		LinkedHashSet<Path> configfilepaths = new LinkedHashSet<>();
-		toPaths(classpathpaths, classpath);
-		toPaths(inputpaths, input);
-		toPaths(configfilepaths, configFiles);
 		for (Path clpath : classpathpaths) {
 			classloaderurls.add(clpath.toUri().toURL());
 		}
@@ -301,6 +299,12 @@ public class RunCommand {
 				}
 			}
 		}
+	}
+
+	private static LinkedHashSet<Path> toPaths(Collection<String> cp) {
+		LinkedHashSet<Path> classpathpaths = new LinkedHashSet<>();
+		toPaths(classpathpaths, cp);
+		return classpathpaths;
 	}
 
 	private static Set<String> getDefaultStripAnnotations() {
