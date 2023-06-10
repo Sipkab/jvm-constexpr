@@ -22,6 +22,10 @@ public final class MemberReference implements Comparable<MemberReference> {
 		Objects.requireNonNull(ownerInternalName, "ownerInternalName");
 		Objects.requireNonNull(memberName, "memberName");
 		Objects.requireNonNull(memberDescriptor, "memberDescriptor");
+		if (memberName.isEmpty() != memberDescriptor.isEmpty()) {
+			throw new IllegalArgumentException(
+					"Both or neither member arguments can be empty: " + memberName + " - " + memberDescriptor);
+		}
 
 		this.ownerInternalName = ownerInternalName;
 		this.memberName = memberName;
