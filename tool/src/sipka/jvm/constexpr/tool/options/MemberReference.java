@@ -1,11 +1,17 @@
 package sipka.jvm.constexpr.tool.options;
 
+import java.util.Objects;
+
+import sipka.jvm.constexpr.tool.Utils;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 
 /**
  * A reference to a Java class member.
  * <p>
  * Might be a method or field, depending on the type of the {@linkplain #getMemberDescriptor() member descriptor}.
+ * <p>
+ * In some cases a {@link MemberReference} can represent a type, in which case the member name and descriptor will be
+ * empty strings.
  */
 public final class MemberReference implements Comparable<MemberReference> {
 	protected final String ownerInternalName;
@@ -13,6 +19,10 @@ public final class MemberReference implements Comparable<MemberReference> {
 	protected final String memberDescriptor;
 
 	public MemberReference(String ownerInternalName, String memberName, String memberDescriptor) {
+		Objects.requireNonNull(ownerInternalName, "ownerInternalName");
+		Objects.requireNonNull(memberName, "memberName");
+		Objects.requireNonNull(memberDescriptor, "memberDescriptor");
+
 		this.ownerInternalName = ownerInternalName;
 		this.memberName = memberName;
 		this.memberDescriptor = memberDescriptor;
@@ -32,6 +42,8 @@ public final class MemberReference implements Comparable<MemberReference> {
 	 * Gets the name of the member.
 	 * <p>
 	 * The name of the field or method that this member reference represents.
+	 * <p>
+	 * Maybe an empty string, in which case this {@link MemberReference} represents a type.
 	 * 
 	 * @return The member name.
 	 */
@@ -43,6 +55,8 @@ public final class MemberReference implements Comparable<MemberReference> {
 	 * Gets the descriptor of the member.
 	 * <p>
 	 * The type or method descriptor of the member.
+	 * <p>
+	 * Maybe an empty string, in which case this {@link MemberReference} represents a type.
 	 * 
 	 * @return The descriptor.
 	 * @see Type#getMethodDescriptor(java.lang.reflect.Method)
@@ -90,12 +104,13 @@ public final class MemberReference implements Comparable<MemberReference> {
 	@Override
 	public String toString() {
 		StringBuilder builder = new StringBuilder(getClass().getSimpleName());
-		builder.append("[ownerInternalName=");
-		builder.append(ownerInternalName);
-		builder.append(", memberName=");
-		builder.append(memberName);
-		builder.append(", memberDescriptor=");
-		builder.append(memberDescriptor);
+		builder.append("[");
+		if (memberName.isEmpty()) {
+			builder.append(Type.getObjectType(ownerInternalName).getClassName());
+		} else {
+			Utils.appendMemberDescriptorPretty(builder, Type.getType(memberDescriptor),
+					Type.getObjectType(ownerInternalName), memberName);
+		}
 		builder.append("]");
 		return builder.toString();
 	}

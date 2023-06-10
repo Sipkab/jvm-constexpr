@@ -2,6 +2,13 @@ package sipka.jvm.constexpr.tool.options;
 
 import sipka.jvm.constexpr.tool.log.ConfigClassMemberInaccessibleLogEntry;
 
+/**
+ * A context interface when selecting a {@linkplain DeconstructorConfiguration deconstruction configuraiton}.
+ * <p>
+ * Used in {@link DeconstructionSelector#chooseDeconstructorConfiguration(DeconstructionContext, Object)}.
+ * <p>
+ * Clients shouldn't implement this interface.
+ */
 public interface DeconstructionContext {
 	/**
 	 * Gets the currently optimized method where the deconstruction is taking place.
@@ -12,6 +19,8 @@ public interface DeconstructionContext {
 
 	/**
 	 * Reports a log entry about an issue where a class or one of its member wasn't accessible for some reason.
+	 * <p>
+	 * A log entry for a given member will be only logged once, regardless of the nature of the exception.
 	 * 
 	 * @param classInternalName
 	 *            The internal name of the class.
