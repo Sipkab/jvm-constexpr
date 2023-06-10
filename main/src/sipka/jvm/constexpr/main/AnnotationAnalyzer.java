@@ -20,6 +20,7 @@ import sipka.jvm.constexpr.annotations.ConstantExpression;
 import sipka.jvm.constexpr.annotations.Deconstructor;
 import sipka.jvm.constexpr.tool.ConstantExpressionInliner;
 import sipka.jvm.constexpr.tool.Utils;
+import sipka.jvm.constexpr.tool.log.ConfigClassMemberInaccessibleLogEntry;
 import sipka.jvm.constexpr.tool.log.MessageLogEntry;
 import sipka.jvm.constexpr.tool.options.DeconstructionDataAccessor;
 import sipka.jvm.constexpr.tool.options.DeconstructionSelector;
@@ -94,6 +95,16 @@ public class AnnotationAnalyzer {
 					options.getConstantReconstructors().put(field, ReconstructorPredicate.ALLOW_ALL);
 				}
 			}
+			try {
+				Method valueofmethod = type.getMethod("valueOf", String.class);
+				options.getConstantReconstructors().put(valueofmethod, ReconstructorPredicate.ALLOW_ALL);
+			} catch (NoSuchMethodException e) {
+				// this method should be present for all enum types
+				// log this, as it is a serious unexpected error (even if this valueOf method is not directly used by the optimizer)
+				options.getLogger().log(new ConfigClassMemberInaccessibleLogEntry(analyzer.classInternalName, "valueOf",
+						"(Ljava/lang/String;)L" + analyzer.classInternalName + ";", e));
+			}
+
 		}
 		for (NameDescriptor namedescriptor : analyzer.constantExpressionFields) {
 			Field member = Utils.getFieldForDescriptor(type, namedescriptor.name, namedescriptor.descriptor);
