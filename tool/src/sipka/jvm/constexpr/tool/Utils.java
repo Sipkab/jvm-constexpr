@@ -1414,30 +1414,39 @@ public class Utils {
 			}
 			case OPERATOR: {
 				int opcode = (int) info.getObject();
-				String opstr = getOperatorString(opcode);
 				AsmStackInfo[] elems = info.getElements();
-				if (opcode == Opcodes.CHECKCAST) {
-					sb.append("((");
-					sb.append(info.getType().getClassName());
-					sb.append(") ");
-					appendAsmStackInfo(sb, elems[0], "");
-					sb.append(')');
-				} else if (opcode == Opcodes.INSTANCEOF) {
-					sb.append("(");
-					appendAsmStackInfo(sb, elems[0], "");
-					sb.append(" instanceof ");
-					sb.append(info.getType().getClassName());
-					sb.append(')');
-				} else if (elems.length == 1) {
-					//unary operator
-					sb.append(opstr);
-					appendAsmStackInfo(sb, elems[0], "");
-				} else {
-					appendAsmStackInfo(sb, elems[0], "");
-					sb.append(' ');
-					sb.append(opstr);
-					sb.append(' ');
-					appendAsmStackInfo(sb, elems[1], "");
+				switch (opcode) {
+					case Opcodes.CHECKCAST: {
+						sb.append("((");
+						sb.append(info.getType().getClassName());
+						sb.append(") ");
+						appendAsmStackInfo(sb, elems[0], "");
+						sb.append(')');
+						break;
+					}
+					case Opcodes.INSTANCEOF: {
+						sb.append('(');
+						appendAsmStackInfo(sb, elems[0], "");
+						sb.append(" instanceof ");
+						sb.append(info.getType().getClassName());
+						sb.append(')');
+						break;
+					}
+					default: {
+						String opstr = getOperatorString(opcode);
+						if (elems.length == 1) {
+							//unary operator
+							sb.append(opstr);
+							appendAsmStackInfo(sb, elems[0], "");
+						} else {
+							appendAsmStackInfo(sb, elems[0], "");
+							sb.append(' ');
+							sb.append(opstr);
+							sb.append(' ');
+							appendAsmStackInfo(sb, elems[1], "");
+						}
+						break;
+					}
 				}
 
 				return;
