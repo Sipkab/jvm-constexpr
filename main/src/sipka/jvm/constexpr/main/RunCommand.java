@@ -209,7 +209,7 @@ public class RunCommand {
 			options.setClassLoader(cl);
 
 			AnnotationAnalyzer.analyzeClassFile(options,
-					classestoanalyze.values().stream().map(cb -> cb.bytes)::iterator, cl);
+					classestoanalyze.values().stream().map(cb -> cb.bytes)::iterator);
 
 			ConstantExpressionInliner.run(options);
 		}

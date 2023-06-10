@@ -40,6 +40,11 @@ public class AnnotationAnalyzer {
 		throw new UnsupportedOperationException();
 	}
 
+	public static void analyzeClassFile(InlinerOptions options, Iterable<? extends byte[]> classbytes)
+			throws Exception {
+		analyzeClassFile(options, classbytes, options.getClassLoader());
+	}
+
 	public static void analyzeClassFile(InlinerOptions options, Iterable<? extends byte[]> classbytes, ClassLoader cl)
 			throws Exception {
 		Map<Class<?>, DeconstructorSettings> deconstructorSettings = new HashMap<>();
