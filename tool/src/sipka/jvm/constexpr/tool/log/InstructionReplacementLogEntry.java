@@ -1,8 +1,8 @@
 package sipka.jvm.constexpr.tool.log;
 
 import sipka.jvm.constexpr.tool.AsmStackInfo;
-import sipka.jvm.constexpr.tool.AsmStackInfo.Kind;
 import sipka.jvm.constexpr.tool.Utils;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Opcodes;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 
 public final class InstructionReplacementLogEntry implements LogEntry {
@@ -52,7 +52,17 @@ public final class InstructionReplacementLogEntry implements LogEntry {
 			sb.append(ls);
 			sb.append("with");
 			sb.append(ls);
-			Utils.appendAsmStackInfo(sb, replacementInfo, "\t");
+			if (replacedInfo.getKind() == AsmStackInfo.Kind.OPERATOR
+					&& replacedInfo.getObject().equals(Opcodes.INSTANCEOF)
+					&& replacementInfo.getKind() == AsmStackInfo.Kind.CONSTANT
+					&& replacementInfo.getObject() instanceof Integer) {
+				//special handling of instanceof result display, as the result of the operator is an int
+				//but we display it as a boolean so it doesn't confuse people
+				sb.append('\t');
+				sb.append(((Integer) replacementInfo.getObject()).intValue() != 0);
+			} else {
+				Utils.appendAsmStackInfo(sb, replacementInfo, "\t");
+			}
 		} else {
 			//the replacement happened NOT in a method, so its a replacement of a constant field value
 			sb.append("Assigned constant value for ");
@@ -60,7 +70,7 @@ public final class InstructionReplacementLogEntry implements LogEntry {
 					Type.getObjectType(bytecodeLocation.getClassName()), bytecodeLocation.getMemberName());
 			sb.append(" = ");
 			sb.append(Utils.formatConstant(replacementValue));
-			if (replacedInfo.getKind() == Kind.CONSTANT) {
+			if (replacedInfo.getKind() == AsmStackInfo.Kind.CONSTANT) {
 				//don't need to write the evaluation part if the replaced instructions is just a constant
 			} else {
 				sb.append(ls);
