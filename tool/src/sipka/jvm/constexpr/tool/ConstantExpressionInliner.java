@@ -374,7 +374,7 @@ public class ConstantExpressionInliner {
 		}
 	}
 
-	private void stripAnnotations(List<? extends AnnotationNode> annotations, Set<String> stripannots) {
+	private static void stripAnnotations(List<? extends AnnotationNode> annotations, Set<String> stripannots) {
 		if (annotations == null) {
 			return;
 		}
