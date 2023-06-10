@@ -52,6 +52,10 @@ public class CustomConstantTypeTest extends SakerTestCase {
 		public static final int VAL1 = CC1.getVal();
 		public static final int VAL2 = CC2.getVal();
 		public static final int ADD = CC1.getVal() + CC2.getVal();
+		
+		public static final int CMP1 = new MyConstantClass(123).compareTo(new MyConstantClass(456));
+		public static final int CMP2 = CC1.compareTo(new MyConstantClass(456));
+		public static final int CMP3 = CC2.compareTo(new MyConstantClass(CMP2));
 
 		public static final int HASHCODE1 = CC1.hashCode();
 
@@ -66,7 +70,7 @@ public class CustomConstantTypeTest extends SakerTestCase {
 
 	}
 
-	public static class MyConstantClass {
+	public static class MyConstantClass implements Comparable<MyConstantClass> {
 		public int val;
 		public transient String source;
 
@@ -116,6 +120,11 @@ public class CustomConstantTypeTest extends SakerTestCase {
 			builder.append(source);
 			builder.append("]");
 			return builder.toString();
+		}
+
+		@Override
+		public int compareTo(MyConstantClass o) {
+			return Integer.compare(this.val, o.val);
 		}
 
 	}

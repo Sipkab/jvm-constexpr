@@ -34,11 +34,15 @@ public class BasicEnumInlineTest extends SakerTestCase {
 		public static final String ENUMVALUEOF = Enum.valueOf(DayOfWeek.class, "MONDAY").name();
 		public static final String DECLARINGCLASS = DayOfWeek.MONDAY.getDeclaringClass().getName();
 		public static final String ENUMDECLARINGCLASS = ((Enum<?>) DayOfWeek.MONDAY).getDeclaringClass().getName();
-		public static final int COMPARETO = DayOfWeek.MONDAY.compareTo(DayOfWeek.FRIDAY);
-		public static final int COMPARETORAW = ((Enum) DayOfWeek.MONDAY).compareTo((Enum) DayOfWeek.FRIDAY);
-		public static final int COMPARETOCOMPARABLE = ((Comparable) DayOfWeek.MONDAY)
-				.compareTo((Comparable) DayOfWeek.FRIDAY);
-		public static final int COMPARETOCOMPARABLEOBJ = ((Comparable) DayOfWeek.MONDAY)
-				.compareTo((Object) DayOfWeek.FRIDAY);
+		
+		public static final boolean EQ = DayOfWeek.MONDAY.equals(DayOfWeek.valueOf("MONDAY"));
+
+		//enum compareTo is not supported in the default config, as they depend on ordinal values, which raises source compatibility issues
+//		public static final int COMPARETO = DayOfWeek.MONDAY.compareTo(DayOfWeek.FRIDAY);
+//		public static final int COMPARETORAW = ((Enum) DayOfWeek.MONDAY).compareTo((Enum) DayOfWeek.FRIDAY);
+//		public static final int COMPARETOCOMPARABLE = ((Comparable) DayOfWeek.MONDAY)
+//				.compareTo((Comparable) DayOfWeek.FRIDAY);
+//		public static final int COMPARETOCOMPARABLEOBJ = ((Comparable) DayOfWeek.MONDAY)
+//				.compareTo((Object) DayOfWeek.FRIDAY);
 	}
 }

@@ -24,6 +24,7 @@ public class StringFunctionsInlineTest extends SakerTestCase {
 		assertNull(TestUtils.getClInitMethod(classnode), "clinit method");
 	}
 
+	@SuppressWarnings("unchecked")
 	public static class Constants {
 
 		public static final int length;
@@ -44,6 +45,9 @@ public class StringFunctionsInlineTest extends SakerTestCase {
 
 		public static final String toUpperCase;
 		public static final String toLowerCase;
+
+		public static final int compareToString;
+		public static final int compareToObj;
 
 		public static final String valueOfInt;
 		public static final String valueOfBoolean;
@@ -72,6 +76,9 @@ public class StringFunctionsInlineTest extends SakerTestCase {
 
 			toUpperCase = "abc".toUpperCase(Locale.ROOT);
 			toLowerCase = "abc".toLowerCase(Locale.ROOT);
+
+			compareToString = "abc".compareTo("efg");
+			compareToObj = ((Comparable) "abc").compareTo((Object) "efg");
 
 			valueOfInt = String.valueOf(111);
 			valueOfBoolean = String.valueOf(true);

@@ -1707,9 +1707,18 @@ public class ConstantExpressionInliner {
 								//don't inline hashCode by default on constant types, as that might not be stable
 								break;
 							}
-							if ("ordinal".equals(methodins.name) && Enum.class.isAssignableFrom(type)) {
-								//ordinal reconstruction disabled for now, as it depends on source compatibility
-								break;
+							if (Enum.class.isAssignableFrom(type)) {
+								if ("ordinal".equals(methodins.name) && "()I".equals(methodins.desc)) {
+									//ordinal reconstruction disabled for now, as it depends on source compatibility
+									break;
+								}
+								if ("compareTo".equals(methodins.name) && ("(Ljava/lang/Enum;)I".equals(methodins.desc)
+										|| ("(L" + methodins.owner + ";)I").equals(methodins.desc))) {
+									//calling compareTo on an enum constant
+									//it depends on the ordinal value, so depends on source compatibility
+									//don't allow this for now
+									break;
+								}
 							}
 						}
 						Method m;

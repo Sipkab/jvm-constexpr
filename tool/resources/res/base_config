@@ -85,13 +85,11 @@ REC	java/lang/Byte	valueOf	(Ljava/lang/String;)Ljava/lang/Byte;
 REC	java/lang/Byte	valueOf	(Ljava/lang/String;I)Ljava/lang/Byte;
 REC	java/lang/Character	hashCode	()I
 REC	java/lang/Character	valueOf	(C)Ljava/lang/Character;
-REC	java/lang/Comparable	compareTo	(Ljava/lang/Object;)I
 REC	java/lang/Double	hashCode	()I
 REC	java/lang/Double	parseDouble	(Ljava/lang/String;)D
 REC	java/lang/Double	valueOf	(D)Ljava/lang/Double;
 REC	java/lang/Double	valueOf	(Ljava/lang/String;)Ljava/lang/Double;
-REC	java/lang/Enum	compareTo	(Ljava/lang/Enum;)I
-REC	java/lang/Enum	compareTo	(Ljava/lang/Object;)I
+REC	java/lang/Enum	equals	(Ljava/lang/Object;)Z
 REC	java/lang/Enum	getDeclaringClass	()Ljava/lang/Class;
 REC	java/lang/Enum	name	()Ljava/lang/String;
 REC	java/lang/Enum	valueOf	(Ljava/lang/Class;Ljava/lang/String;)Ljava/lang/Enum;
@@ -215,6 +213,7 @@ REC	java/lang/String	compareToIgnoreCase	(Ljava/lang/String;)I
 REC	java/lang/String	concat	(Ljava/lang/String;)Ljava/lang/String;
 REC	java/lang/String	contains	(Ljava/lang/CharSequence;)Z
 REC	java/lang/String	endsWith	(Ljava/lang/String;)Z
+REC	java/lang/String	equals	(Ljava/lang/Object;)Z
 REC	java/lang/String	format	(Ljava/util/Locale;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;
 REC	java/lang/String	getBytes	(Ljava/nio/charset/Charset;)[B
 REC	java/lang/String	hashCode	()I

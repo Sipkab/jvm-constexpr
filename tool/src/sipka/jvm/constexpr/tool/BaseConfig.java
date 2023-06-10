@@ -7,6 +7,7 @@ import java.io.InputStreamReader;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Field;
+import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
@@ -283,6 +284,18 @@ class BaseConfig {
 						Type.getMethodDescriptor(Type.getType(String.class), Type.getType(Locale.class))),
 				new TypeReferencedConstantReconstructor(NotReconstructableConstantReconstructor.INSTANCE,
 						ChronoField.class));
+
+		try {
+			// cannot reconstruct compareTo on Enums by default, as they depend on the ordinal
+			// which needs source compatibility
+			Method m = Comparable.class.getMethod("compareTo", Object.class);
+			baseConstantReconstructors.putIfAbsent(new MethodKey(m), new TypeReferencedConstantReconstructor(
+					new MethodBasedConstantReconstructor(m, NotEnumReconstructorPredicate.INSTANCE), Comparable.class));
+		} catch (NoSuchMethodException e) {
+			// should never happen, this method should exist
+			throw new RuntimeException(e);
+		}
+
 	}
 
 	private static void addConstantReconstructor(
@@ -326,6 +339,15 @@ class BaseConfig {
 				new TypeReferencedConstantReconstructor(reconstructor, type));
 		if (prev != null) {
 			throw new IllegalArgumentException("Duplicate constant reconstructor for: " + memberkey);
+		}
+	}
+
+	private static final class NotEnumReconstructorPredicate implements ReconstructorPredicate {
+		public static final NotEnumReconstructorPredicate INSTANCE = new NotEnumReconstructorPredicate();
+
+		@Override
+		public boolean canReconstruct(Object obj, Member member, Object[] arguments) {
+			return !(obj instanceof Enum);
 		}
 	}
 

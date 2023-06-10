@@ -87,6 +87,11 @@ public class CustomEnumInlineTest extends SakerTestCase {
 		public static final int MYENUM_ORD = MyEnum.FIELD1.ordinal();
 		public static final int SUB_ORD = MyEnum.SUBFIELD.ordinal();
 
+		public static final boolean EQ = MyEnum.FIELD1.equals(MyEnum.FIELD2);
+		public static final boolean E2 = MyEnum.FIELD1.equals(enumgetter());
+		public static final boolean E3 = MyEnum.FIELD1.equals("string");
+		public static final boolean E4 = "string".equals(MyEnum.FIELD1);
+
 		public static MyEnum enumgetter() {
 			return MyEnum.FIELD1;
 		}
