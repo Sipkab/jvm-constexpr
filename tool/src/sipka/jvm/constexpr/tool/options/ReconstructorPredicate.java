@@ -77,17 +77,16 @@ public interface ReconstructorPredicate {
 	public boolean canReconstruct(Object obj, Member member, Object[] arguments);
 
 	public default ReconstructorPredicate or(ReconstructorPredicate other) {
+		ReconstructorPredicate first = this;
 		return new ReconstructorPredicate() {
 			@Override
 			public boolean canReconstruct(Object obj, Member member, Object[] arguments) {
-				return ReconstructorPredicate.this.canReconstruct(obj, member, arguments)
-						|| other.canReconstruct(obj, member, arguments);
+				return first.canReconstruct(obj, member, arguments) || other.canReconstruct(obj, member, arguments);
 			}
 
 			@Override
 			public String toString() {
-				return ReconstructorPredicate.class.getSimpleName() + "[" + ReconstructorPredicate.this + " || " + other
-						+ "]";
+				return ReconstructorPredicate.class.getSimpleName() + "[" + first + " || " + other + "]";
 			}
 		};
 	}
