@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
@@ -48,6 +49,7 @@ import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Handle;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Opcodes;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.AbstractInsnNode;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.AnnotationNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.ClassNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.FieldInsnNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.FieldNode;
@@ -59,6 +61,7 @@ import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.LabelNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.LdcInsnNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodInsnNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodNode;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.RecordComponentNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.TypeInsnNode;
 
 public class ConstantExpressionInliner {
@@ -291,6 +294,35 @@ public class ConstantExpressionInliner {
 			}
 		}
 
+		Set<String> stripannots = options.getStripAnnotations();
+		for (TransformedClass transclass : inputClasses.values()) {
+			ClassNode cn = transclass.classNode;
+			stripAnnotations(cn.visibleAnnotations, stripannots);
+			stripAnnotations(cn.invisibleAnnotations, stripannots);
+			stripAnnotations(cn.visibleTypeAnnotations, stripannots);
+			stripAnnotations(cn.invisibleTypeAnnotations, stripannots);
+			for (FieldNode fn : cn.fields) {
+				stripAnnotations(fn.visibleAnnotations, stripannots);
+				stripAnnotations(fn.invisibleAnnotations, stripannots);
+				stripAnnotations(fn.visibleTypeAnnotations, stripannots);
+				stripAnnotations(fn.invisibleTypeAnnotations, stripannots);
+			}
+			for (MethodNode mn : cn.methods) {
+				stripAnnotations(mn.visibleAnnotations, stripannots);
+				stripAnnotations(mn.invisibleAnnotations, stripannots);
+				stripAnnotations(mn.visibleTypeAnnotations, stripannots);
+				stripAnnotations(mn.invisibleTypeAnnotations, stripannots);
+			}
+			if (cn.recordComponents != null) {
+				for (RecordComponentNode rcn : cn.recordComponents) {
+					stripAnnotations(rcn.visibleAnnotations, stripannots);
+					stripAnnotations(rcn.invisibleAnnotations, stripannots);
+					stripAnnotations(rcn.visibleTypeAnnotations, stripannots);
+					stripAnnotations(rcn.invisibleTypeAnnotations, stripannots);
+				}
+			}
+		}
+
 		//report the logs before the outputs, so the caller can have a chance to abort in case of error
 		if (logger != null) {
 			//order the reconstruction log entries by the size of their stack, so we always log the longest
@@ -340,7 +372,18 @@ public class ConstantExpressionInliner {
 			cn.accept(cw);
 			oc.put(transclass.input, cw.toByteArray());
 		}
+	}
 
+	private void stripAnnotations(List<? extends AnnotationNode> annotations, Set<String> stripannots) {
+		if (annotations == null) {
+			return;
+		}
+		for (Iterator<? extends AnnotationNode> it = annotations.iterator(); it.hasNext();) {
+			AnnotationNode an = it.next();
+			if (stripannots.contains(Type.getType(an.desc).getInternalName())) {
+				it.remove();
+			}
+		}
 	}
 
 	private void addGeneralInstanceMethodConstantReconstructor(MethodBasedConstantReconstructor reconstructor,

@@ -15,6 +15,8 @@ import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 
 import sipka.jvm.constexpr.tool.ConstantExpressionInliner;
@@ -46,6 +48,8 @@ public final class InlinerOptions {
 	protected Collection<Path> configFiles = new LinkedHashSet<>();
 
 	protected ToolLogger logger;
+
+	protected Set<String> stripAnnotations = new TreeSet<>();
 
 	/**
 	 * Creates an empty instance.
@@ -390,6 +394,31 @@ public final class InlinerOptions {
 	 */
 	public Collection<Path> getConfigFiles() {
 		return configFiles;
+	}
+
+	/**
+	 * Sets the internal names of annotations that should be stripped from the optimized class files.
+	 * 
+	 * @param stripAnnotations
+	 *            The annotations.
+	 * @throws NullPointerException
+	 *             If the argument is <code>null</code>.
+	 */
+	public void setStripAnnotations(Set<String> stripAnnotations) throws NullPointerException {
+		Objects.requireNonNull(stripAnnotations, "stripAnnotations");
+		this.stripAnnotations = stripAnnotations;
+	}
+
+	/**
+	 * Gets the internal names of annotations that should be stripped from the optimized class files.
+	 * <p>
+	 * Modifications to the returned collection may or may not be propagated back to the backing collection.
+	 * 
+	 * @return The annotations.
+	 * @see #setStripAnnotations(Set)
+	 */
+	public Set<String> getStripAnnotations() {
+		return stripAnnotations;
 	}
 
 }

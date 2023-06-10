@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -22,11 +23,14 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.function.Supplier;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 import java.util.jar.JarInputStream;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import saker.build.thirdparty.saker.util.ImmutableUtils;
 import saker.build.thirdparty.saker.util.ObjectUtils;
 import saker.build.thirdparty.saker.util.ReflectUtils;
 import saker.build.thirdparty.saker.util.classloader.ClassLoaderDataFinder;
@@ -35,16 +39,24 @@ import saker.build.thirdparty.saker.util.io.ByteArrayRegion;
 import saker.build.thirdparty.saker.util.io.ByteSource;
 import saker.build.thirdparty.saker.util.io.StreamUtils;
 import saker.build.thirdparty.saker.util.io.UnsyncByteArrayInputStream;
+import sipka.jvm.constexpr.annotations.ConstantExpression;
+import sipka.jvm.constexpr.annotations.Deconstructor;
 import sipka.jvm.constexpr.tool.ConstantExpressionInliner;
 import sipka.jvm.constexpr.tool.OutputConsumer;
 import sipka.jvm.constexpr.tool.Utils;
 import sipka.jvm.constexpr.tool.options.InlinerOptions;
 import sipka.jvm.constexpr.tool.options.ReconstructorPredicate;
 import sipka.jvm.constexpr.tool.options.ToolInput;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.AnnotationVisitor;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.ClassReader;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.ClassVisitor;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.ClassWriter;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.FieldVisitor;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.MethodVisitor;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Opcodes;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.RecordComponentVisitor;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.TypePath;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.AbstractInsnNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.ClassNode;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.FieldNode;
@@ -287,14 +299,18 @@ public class TestUtils {
 				JarInputStream jis = new JarInputStream(is)) {
 			for (ZipEntry ze; (ze = jis.getNextEntry()) != null;) {
 				if (ze.getName().equals(searchname)) {
-					ClassReader cr = new ClassReader(jis);
-					ClassNode cn = new ClassNode(ConstantExpressionInliner.ASM_API);
-					cr.accept(cn, ClassReader.EXPAND_FRAMES);
-					return cn;
+					return loadClassFromStream(jis);
 				}
 			}
 		}
 		throw new NoSuchFileException(searchname);
+	}
+
+	private static ClassNode loadClassFromStream(InputStream jis) throws IOException {
+		ClassReader cr = new ClassReader(jis);
+		ClassNode cn = new ClassNode(ConstantExpressionInliner.ASM_API);
+		cr.accept(cn, ClassReader.EXPAND_FRAMES);
+		return cn;
 	}
 
 	public static ClassLoader createClassLoader(Object... nodesorclasses) {
@@ -488,6 +504,24 @@ public class TestUtils {
 		return result;
 	}
 
+	public static void assertJarAnnotationsRemoved(Path jarpath) throws IOException {
+		try (JarFile jv = new JarFile(jarpath.toFile())) {
+			Enumeration<JarEntry> entries = jv.entries();
+			while (entries.hasMoreElements()) {
+				JarEntry je = entries.nextElement();
+				try (InputStream is = jv.getInputStream(je)) {
+					assertAnnotationsRemoved(loadClassFromStream(is));
+				}
+			}
+		}
+	}
+
+	public static void assertAnnotationsRemoved(ClassNode cn) {
+		Set<String> checktypes = ImmutableUtils.makeImmutableNavigableSet(
+				new String[] { Type.getDescriptor(ConstantExpression.class), Type.getDescriptor(Deconstructor.class) });
+		cn.accept(new AnnotationRemovalCheckerClassVisitor(checktypes, cn));
+	}
+
 	public static class MemoryClassLoaderDataFinder implements ClassLoaderDataFinder {
 		private Map<String, ByteArrayRegion> resourceBytes;
 
@@ -503,6 +537,84 @@ public class TestUtils {
 			}
 			return () -> new UnsyncByteArrayInputStream(got);
 		}
+	}
 
+	private static final class AnnotationRemovalCheckerClassVisitor extends ClassVisitor {
+		private final Set<String> checkTypes;
+		private final ClassNode cn;
+
+		private AnnotationRemovalCheckerClassVisitor(Set<String> checktypes, ClassNode cn) {
+			super(ConstantExpressionInliner.ASM_API);
+			this.checkTypes = checktypes;
+			this.cn = cn;
+		}
+
+		@Override
+		public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
+			SakerTestCase.assertFalse(checkTypes.contains(descriptor), () -> descriptor + " in " + cn.name);
+			return super.visitAnnotation(descriptor, visible);
+		}
+
+		@Override
+		public AnnotationVisitor visitTypeAnnotation(int typeRef, TypePath typePath, String descriptor,
+				boolean visible) {
+			SakerTestCase.assertFalse(checkTypes.contains(descriptor), () -> descriptor + " in " + cn.name);
+			return super.visitTypeAnnotation(typeRef, typePath, descriptor, visible);
+		}
+
+		@Override
+		public FieldVisitor visitField(int access, String name, String descriptor, String signature, Object value) {
+			return new FieldVisitor(api, super.visitField(access, name, descriptor, signature, value)) {
+				@Override
+				public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
+					SakerTestCase.assertFalse(checkTypes.contains(descriptor), () -> descriptor + " in " + cn.name);
+					return super.visitAnnotation(descriptor, visible);
+				}
+
+				@Override
+				public AnnotationVisitor visitTypeAnnotation(int typeRef, TypePath typePath, String descriptor,
+						boolean visible) {
+					SakerTestCase.assertFalse(checkTypes.contains(descriptor), () -> descriptor + " in " + cn.name);
+					return super.visitTypeAnnotation(typeRef, typePath, descriptor, visible);
+				}
+			};
+		}
+
+		@Override
+		public MethodVisitor visitMethod(int access, String name, String descriptor, String signature,
+				String[] exceptions) {
+			return new MethodVisitor(api, super.visitMethod(access, name, descriptor, signature, exceptions)) {
+				@Override
+				public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
+					SakerTestCase.assertFalse(checkTypes.contains(descriptor), () -> descriptor + " in " + cn.name);
+					return super.visitAnnotation(descriptor, visible);
+				}
+
+				@Override
+				public AnnotationVisitor visitTypeAnnotation(int typeRef, TypePath typePath, String descriptor,
+						boolean visible) {
+					SakerTestCase.assertFalse(checkTypes.contains(descriptor), () -> descriptor + " in " + cn.name);
+					return super.visitTypeAnnotation(typeRef, typePath, descriptor, visible);
+				}
+			};
+		}
+
+		@Override
+		public RecordComponentVisitor visitRecordComponent(String name, String descriptor, String signature) {
+			return new RecordComponentVisitor(api, super.visitRecordComponent(name, descriptor, signature)) {
+				@Override
+				public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
+					SakerTestCase.assertFalse(checkTypes.contains(descriptor), () -> descriptor + " in " + cn.name);
+					return super.visitAnnotation(descriptor, visible);
+				}
+
+				@Override
+				public AnnotationVisitor visitTypeAnnotation(int typeRef, TypePath typePath, String descriptor,
+						boolean visible) {
+					SakerTestCase.assertFalse(checkTypes.contains(descriptor), () -> descriptor + " in " + cn.name);
+					return super.visitTypeAnnotation(typeRef, typePath, descriptor, visible);
+				}
+			};
+		}
 	}
 }

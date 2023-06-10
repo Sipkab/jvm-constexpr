@@ -1,5 +1,9 @@
 package testing.sipka.jvm.constexpr.cli;
 
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
@@ -17,7 +21,7 @@ public class SimpleConstantTypeCliTest extends CliTestCase {
 	protected void runTestImpl(Map<String, String> parameters) throws Throwable {
 		Path injarpath = testCaseDirectory.resolve("classes.jar");
 		Path outjarpath = testCaseDirectory.resolve("out.jar");
-		TestUtils.writeJar(injarpath, Constants.class, CliSimpleConstantType.class);
+		TestUtils.writeJar(injarpath, Constants.class, CliSimpleConstantType.class, RuntimeTestAnnot.class);
 
 		Files.deleteIfExists(outjarpath);
 
@@ -36,8 +40,16 @@ public class SimpleConstantTypeCliTest extends CliTestCase {
 
 		ClassLoader outcl = TestUtils.createJarClassLoader(outjarpath);
 		Object INIT_ZERO_value = Class.forName(Constants.class.getName(), false, outcl).getField("INIT_ZERO").get(null);
-		Object ZERO_value = Class.forName(CliSimpleConstantType.class.getName(), false, outcl).getField("ZERO").get(null);
+		Class<?> cttypeclass = Class.forName(CliSimpleConstantType.class.getName(), false, outcl);
+		Object ZERO_value = cttypeclass.getField("ZERO").get(null);
 		assertNotIdentityEquals(INIT_ZERO_value, ZERO_value, "zero instance equality");
+
+		TestUtils.assertJarAnnotationsRemoved(outjarpath);
+
+		assertEquals(cttypeclass.getAnnotations().length, 1);
+		assertEquals(cttypeclass.getField("ZERO").getAnnotations().length, 1);
+		assertEquals(cttypeclass.getConstructor(int.class).getAnnotations().length, 1);
+		assertEquals(cttypeclass.getConstructor(cttypeclass).getAnnotations().length, 0);
 	}
 
 	public static class Constants {
@@ -53,9 +65,17 @@ public class SimpleConstantTypeCliTest extends CliTestCase {
 		public static final CliSimpleConstantType INIT_ZERO = new CliSimpleConstantType(0);
 	}
 
+	@Retention(RetentionPolicy.RUNTIME)
+	@Target({ ElementType.FIELD, ElementType.METHOD, ElementType.CONSTRUCTOR, ElementType.TYPE })
+	public @interface RuntimeTestAnnot {
+
+	}
+
 	@ConstantExpression
+	@RuntimeTestAnnot // check that this is not stripped
 	public static class CliSimpleConstantType {
 
+		@RuntimeTestAnnot // check that this is not stripped
 		public static final CliSimpleConstantType ZERO = new CliSimpleConstantType(0);
 		static {
 			ZERO.source = "ZERO";
@@ -64,6 +84,7 @@ public class SimpleConstantTypeCliTest extends CliTestCase {
 		public int value;
 		public transient String source;
 
+		@RuntimeTestAnnot // check that this is not stripped
 		public CliSimpleConstantType(int value) {
 			this.value = value;
 			this.source = "constructor";

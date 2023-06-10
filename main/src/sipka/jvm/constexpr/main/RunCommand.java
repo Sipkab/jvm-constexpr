@@ -19,8 +19,10 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.Map.Entry;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.jar.JarInputStream;
 import java.util.stream.Stream;
@@ -31,6 +33,8 @@ import java.util.zip.ZipOutputStream;
 import sipka.cmdline.api.Flag;
 import sipka.cmdline.api.MultiParameter;
 import sipka.cmdline.api.Parameter;
+import sipka.jvm.constexpr.annotations.ConstantExpression;
+import sipka.jvm.constexpr.annotations.Deconstructor;
 import sipka.jvm.constexpr.tool.ConstantExpressionInliner;
 import sipka.jvm.constexpr.tool.OutputConsumer;
 import sipka.jvm.constexpr.tool.Utils;
@@ -176,6 +180,12 @@ public class RunCommand {
 		InlinerOptions options = createBaseOptions();
 
 		options.setConfigFiles(configfilepaths);
+
+		//strip the constant annotations by default
+		Set<String> stripannots = new TreeSet<>();
+		stripannots.add(Type.getInternalName(ConstantExpression.class));
+		stripannots.add(Type.getInternalName(Deconstructor.class));
+		options.setStripAnnotations(stripannots);
 
 		//scan the complete classpath for annotations
 		Map<String, ClassBytes> classestoanalyze = new LinkedHashMap<>();
