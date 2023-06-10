@@ -193,12 +193,7 @@ public class AnnotationAnalyzer {
 			if (m.getReturnType() != paramtype || m.getParameterCount() != 0) {
 				continue;
 			}
-			String methodnamelowercase = m.getName().toLowerCase(Locale.ROOT);
-			if (!methodnamelowercase.contains(paramname)) {
-				continue;
-			}
-			if (methodnamelowercase.equals(paramname) || (methodnamelowercase.startsWith("get")
-					&& methodnamelowercase.regionMatches(3, paramname, 0, paramname.length()))) {
+			if (isGetterNameFunction(paramname, m.getName())) {
 				methods.putIfAbsent(new NameDescriptor(m.getName(), Type.getMethodDescriptor(m)), m);
 			}
 		}
@@ -206,6 +201,20 @@ public class AnnotationAnalyzer {
 		for (Class<?> itf : type.getInterfaces()) {
 			searchGetterImpl(itf, paramtype, paramname, methods);
 		}
+	}
+
+	private static boolean isGetterNameFunction(String parameternamelowercase, String methodname) {
+		methodname = methodname.toLowerCase(Locale.ROOT);
+		if (methodname.equals(parameternamelowercase)) {
+			return true;
+		}
+		if (methodname.startsWith("get")) {
+			if (methodname.length() == 3 + parameternamelowercase.length()
+					&& methodname.regionMatches(3, parameternamelowercase, 0, parameternamelowercase.length())) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private static final class DeconstructorSettings {

@@ -50,6 +50,12 @@ public class GetterNameSearchTest extends SakerTestCase {
 		}.getClass(), CharSequence.class, "myMessage").size(), 1);
 
 		assertEmpty(AnnotationAnalyzer.searchGetter(new Object() {
+			CharSequence GETMYMESSAGEFUNC() {
+				return null;
+			}
+		}.getClass(), CharSequence.class, "myMessage"));
+
+		assertEmpty(AnnotationAnalyzer.searchGetter(new Object() {
 			CharSequence getMyMessage(int index) {
 				return null;
 			}
