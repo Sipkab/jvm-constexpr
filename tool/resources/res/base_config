@@ -6,10 +6,12 @@ CT	java/lang/Float
 CT	java/lang/Integer
 CT	java/lang/Long
 CT	java/lang/Short
+CT	java/time/DayOfWeek
 CT	java/time/Duration
 CT	java/time/LocalDate
 CT	java/time/LocalDateTime
 CT	java/time/LocalTime
+CT	java/time/Month
 CT	java/time/MonthDay
 CT	java/time/OffsetDateTime
 CT	java/time/OffsetTime
@@ -17,11 +19,20 @@ CT	java/time/Period
 CT	java/time/Year
 CT	java/time/YearMonth
 CT	java/time/ZoneOffset
+CT	java/time/chrono/HijrahEra
+CT	java/time/chrono/IsoEra
 CT	java/time/chrono/JapaneseEra
+CT	java/time/chrono/MinguoEra
+CT	java/time/chrono/ThaiBuddhistEra
+CT	java/time/format/TextStyle
+CT	java/time/temporal/ChronoField
+CT	java/time/temporal/ChronoUnit
 CT	java/time/temporal/ValueRange
 CT	java/util/UUID
-DEC	java/lang/Boolean	TRUE	Ljava/lang/Boolean;
+CT	java/util/concurrent/TimeUnit
+CT	javax/lang/model/SourceVersion
 DEC	java/lang/Boolean	FALSE	Ljava/lang/Boolean;
+DEC	java/lang/Boolean	TRUE	Ljava/lang/Boolean;
 DEC	java/lang/Byte	valueOf	(B)Ljava/lang/Byte;	byteValue()B
 DEC	java/lang/Character	valueOf	(C)Ljava/lang/Character;	charValue()C
 DEC	java/lang/Double	valueOf	(D)Ljava/lang/Double;	doubleValue()D
@@ -59,19 +70,8 @@ DEC	java/time/chrono/JapaneseEra	SHOWA	Ljava/time/chrono/JapaneseEra;
 DEC	java/time/chrono/JapaneseEra	TAISHO	Ljava/time/chrono/JapaneseEra;
 DEC	java/time/temporal/ValueRange	of	(JJJJ)Ljava/time/temporal/ValueRange;	getMinimum()J	getLargestMinimum()J	getSmallestMaximum()J	getMaximum()J
 DEC	java/util/UUID	<init>	(JJ)V	getMostSignificantBits()J	getLeastSignificantBits()J
-EN	java/time/DayOfWeek
-EN	java/time/Month
-EN	java/time/chrono/HijrahEra
-EN	java/time/chrono/IsoEra
-EN	java/time/chrono/MinguoEra
-EN	java/time/chrono/ThaiBuddhistEra
-EN	java/time/format/TextStyle
-EN	java/time/temporal/ChronoField
-EN	java/time/temporal/ChronoUnit
-EN	java/util/concurrent/TimeUnit
-EN	javax/lang/model/SourceVersion
-REC	java/lang/Boolean	TRUE	Ljava/lang/Boolean;
 REC	java/lang/Boolean	FALSE	Ljava/lang/Boolean;
+REC	java/lang/Boolean	TRUE	Ljava/lang/Boolean;
 REC	java/lang/Boolean	hashCode	()I
 REC	java/lang/Boolean	parseBoolean	(Ljava/lang/String;)Z
 REC	java/lang/Boolean	valueOf	(Ljava/lang/String;)Ljava/lang/Boolean;
@@ -286,6 +286,7 @@ REC	java/nio/charset/StandardCharsets	UTF_16LE	Ljava/nio/charset/Charset;
 REC	java/nio/charset/StandardCharsets	UTF_8	Ljava/nio/charset/Charset;
 REC	java/time/DayOfWeek	from	(Ljava/time/temporal/TemporalAccessor;)Ljava/time/DayOfWeek;
 REC	java/time/DayOfWeek	of	(I)Ljava/time/DayOfWeek;
+REC	java/time/DayOfWeek	valueOf	(Ljava/lang/String;)Ljava/time/DayOfWeek;
 REC	java/time/Duration	ZERO	Ljava/time/Duration;
 REC	java/time/Duration	between	(Ljava/time/temporal/Temporal;Ljava/time/temporal/Temporal;)Ljava/time/Duration;
 REC	java/time/Duration	from	(Ljava/time/temporal/TemporalAmount;)Ljava/time/Duration;
@@ -341,6 +342,7 @@ REC	java/time/LocalTime	parse	(Ljava/lang/CharSequence;)Ljava/time/LocalTime;
 REC	java/time/LocalTime	parse	(Ljava/lang/CharSequence;Ljava/time/format/DateTimeFormatter;)Ljava/time/LocalTime;
 REC	java/time/Month	from	(Ljava/time/temporal/TemporalAccessor;)Ljava/time/Month;
 REC	java/time/Month	of	(I)Ljava/time/Month;
+REC	java/time/Month	valueOf	(Ljava/lang/String;)Ljava/time/Month;
 REC	java/time/MonthDay	from	(Ljava/time/temporal/TemporalAccessor;)Ljava/time/MonthDay;
 REC	java/time/MonthDay	of	(Ljava/time/Month;I)Ljava/time/MonthDay;
 REC	java/time/MonthDay	parse	(Ljava/lang/CharSequence;)Ljava/time/MonthDay;
@@ -391,7 +393,9 @@ REC	java/time/ZoneOffset	ofHoursMinutes	(II)Ljava/time/ZoneOffset;
 REC	java/time/ZoneOffset	ofHoursMinutesSeconds	(III)Ljava/time/ZoneOffset;
 REC	java/time/ZoneOffset	ofTotalSeconds	(I)Ljava/time/ZoneOffset;
 REC	java/time/chrono/HijrahEra	of	(I)Ljava/time/chrono/HijrahEra;
+REC	java/time/chrono/HijrahEra	valueOf	(Ljava/lang/String;)Ljava/time/chrono/HijrahEra;
 REC	java/time/chrono/IsoEra	of	(I)Ljava/time/chrono/IsoEra;
+REC	java/time/chrono/IsoEra	valueOf	(Ljava/lang/String;)Ljava/time/chrono/IsoEra;
 REC	java/time/chrono/JapaneseEra	HEISEI	Ljava/time/chrono/JapaneseEra;
 REC	java/time/chrono/JapaneseEra	MEIJI	Ljava/time/chrono/JapaneseEra;
 REC	java/time/chrono/JapaneseEra	REIWA	Ljava/time/chrono/JapaneseEra;
@@ -400,7 +404,12 @@ REC	java/time/chrono/JapaneseEra	TAISHO	Ljava/time/chrono/JapaneseEra;
 REC	java/time/chrono/JapaneseEra	of	(I)Ljava/time/chrono/JapaneseEra;
 REC	java/time/chrono/JapaneseEra	valueOf	(Ljava/lang/String;)Ljava/time/chrono/JapaneseEra;
 REC	java/time/chrono/MinguoEra	of	(I)Ljava/time/chrono/MinguoEra;
+REC	java/time/chrono/MinguoEra	valueOf	(Ljava/lang/String;)Ljava/time/chrono/MinguoEra;
 REC	java/time/chrono/ThaiBuddhistEra	of	(I)Ljava/time/chrono/ThaiBuddhistEra;
+REC	java/time/chrono/ThaiBuddhistEra	valueOf	(Ljava/lang/String;)Ljava/time/chrono/ThaiBuddhistEra;
+REC	java/time/format/TextStyle	valueOf	(Ljava/lang/String;)Ljava/time/format/TextStyle;
+REC	java/time/temporal/ChronoField	valueOf	(Ljava/lang/String;)Ljava/time/temporal/ChronoField;
+REC	java/time/temporal/ChronoUnit	valueOf	(Ljava/lang/String;)Ljava/time/temporal/ChronoUnit;
 REC	java/time/temporal/ValueRange	of	(JJ)Ljava/time/temporal/ValueRange;
 REC	java/time/temporal/ValueRange	of	(JJJ)Ljava/time/temporal/ValueRange;
 REC	java/time/temporal/ValueRange	of	(JJJJ)Ljava/time/temporal/ValueRange;
@@ -428,5 +437,7 @@ REC	java/util/Locale	UK	Ljava/util/Locale;
 REC	java/util/Locale	US	Ljava/util/Locale;
 REC	java/util/UUID	fromString	(Ljava/lang/String;)Ljava/util/UUID;
 REC	java/util/UUID	nameUUIDFromBytes	([B)Ljava/util/UUID;
+REC	java/util/concurrent/TimeUnit	valueOf	(Ljava/lang/String;)Ljava/util/concurrent/TimeUnit;
 REC	javax/lang/model/SourceVersion	isKeyword	(Ljava/lang/CharSequence;Ljavax/lang/model/SourceVersion;)Z
 REC	javax/lang/model/SourceVersion	isName	(Ljava/lang/CharSequence;Ljavax/lang/model/SourceVersion;)Z
+REC	javax/lang/model/SourceVersion	valueOf	(Ljava/lang/String;)Ljavax/lang/model/SourceVersion;

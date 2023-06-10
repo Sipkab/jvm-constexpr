@@ -41,6 +41,10 @@ import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodNode;
 //this class is separate from ConstantExpressionInliner because if this code were in clinit, then that could run
 //slower, because the static initializer may be slower to run 
 class BaseConfig {
+	public static final String ROW_TYPE_CONSTANTTYPE = "CONSTANTTYPE";
+	public static final String ROW_TYPE_RECONSTRUCTOR = "RECONSTRUCTOR";
+	public static final String ROW_TYPE_DECONSTRUCTOR = "DECONSTRUCTOR";
+
 	private static final Pattern PATTERN_WHITESPACE = Pattern.compile("[ \\t]+");
 
 	public static void loadBaseConfig(Map<String, InlinerTypeReference> baseConstantTypes,
@@ -81,7 +85,7 @@ class BaseConfig {
 				String[] split = PATTERN_WHITESPACE.split(line);
 				switch (split[0].toUpperCase(Locale.ROOT)) {
 					case "CT":
-					case "CONSTANTTYPE": {
+					case ROW_TYPE_CONSTANTTYPE: {
 						String classinternalname = split[1];
 
 						String classname = Type.getObjectType(classinternalname).getClassName();
@@ -94,30 +98,8 @@ class BaseConfig {
 						}
 						break;
 					}
-					case "EN":
-					case "ENUMTYPE": {
-						String classinternalname = split[1];
-
-						Type asmtype = Type.getObjectType(classinternalname);
-						String classname = asmtype.getClassName();
-						MethodKey valueofmethodkey = new MethodKey(classinternalname, "valueOf",
-								Type.getMethodDescriptor(asmtype, Type.getType(String.class)));
-
-						try {
-							Class<?> type = Class.forName(classname, false, loadclassloader);
-
-							addConstantReconstructor(baseConstantReconstructors, valueofmethodkey, loadclassloader);
-							baseConstantTypes.put(classinternalname, new InlinerTypeReference(type));
-						} catch (ClassNotFoundException e) {
-							baseConstantTypes.put(classinternalname,
-									new MemberNotAvailableInlinerTypeReference(classinternalname, e));
-							baseConstantReconstructors.put(valueofmethodkey, new TypeReferencedConstantReconstructor(
-									new MemberNotAvailableConstantReconstructor(valueofmethodkey, e)));
-						}
-						break;
-					}
 					case "REC":
-					case "RECONSTRUCTOR": {
+					case ROW_TYPE_RECONSTRUCTOR: {
 						String classinternalname = split[1];
 						String membername = split[2];
 						String descriptor = split[3];
@@ -127,7 +109,7 @@ class BaseConfig {
 						break;
 					}
 					case "DEC":
-					case "DECONSTRUCTOR": {
+					case ROW_TYPE_DECONSTRUCTOR: {
 						String ownerclassinternalname = split[1];
 
 						String membername = split[2];
