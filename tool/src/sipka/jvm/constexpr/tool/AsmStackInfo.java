@@ -92,8 +92,12 @@ public final class AsmStackInfo {
 		return new AsmStackInfo(Kind.FIELD, fieldowner, fieldname, fielddescriptor, object, null);
 	}
 
-	static AsmStackInfo createOperator(int opcode, Type checkcasttype, AsmStackInfo[] operands) {
-		return new AsmStackInfo(Kind.OPERATOR, checkcasttype, null, null, opcode, operands);
+	static AsmStackInfo createOperator(int opcode, AsmStackInfo[] operands) {
+		return new AsmStackInfo(Kind.OPERATOR, null, null, null, opcode, operands);
+	}
+
+	static AsmStackInfo createCheckCast(Type checkcasttype, AsmStackInfo[] operands) {
+		return new AsmStackInfo(Kind.OPERATOR, checkcasttype, null, null, Opcodes.CHECKCAST, operands);
 	}
 
 	static AsmStackInfo createInstanceOf(Type instanceoftype, AsmStackInfo[] operands) {

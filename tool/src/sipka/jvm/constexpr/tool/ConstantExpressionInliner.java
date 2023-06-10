@@ -1225,7 +1225,7 @@ public class ConstantExpressionInliner {
 			return null;
 		}
 		value = Utils.asmCastValueToReceiverType(value, receivertype);
-		return new AsmStackReconstructedValue(leftop.getFirstIns(), endins, AsmStackInfo.createOperator(opcode, null,
+		return new AsmStackReconstructedValue(leftop.getFirstIns(), endins, AsmStackInfo.createOperator(opcode,
 				new AsmStackInfo[] { leftop.getStackInfo(), rightop.getStackInfo() }), value);
 	}
 
@@ -1247,16 +1247,16 @@ public class ConstantExpressionInliner {
 			//failed to apply operand on a non-null
 			return null;
 		}
-		Type checkcasttype;
+		AsmStackInfo asmstackinfo;
 		if (opcode == Opcodes.CHECKCAST) {
 			TypeInsnNode typeins = (TypeInsnNode) ins;
-			checkcasttype = Type.getObjectType(typeins.desc);
+			asmstackinfo = AsmStackInfo.createCheckCast(Type.getObjectType(typeins.desc),
+					new AsmStackInfo[] { val.getStackInfo() });
 		} else {
-			checkcasttype = null;
+			asmstackinfo = AsmStackInfo.createOperator(opcode, new AsmStackInfo[] { val.getStackInfo() });
 		}
 		nval = Utils.asmCastValueToReceiverType(nval, receivertype);
-		return new AsmStackReconstructedValue(val.getFirstIns(), endins,
-				AsmStackInfo.createOperator(opcode, checkcasttype, new AsmStackInfo[] { val.getStackInfo() }), nval);
+		return new AsmStackReconstructedValue(val.getFirstIns(), endins, asmstackinfo, nval);
 	}
 
 	private boolean inlineFieldValue(TransformedClass fieldowner, TransformedField transfield,
