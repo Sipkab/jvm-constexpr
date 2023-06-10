@@ -1422,6 +1422,12 @@ public class Utils {
 					sb.append(") ");
 					appendAsmStackInfo(sb, elems[0], "");
 					sb.append(')');
+				} else if (opcode == Opcodes.INSTANCEOF) {
+					sb.append("(");
+					appendAsmStackInfo(sb, elems[0], "");
+					sb.append(" instanceof ");
+					sb.append(info.getType().getClassName());
+					sb.append(')');
 				} else if (elems.length == 1) {
 					//unary operator
 					sb.append(opstr);
@@ -1757,6 +1763,8 @@ public class Utils {
 				TypeInsnNode typeins = (TypeInsnNode) ins;
 				return Type.getObjectType(typeins.desc);
 			}
+			case Opcodes.INSTANCEOF:
+				return Type.INT_TYPE;
 
 			case Opcodes.I2B:
 				return Type.BYTE_TYPE;

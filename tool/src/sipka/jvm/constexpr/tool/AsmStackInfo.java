@@ -96,6 +96,10 @@ public final class AsmStackInfo {
 		return new AsmStackInfo(Kind.OPERATOR, checkcasttype, null, null, opcode, operands);
 	}
 
+	static AsmStackInfo createInstanceOf(Type instanceoftype, AsmStackInfo[] operands) {
+		return new AsmStackInfo(Kind.OPERATOR, instanceoftype, null, null, Opcodes.INSTANCEOF, operands);
+	}
+
 	/**
 	 * Gets the kind.
 	 * 
@@ -115,7 +119,8 @@ public final class AsmStackInfo {
 	 * <li>{@link Kind#METHOD}: The declaring type of the method</li>
 	 * <li>{@link Kind#STATIC_FIELD}: The declaring type of the field</li>
 	 * <li>{@link Kind#FIELD}: The declaring type of the field</li>
-	 * <li>{@link Kind#OPERATOR}: The cast type if the opcode is {@link Opcodes#CHECKCAST CHECKCAST}</li>
+	 * <li>{@link Kind#OPERATOR}: The cast type if the opcode is {@link Opcodes#CHECKCAST CHECKCAST} or
+	 * {@link Opcodes#INSTANCEOF INSTANCEOF}</li>
 	 * </ul>
 	 * 
 	 * @return The type or <code>null</code> if not applicable.

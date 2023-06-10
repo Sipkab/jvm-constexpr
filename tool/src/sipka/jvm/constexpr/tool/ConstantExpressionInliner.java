@@ -795,6 +795,21 @@ public class ConstantExpressionInliner {
 				case Opcodes.CHECKCAST: {
 					return reconstructUnaryOperator(context, ins, endins, opcode, receivertype);
 				}
+				case Opcodes.INSTANCEOF: {
+					TypeInsnNode typeins = (TypeInsnNode) ins;
+					ReconstructionContext ncontext = context.withReceiverType(Object.class);
+					AsmStackReconstructedValue recval = reconstructStackValue(ncontext, ins.getPrevious());
+					if (recval == null) {
+						return null;
+					}
+					Object val = recval.getValue();
+					Type instanceoftype = Type.getObjectType(typeins.desc);
+					boolean isinstance = val != null && isInstance(val.getClass(), instanceoftype);
+					int opresval = isinstance ? 1 : 0;
+					return new AsmStackReconstructedValue(recval.getFirstIns(), endins,
+							AsmStackInfo.createInstanceOf(instanceoftype, new AsmStackInfo[] { recval.getStackInfo() }),
+							opresval);
+				}
 				case Opcodes.I2L:
 				case Opcodes.I2F:
 				case Opcodes.I2D:
@@ -933,7 +948,7 @@ public class ConstantExpressionInliner {
 					}
 					Object array = Array.newInstance(arraycomponenttyle, size);
 
-					return new AsmStackReconstructedValue(sizeval.firstIns, endins,
+					return new AsmStackReconstructedValue(sizeval.getFirstIns(), endins,
 							AsmStackInfo.createArray(componentasmtype, sizeval.getStackInfo(), new AsmStackInfo[size]),
 							array);
 				}
@@ -1022,6 +1037,17 @@ public class ConstantExpressionInliner {
 				}
 			}
 		}
+	}
+
+	private static boolean isInstance(Class<?> valclass, Type type) {
+		if (type.getSort() == Type.ARRAY) {
+			Type elemtype = type.getElementType();
+			if (!valclass.isArray()) {
+				return false;
+			}
+			return isInstance(valclass.getComponentType(), elemtype);
+		}
+		return Utils.hasSuperTypeInternalName(valclass, type.getInternalName());
 	}
 
 	boolean isConstantType(String typeinternalname) {
@@ -1229,7 +1255,7 @@ public class ConstantExpressionInliner {
 			checkcasttype = null;
 		}
 		nval = Utils.asmCastValueToReceiverType(nval, receivertype);
-		return new AsmStackReconstructedValue(val.firstIns, endins,
+		return new AsmStackReconstructedValue(val.getFirstIns(), endins,
 				AsmStackInfo.createOperator(opcode, checkcasttype, new AsmStackInfo[] { val.getStackInfo() }), nval);
 	}
 
