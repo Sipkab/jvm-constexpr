@@ -10,6 +10,7 @@ import java.util.Map;
 
 import sipka.jvm.constexpr.annotations.ConstantExpression;
 import sipka.jvm.constexpr.main.CliMain;
+import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.ClassNode;
 import testing.saker.SakerTest;
 import testing.sipka.jvm.constexpr.TestUtils;
@@ -21,11 +22,13 @@ public class SimpleConstantTypeCliTest extends CliTestCase {
 	protected void runTestImpl(Map<String, String> parameters) throws Throwable {
 		Path injarpath = testCaseDirectory.resolve("classes.jar");
 		Path outjarpath = testCaseDirectory.resolve("out.jar");
-		TestUtils.writeJar(injarpath, Constants.class, CliSimpleConstantType.class, RuntimeTestAnnot.class);
+		TestUtils.writeJar(injarpath, Constants.class, CliSimpleConstantType.class, RuntimeTestAnnot.class,
+				RuntimeStripTestAnnot.class);
 
 		Files.deleteIfExists(outjarpath);
 
-		CliMain.main("-input", injarpath.toString(), "-output", outjarpath.toString());
+		CliMain.main("-input", injarpath.toString(), "-output", outjarpath.toString(), "-strip-annot", "defaults",
+				"-strip-annot", Type.getInternalName(RuntimeStripTestAnnot.class));
 
 		ClassNode classnode = TestUtils.loadClassNodeFromJar(outjarpath, Constants.class.getName());
 		assertEquals(TestUtils.getFields(classnode).get("METHODVAL").value, 10, "RECONS.value");
@@ -68,14 +71,20 @@ public class SimpleConstantTypeCliTest extends CliTestCase {
 	@Retention(RetentionPolicy.RUNTIME)
 	@Target({ ElementType.FIELD, ElementType.METHOD, ElementType.CONSTRUCTOR, ElementType.TYPE })
 	public @interface RuntimeTestAnnot {
+	}
 
+	@Retention(RetentionPolicy.RUNTIME)
+	@Target({ ElementType.FIELD, ElementType.METHOD, ElementType.CONSTRUCTOR, ElementType.TYPE })
+	public @interface RuntimeStripTestAnnot {
 	}
 
 	@ConstantExpression
 	@RuntimeTestAnnot // check that this is not stripped
+	@RuntimeStripTestAnnot // check that this is stripped
 	public static class CliSimpleConstantType {
 
 		@RuntimeTestAnnot // check that this is not stripped
+		@RuntimeStripTestAnnot // check that this is stripped
 		public static final CliSimpleConstantType ZERO = new CliSimpleConstantType(0);
 		static {
 			ZERO.source = "ZERO";
@@ -85,11 +94,13 @@ public class SimpleConstantTypeCliTest extends CliTestCase {
 		public transient String source;
 
 		@RuntimeTestAnnot // check that this is not stripped
+		@RuntimeStripTestAnnot // check that this is stripped
 		public CliSimpleConstantType(int value) {
 			this.value = value;
 			this.source = "constructor";
 		}
 
+		@RuntimeStripTestAnnot // check that this is stripped
 		public CliSimpleConstantType(CliSimpleConstantType other) {
 			this.value = other.value;
 			this.source = "copy-constructor";

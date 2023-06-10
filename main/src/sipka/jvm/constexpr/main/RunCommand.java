@@ -112,6 +112,8 @@ public class RunCommand {
 	@MultiParameter(String.class)
 	public Collection<String> configFiles = new LinkedHashSet<>();
 
+	private Set<String> stripAnnotations = null;
+
 	private boolean outputZip;
 	private boolean outputDir;
 
@@ -134,6 +136,37 @@ public class RunCommand {
 	 */
 	//use LinkedHashMap to keep the order as it was read on the classpath
 	private Map<String, ZipEntryBytes> outputZipEntryBytes = new LinkedHashMap<>();
+
+	/**
+	 * <pre>
+	 * Sets the internal names of annotations that should be stripped.
+	 * 
+	 * By default, all annotations provided by jvm-constexpr are stripped.
+	 * If this parameter is used, then these defaults are overridden (removed).
+	 * 
+	 * Use empty argument to remove the defaults (that is to not strip any annotations).
+	 * Use the "defaults" argument to add the default configuration for stripping.
+	 * </pre>
+	 * 
+	 * @cmd-format &lt;class-internal-name&gt;
+	 */
+	@Parameter({ "-strip-annot", "-strip-annotation" })
+	public void stripAnnotation(String annotinternalname) {
+		if (this.stripAnnotations == null) {
+			this.stripAnnotations = new TreeSet<>();
+		}
+		//allow comma/semicolon separated list
+		for (String s : annotinternalname.split("[,; \t]+")) {
+			if (s.isEmpty()) {
+				continue;
+			}
+			if ("defaults".equals(s)) {
+				this.stripAnnotations.addAll(getDefaultStripAnnotations());
+			} else {
+				this.stripAnnotations.add(s);
+			}
+		}
+	}
 
 	public void call() throws Exception {
 		if (overwrite && output != null) {
@@ -182,9 +215,12 @@ public class RunCommand {
 		options.setConfigFiles(configfilepaths);
 
 		//strip the constant annotations by default
-		Set<String> stripannots = new TreeSet<>();
-		stripannots.add(Type.getInternalName(ConstantExpression.class));
-		stripannots.add(Type.getInternalName(Deconstructor.class));
+		Set<String> stripannots;
+		if (stripAnnotations == null) {
+			stripannots = getDefaultStripAnnotations();
+		} else {
+			stripannots = new TreeSet<>(stripAnnotations);
+		}
 		options.setStripAnnotations(stripannots);
 
 		//scan the complete classpath for annotations
@@ -265,6 +301,14 @@ public class RunCommand {
 				}
 			}
 		}
+	}
+
+	private static Set<String> getDefaultStripAnnotations() {
+		Set<String> stripannots;
+		stripannots = new TreeSet<>();
+		stripannots.add(Type.getInternalName(ConstantExpression.class));
+		stripannots.add(Type.getInternalName(Deconstructor.class));
+		return stripannots;
 	}
 
 	private static InlinerOptions createBaseOptions() {
