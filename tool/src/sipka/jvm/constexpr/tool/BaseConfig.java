@@ -14,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.NoSuchFileException;
 import java.time.temporal.ChronoField;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -103,10 +104,10 @@ class BaseConfig {
 					case ROW_TYPE_RECONSTRUCTOR: {
 						String classinternalname = split[1];
 						String membername = split[2];
-						String descriptor = split[3];
+						String descriptor = split.length > 3 ? split[3] : null;
 
-						MemberKey memberkey = MemberKey.create(classinternalname, membername, descriptor);
-						addConstantReconstructor(baseConstantReconstructors, memberkey, loadclassloader);
+						addConstantReconstructor(baseConstantReconstructors, classinternalname, membername, descriptor,
+								loadclassloader);
 						break;
 					}
 					case "DEC":
@@ -144,6 +145,11 @@ class BaseConfig {
 								deconstructedasmtype = ownerasmtype;
 							} else {
 								deconstructedasmtype = membertype.getReturnType();
+							}
+							if (!ownerasmtype.equals(deconstructedasmtype)) {
+								//only support method deconstructors that return the same type as the declaring class
+								//this is to avoid possible issues with static object caches in separate classes
+								throw new UnsupportedOperationException("unsupported deconstructor type: " + line);
 							}
 
 							String deconstructedasmtypeinternalname = deconstructedasmtype.getInternalName();
@@ -236,17 +242,19 @@ class BaseConfig {
 							try {
 								ownertype = Class.forName(ownerasmtype.getClassName(), false, loadclassloader);
 							} catch (ClassNotFoundException e) {
-
 								deconsconfig.classNotAvailable(ownerclassinternalname, e);
 								continue reader_loop;
 							}
 
-							try {
-								Field field = Utils.getFieldForDescriptor(ownertype, membername, descriptor);
-								deconsconfig.selectors.add(DeconstructionSelector.getStaticFieldEquality(field));
-							} catch (NoSuchFieldException e) {
-								deconsconfig.memberNotAvailable(ownerclassinternalname, membername, descriptor, e);
+							Collection<Field> matchedfields = Utils.matchFieldsForDescriptor(ownertype, membername,
+									descriptor);
+							if (matchedfields.isEmpty()) {
+								deconsconfig.memberNotAvailable(ownerclassinternalname, membername, descriptor,
+										new NoSuchFieldException());
 								continue reader_loop;
+							}
+							for (Field field : matchedfields) {
+								deconsconfig.selectors.add(DeconstructionSelector.getStaticFieldEquality(field));
 							}
 						}
 						break;
@@ -299,46 +307,50 @@ class BaseConfig {
 	}
 
 	private static void addConstantReconstructor(
-			Map<? super MemberKey, ? super TypeReferencedConstantReconstructor> reconstructors, MemberKey memberkey,
-			ClassLoader loadclassloader) {
+			Map<? super MemberKey, ? super TypeReferencedConstantReconstructor> reconstructors,
+			String classinternalname, String membernamematch, String descriptormatch, ClassLoader loadclassloader) {
 		ConstantReconstructor reconstructor;
 		Class<?> type = null;
-		if (memberkey instanceof MethodKey) {
-			MethodKey methodkey = (MethodKey) memberkey;
-			try {
-				type = Class.forName(Type.getObjectType(memberkey.getOwner()).getClassName(), false, loadclassloader);
-				Executable executable = Utils.getExecutableForDescriptor(type, methodkey.getOwner(),
-						methodkey.getMemberName(), methodkey.getMethodDescriptor());
+		try {
+			type = Class.forName(Type.getObjectType(classinternalname).getClassName(), false, loadclassloader);
+		} catch (ClassNotFoundException e) {
+			// TODO log this exception in a proper way
+			e.printStackTrace();
+			return;
+		}
+		for (Member member : Utils.matchMembers(type, membernamematch, descriptormatch)) {
+			MemberKey memberkey;
+			if (member instanceof Executable) {
+				Executable executable = (Executable) member;
 				if (executable instanceof Method) {
-					reconstructor = new MethodBasedConstantReconstructor((Method) executable,
+					Method method = (Method) executable;
+					String memberdescriptor = Type.getMethodDescriptor(method);
+					String methodname = member.getName();
+					if (Utils.isNeverOptimizableObjectMethod(methodname, memberdescriptor)) {
+						continue;
+					}
+					memberkey = MethodKey.create(classinternalname, methodname, memberdescriptor);
+					reconstructor = new MethodBasedConstantReconstructor(method,
 							Modifier.isStatic(executable.getModifiers()) ? ReconstructorPredicate.ALLOW_ALL
-									: ReconstructorPredicate.ALLOW_INSTANCE_OF);
+									: ReconstructorPredicate.allowInstanceOf(classinternalname));
 				} else if (executable instanceof Constructor<?>) {
+					memberkey = MemberKey.create(member);
 					reconstructor = new ConstructorBasedConstantReconstructor((Constructor<?>) executable);
 				} else {
-					throw new IllegalArgumentException("Unknown executable type: " + executable + " for " + memberkey);
+					throw new IllegalArgumentException("Unknown executable type: " + executable);
 				}
-
-			} catch (ReflectiveOperationException e) {
-				reconstructor = new MemberNotAvailableConstantReconstructor(methodkey, e);
+			} else if (member instanceof Field) {
+				memberkey = MemberKey.create(member);
+				reconstructor = new FieldBasedConstantReconstructor((Field) member);
+			} else {
+				throw new IllegalArgumentException(
+						"Unknown " + Member.class.getSimpleName() + " subclass: " + member.getClass());
 			}
-		} else if (memberkey instanceof FieldKey) {
-			FieldKey fieldkey = (FieldKey) memberkey;
-			try {
-				type = Class.forName(Type.getObjectType(memberkey.getOwner()).getClassName(), false, loadclassloader);
-				Field f = Utils.getFieldForDescriptor(type, fieldkey.getMemberName(), fieldkey.getFieldDescriptor());
-				reconstructor = new FieldBasedConstantReconstructor(f);
-			} catch (ReflectiveOperationException e) {
-				reconstructor = new MemberNotAvailableConstantReconstructor(fieldkey, e);
+			Object prev = reconstructors.putIfAbsent(memberkey,
+					new TypeReferencedConstantReconstructor(reconstructor, type));
+			if (prev != null) {
+				throw new IllegalArgumentException("Duplicate constant reconstructor for: " + memberkey);
 			}
-		} else {
-			throw new IllegalArgumentException(
-					"Unknown " + MemberKey.class.getSimpleName() + " subclass: " + memberkey.getClass());
-		}
-		Object prev = reconstructors.putIfAbsent(memberkey,
-				new TypeReferencedConstantReconstructor(reconstructor, type));
-		if (prev != null) {
-			throw new IllegalArgumentException("Duplicate constant reconstructor for: " + memberkey);
 		}
 	}
 

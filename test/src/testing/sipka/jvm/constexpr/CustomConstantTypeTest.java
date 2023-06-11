@@ -58,6 +58,8 @@ public class CustomConstantTypeTest extends SakerTestCase {
 		public static final int CMP3 = CC2.compareTo(new MyConstantClass(CMP2));
 
 		public static final int HASHCODE1 = CC1.hashCode();
+		
+		public static final Class<?> TYPE = new MyConstantClass(999).getClass();
 
 		public static final MyConstantClass MULTIPATH;
 		static {

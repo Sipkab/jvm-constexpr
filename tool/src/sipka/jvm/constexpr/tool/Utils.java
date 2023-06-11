@@ -11,14 +11,20 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Field;
+import java.lang.reflect.Member;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.Predicate;
 
 import sipka.jvm.constexpr.tool.log.BytecodeLocation;
 import sipka.jvm.constexpr.tool.options.DeconstructionContext;
@@ -804,6 +810,132 @@ public class Utils {
 				"Field not found on " + type + " with name: " + name + " and descriptor: " + descriptor);
 	}
 
+	public static Collection<Field> matchFieldsForDescriptor(Class<?> type, String namematch, String descriptormatch) {
+		Collection<Field> result = new ArrayList<>();
+		for (Field f : type.getDeclaredFields()) {
+			if (!wildcardMatches(f.getName(), namematch)) {
+				continue;
+			}
+			if (descriptormatch != null && !wildcardMatches(Type.getDescriptor(f.getType()), descriptormatch)) {
+				//no match
+				continue;
+			}
+			f.setAccessible(true);
+			result.add(f);
+		}
+		return result;
+	}
+
+	public static Collection<Member> matchMembers(Class<?> type, String namematch, String descriptormatch) {
+		if (namematch == null || namematch.isEmpty()) {
+			//this name doesn match anything
+			return Collections.emptyList();
+		}
+		if (descriptormatch != null && descriptormatch.isEmpty()) {
+			//this descriptor never matches anything
+			return Collections.emptyList();
+		}
+		Collection<Member> result = new ArrayList<>();
+		if (CONSTRUCTOR_METHOD_NAME.equals(namematch)) {
+			//matching for a constructor
+			for (Constructor<?> constructor : type.getDeclaredConstructors()) {
+				if (descriptormatch != null
+						&& !wildcardMatches(Type.getConstructorDescriptor(constructor), descriptormatch)) {
+					//no match
+					continue;
+				}
+				constructor.setAccessible(true);
+				result.add(constructor);
+			}
+		} else {
+			//matching for methods or fields
+			if (descriptormatch == null || descriptormatch.charAt(0) != '(') {
+				//only check fields if the descriptor is not set 
+				// or
+				//not a method descriptor (that starts with '(')
+				for (Field f : type.getDeclaredFields()) {
+					if (!wildcardMatches(f.getName(), namematch)) {
+						continue;
+					}
+					if (descriptormatch != null && !wildcardMatches(Type.getDescriptor(f.getType()), descriptormatch)) {
+						//no descriptor match
+						continue;
+					}
+					f.setAccessible(true);
+					result.add(f);
+				}
+			}
+			if (descriptormatch == null || descriptormatch.charAt(0) != 'L') {
+				//only check methods if the descriptor is not set 
+				// or
+				//not a field descriptor (that starts with 'L', that is the internal type descriptor)
+				Collection<Method> matchingmethods = getAllMethods(type, m -> {
+					if (!wildcardMatches(m.getName(), namematch)) {
+						return false;
+					}
+					if (descriptormatch != null && !wildcardMatches(Type.getMethodDescriptor(m), descriptormatch)) {
+						//no descriptor match
+						return false;
+					}
+					if (Modifier.isStatic(m.getModifiers()) && m.getDeclaringClass() != type) {
+						//only include static methods for the type itself, not for supertypes
+						return false;
+					}
+					return true;
+				});
+				for (Method m : matchingmethods) {
+					m.setAccessible(true);
+					result.add(m);
+				}
+			}
+		}
+		return result;
+	}
+
+	//copied from saker.build.file.path.WildcardPath.wildcardMatches(String, String)
+	private static boolean wildcardMatches(String name, String wildcard) {
+		int nameindex = 0;
+		int starindex = wildcard.indexOf('*');
+		if (starindex < 0) {
+			return name.equals(wildcard);
+		}
+		if (!name.regionMatches(0, wildcard, 0, starindex)) {
+			//same as
+			//    name.startsWith(wildcard.substring(0, starindex))
+			//but doesnt create a substring
+			return false;
+		}
+		int wildcardlen = wildcard.length();
+		while (starindex + 1 < wildcardlen) {
+			int nextstarindex = wildcard.indexOf('*', starindex + 1);
+
+			if (nextstarindex < 0) {
+				//if we got no more star wildcards, we return true if the remaining of the name matches the remaining of the wildcard
+
+				int sublen = wildcardlen - (starindex + 1);
+				//same as 
+				//    return name.endsWith(wildcard.substring(starindex + 1, wildcardlen));
+				// but doesnt create a substring
+				return name.regionMatches(name.length() - sublen, wildcard, starindex + 1, sublen);
+			}
+			String sub = wildcard.substring(starindex + 1, nextstarindex);
+			int subindex = name.indexOf(sub, nameindex);
+			if (subindex < 0) {
+				return false;
+			}
+			if (subindex >= nameindex) {
+				nameindex = subindex + sub.length();
+			}
+			starindex = nextstarindex;
+			if (nextstarindex < 0) {
+				break;
+			}
+		}
+		// Exits if starindex is at the end of name. Accept then.
+		// either all of the name was processed, or the last star is at the end
+		return nameindex == name.length() || starindex + 1 == wildcardlen;
+	}
+
 	public static Method getMethodForInstruction(Class<?> type, MethodInsnNode methodins) throws NoSuchMethodException {
 		return getMethodForMethodDescriptor(type, methodins.owner, methodins.desc, methodins.name);
 	}
@@ -850,6 +982,53 @@ public class Utils {
 			}
 		}
 		return null;
+	}
+
+	private static Collection<Method> getAllMethods(Class<?> type) {
+		return getAllMethods(type, m -> true);
+	}
+
+	private static Collection<Method> getAllMethods(Class<?> type, Predicate<? super Method> predicate) {
+		Map<String, Method> result = new TreeMap<>();
+		collectAllMethods(type, result, predicate);
+		return result.values();
+	}
+
+	private static void collectAllMethods(Class<?> type, Map<String, Method> result,
+			Predicate<? super Method> predicate) {
+		for (Method m : type.getDeclaredMethods()) {
+			if (predicate.test(m)) {
+				result.putIfAbsent(m.getName() + Type.getMethodDescriptor(m), m);
+			}
+		}
+		for (Method m : type.getMethods()) {
+			if (predicate.test(m)) {
+				result.putIfAbsent(m.getName() + Type.getMethodDescriptor(m), m);
+			}
+		}
+		Class<?> sc = type.getSuperclass();
+		if (sc != null) {
+			collectAllMethods(sc, result, predicate);
+		}
+		for (Class<?> itf : type.getInterfaces()) {
+			collectAllMethods(itf, result, predicate);
+		}
+	}
+
+	public static boolean isNeverOptimizableObjectMethod(String name, String descriptor) {
+		if ("wait".equals(name)) {
+			return "()V".equals(descriptor) || "(J)V".equals(descriptor) || "(JI)V".equals(descriptor);
+		}
+		if ("notify".equals(name)) {
+			return "()V".equals(descriptor);
+		}
+		if ("notifyAll".equals(name)) {
+			return "()V".equals(descriptor);
+		}
+		if ("finalize".equals(name)) {
+			return "()V".equals(descriptor);
+		}
+		return false;
 	}
 
 	public static boolean hasSuperTypeInternalName(Class<?> type, String searchtype) {

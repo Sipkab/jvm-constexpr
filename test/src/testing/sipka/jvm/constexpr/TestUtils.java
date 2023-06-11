@@ -246,7 +246,13 @@ public class TestUtils {
 			} else {
 				if (ObjectUtils.isSameClass(loadedval, fieldval)) {
 					//can't check equality if the field values are from different classloaders
-					SakerTestCase.assertEquals(loadedval, fieldval, fieldname + ": LOADED - CLASS");
+					if (ObjectUtils.classOf(loadedval) == Class.class) {
+						//if the values are Class instances, then check the class names instead of equality
+						//as they might be from different classloaders
+						SakerTestCase.assertEquals(((Class<?>) loadedval).getName(), ((Class<?>) fieldval).getName());
+					} else {
+						SakerTestCase.assertEquals(loadedval, fieldval, fieldname + ": LOADED - CLASS");
+					}
 				}
 			}
 

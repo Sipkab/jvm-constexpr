@@ -188,6 +188,7 @@ public class ConstantExpressionInliner {
 		 * Add the built in defaults for some classes
 		 */
 		constantDeconstructors.put(Type.getInternalName(String.class), StringConstantDeconstructor.INSTANCE);
+		constantDeconstructors.put(Type.getInternalName(Class.class), ClassConstantDeconstructor.INSTANCE);
 		constantDeconstructors.put(Type.getInternalName(StringBuilder.class),
 				StringBuilderConstantDeconstructor.INSTANCE);
 		for (Entry<String, DeconstructionSelector> entry : configConstantDeconstructors.entrySet()) {
@@ -1370,6 +1371,9 @@ public class ConstantExpressionInliner {
 				// of the transformed field
 				return true;
 			}
+			if (!canDeconstructValue(transclass, constantval)) {
+				return false;
+			}
 			deconsresult = deconstructor.deconstructValue(this, transclass, clinitmethodnode, constantval);
 			if (deconsresult == null) {
 				//did not deconstruct the value, so we can't replace the instructions in the static initializer
@@ -1500,10 +1504,8 @@ public class ConstantExpressionInliner {
 					result.add(new InsnNode(Opcodes.ACONST_NULL));
 					return DeconstructionResult.createConstant(result, null);
 				}
-				if (val instanceof Class) {
-					InsnList result = new InsnList();
-					result.add(new LdcInsnNode(Type.getType((Class<?>) val)));
-					return DeconstructionResult.createConstant(result, val);
+				if (!canDeconstructValue(transclass, val)) {
+					return null;
 				}
 				ConstantDeconstructor deconstructor = getConstantDeconstructor(val);
 				if (deconstructor == null) {
@@ -1520,6 +1522,22 @@ public class ConstantExpressionInliner {
 			default:
 				throw new AssertionError(type);
 		}
+	}
+
+	private static boolean canDeconstructValue(TransformedClass transclass, Object val) {
+		if (val == null) {
+			return true;
+		}
+		if (transclass.classNode.name.equals(Type.getInternalName(val.getClass()))) {
+			//don't replace (deconstruct) values with the same class that's being optimized
+			//as that could result in incorrectly optimizing the cache fields
+			//e.g.
+			//    public static final Type CACHEFIELD = new Type(123);
+			//could get replaced with Type.get(123)
+			//if that get(int) function uses the CACHEFIELD, then deconstructing would make this invalid
+			return false;
+		}
+		return true;
 	}
 
 	private boolean performInstructionInlining(TransformedClass transclass, MethodNode methodnode) {
@@ -1687,6 +1705,9 @@ public class ConstantExpressionInliner {
 			case Opcodes.INVOKEVIRTUAL:
 			case Opcodes.INVOKEINTERFACE: {
 				MethodInsnNode methodins = (MethodInsnNode) ins;
+				if (Utils.isNeverOptimizableObjectMethod(methodins.name, methodins.desc)) {
+					return null;
+				}
 
 				reconstructor = constantReconstructors.get(new MethodKey("", methodins.name, methodins.desc));
 				if (reconstructor != null) {
