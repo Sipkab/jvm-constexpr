@@ -1708,17 +1708,12 @@ public class ConstantExpressionInliner {
 				if (Utils.isNeverOptimizableObjectMethod(methodins.name, methodins.desc)) {
 					return null;
 				}
-
-				reconstructor = constantReconstructors.get(new MethodKey("", methodins.name, methodins.desc));
-				if (reconstructor != null) {
-					return reconstructor.reconstructValue(context, ins);
-				}
-
 				if ("toString".equals(methodins.name) && "()Ljava/lang/String;".equals(methodins.desc)) {
 					//handle toString specially
 					//if the reconstruction succeeds, then we can call toString on it and inline that result
 					return ToStringConstantReconstructor.INSTANCE.reconstructValue(context, methodins);
 				}
+
 				InlinerTypeReference typeref = constantTypes.get(methodins.owner);
 				if (typeref != null) {
 					Class<?> type = typeref.getType(this);
@@ -1754,6 +1749,15 @@ public class ConstantExpressionInliner {
 					}
 				}
 
+				//try to handle the reconstruction in a generic way, which will invoke the appropriate method if applicable 
+				reconstructor = constantReconstructors.get(new MethodKey("", methodins.name, methodins.desc));
+				if (reconstructor != null) {
+					AsmStackReconstructedValue reconstructed = reconstructor.reconstructValue(context, ins);
+					if (reconstructed != null) {
+						return reconstructed;
+					}
+					//if failed, then proceed below with the forced reconstruction if needed
+				}
 				break;
 			}
 			case Opcodes.INVOKESPECIAL: {
