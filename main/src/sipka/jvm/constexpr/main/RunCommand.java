@@ -19,8 +19,8 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.UUID;
@@ -35,9 +35,12 @@ import sipka.cmdline.api.MultiParameter;
 import sipka.cmdline.api.Parameter;
 import sipka.jvm.constexpr.annotations.ConstantExpression;
 import sipka.jvm.constexpr.annotations.Deconstructor;
+import sipka.jvm.constexpr.tool.AsmStackInfo;
 import sipka.jvm.constexpr.tool.ConstantExpressionInliner;
 import sipka.jvm.constexpr.tool.OutputConsumer;
 import sipka.jvm.constexpr.tool.Utils;
+import sipka.jvm.constexpr.tool.log.ForwardingToolLogger;
+import sipka.jvm.constexpr.tool.log.InstructionReplacementLogEntry;
 import sipka.jvm.constexpr.tool.log.LogEntry;
 import sipka.jvm.constexpr.tool.log.ToolLogger;
 import sipka.jvm.constexpr.tool.options.InlinerOptions;
@@ -168,6 +171,15 @@ public class RunCommand {
 		}
 	}
 
+	/**
+	 * <pre>
+	 * Flag to enable verbose logging for commonly performed optimizations.
+	 * </pre>
+	 */
+	@Parameter("-verbose-optimization-log")
+	@Flag
+	public boolean verboseOptimizationLog = false;
+
 	public void call() throws Exception {
 		if (overwrite && output != null) {
 			throw new IllegalArgumentException(
@@ -209,6 +221,11 @@ public class RunCommand {
 			}
 		}
 		InlinerOptions options = createBaseOptions();
+		NonVerboseLogger nvlogger = null;
+		if (!verboseOptimizationLog) {
+			nvlogger = new NonVerboseLogger(options.getLogger());
+			options.setLogger(nvlogger);
+		}
 
 		options.setConfigFiles(configfilepaths);
 
@@ -607,6 +624,30 @@ public class RunCommand {
 			if (inputkey instanceof OutputHandler) {
 				((OutputHandler) inputkey).handle(resultBytes);
 			}
+		}
+	}
+
+	private static final class NonVerboseLogger extends ForwardingToolLogger {
+		private NonVerboseLogger(ToolLogger logger) {
+			super(logger);
+		}
+
+		@Override
+		public void log(InstructionReplacementLogEntry logentry) {
+			AsmStackInfo replacement = logentry.getReplacementInfo();
+			AsmStackInfo replaced = logentry.getReplacedInfo();
+			if (replacement.getKind() == AsmStackInfo.Kind.CONSTRUCTOR
+					&& replacement.getType().equals(Type.getType(StringBuilder.class)) && replacement.getDescriptor()
+							.equals(Type.getMethodType(Type.VOID_TYPE, Type.getType(String.class)))) {
+				//the replacement is the new StringBuilder(String) invocation
+				//ignore logs for:
+//			        new java.lang.StringBuilder().append(...)
+//		        with
+//	                new java.lang.StringBuilder(java.lang.String)
+				//TODO maybe add a counter and display how many were omitted?
+				return;
+			}
+			super.log(logentry);
 		}
 	}
 }
