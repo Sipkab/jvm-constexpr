@@ -252,6 +252,7 @@ REC	java/lang/String	substring	(II)Ljava/lang/String;
 REC	java/lang/String	toLowerCase	(Ljava/util/Locale;)Ljava/lang/String;
 REC	java/lang/String	toUpperCase	(Ljava/util/Locale;)Ljava/lang/String;
 REC	java/lang/String	translateEscapes	()Ljava/lang/String;
+REC	java/lang/String	toString	()Ljava/lang/String;
 REC	java/lang/String	trim	()Ljava/lang/String;
 REC	java/lang/String	valueOf	(C)Ljava/lang/String;
 REC	java/lang/String	valueOf	(D)Ljava/lang/String;
@@ -277,6 +278,7 @@ REC	java/lang/StringBuilder	append	(Ljava/lang/StringBuffer;)Ljava/lang/StringBu
 REC	java/lang/StringBuilder	append	(Z)Ljava/lang/StringBuilder;
 REC	java/lang/StringBuilder	append	([C)Ljava/lang/StringBuilder;
 REC	java/lang/StringBuilder	append	([CII)Ljava/lang/StringBuilder;
+REC	java/lang/StringBuilder	toString	()Ljava/lang/String;
 REC	java/nio/charset/StandardCharsets	ISO_8859_1	Ljava/nio/charset/Charset;
 REC	java/nio/charset/StandardCharsets	US_ASCII	Ljava/nio/charset/Charset;
 REC	java/nio/charset/StandardCharsets	UTF_16	Ljava/nio/charset/Charset;
@@ -303,6 +305,7 @@ REC	java/time/Instant	ofEpochSecond	(J)Ljava/time/Instant;
 REC	java/time/Instant	ofEpochSecond	(JJ)Ljava/time/Instant;
 REC	java/time/Instant	parse	(Ljava/lang/CharSequence;)Ljava/time/Instant;
 REC	java/time/Instant	toEpochMilli	()J
+REC	java/time/Instant	toString	()Ljava/lang/String;
 REC	java/time/LocalDate	MAX	Ljava/time/LocalDate;
 REC	java/time/LocalDate	MIN	Ljava/time/LocalDate;
 REC	java/time/LocalDate	from	(Ljava/time/temporal/TemporalAccessor;)Ljava/time/LocalDate;

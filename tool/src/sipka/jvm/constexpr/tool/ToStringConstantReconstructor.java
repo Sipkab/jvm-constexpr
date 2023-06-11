@@ -54,17 +54,15 @@ final class ToStringConstantReconstructor implements ConstantReconstructor {
 					methodname, methoddescriptor, subject, new Object[0]);
 		}
 
+		//only allow this for constant types
+		if (!context.getInliner().isConstantType(Type.getInternalName(subjectclass)) && !context.isForceReconstruct()) {
+			//not a constant type, and not force reconstruct
+			//not reconstructing here
+			return null;
+		}
 		if ((subjectclass.getName() + "@" + Integer.toHexString(System.identityHashCode(subject))).equals(resultobj)) {
 			//the string representation seems to be the same as the default Object.toString() representation
 			//probably because it wasnt overridden by the subclass
-
-			if (!context.getInliner().isConstantType(Type.getInternalName(subjectclass))) {
-				//if not a constant type, then don't accept this string representation
-				if (!context.isForceReconstruct()) {
-					return null;
-				}
-				//allowed if force reconstruct
-			}
 			context.getInliner().logIndeterministicToString(Type.getInternalName(subjectclass));
 		}
 

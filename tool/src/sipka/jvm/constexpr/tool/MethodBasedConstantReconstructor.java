@@ -1,6 +1,7 @@
 package sipka.jvm.constexpr.tool;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 
 import sipka.jvm.constexpr.tool.options.ReconstructorPredicate;
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Opcodes;
@@ -12,19 +13,35 @@ import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.MethodInsnNode
  * {@link ConstantReconstructor} that calls a static or instance method to reconstruct a value.
  */
 final class MethodBasedConstantReconstructor implements ConstantReconstructor {
-	private final Method method;
+	private final String methodOwner;
+	private final String methodName;
+	private final String methodDescriptor;
+	private final boolean staticMethod;
 	private final ReconstructorPredicate predicate;
 
 	private final transient Class<?>[] parameterTypes;
 
 	public MethodBasedConstantReconstructor(Method m, ReconstructorPredicate predicate) {
-		this.method = m;
+		this.methodOwner = Type.getInternalName(m.getDeclaringClass());
+		this.methodName = m.getName();
+		this.methodDescriptor = Type.getMethodDescriptor(m);
+		this.staticMethod = Modifier.isStatic(m.getModifiers());
 		this.predicate = predicate;
 		this.parameterTypes = m.getParameterTypes();
 	}
 
-	public Method getMethod() {
-		return method;
+	public MethodBasedConstantReconstructor(String methodOwner, String methodName, String methodDescriptor,
+			boolean staticMethod, ReconstructorPredicate predicate) {
+		this.methodOwner = methodOwner;
+		this.methodName = methodName;
+		this.methodDescriptor = methodDescriptor;
+		this.staticMethod = staticMethod;
+		this.predicate = predicate;
+		this.parameterTypes = null; // TODO fill this?
+	}
+
+	public boolean isStaticMethod() {
+		return staticMethod;
 	}
 
 	public ReconstructorPredicate getPredicate() {
@@ -40,11 +57,12 @@ final class MethodBasedConstantReconstructor implements ConstantReconstructor {
 			throws ReconstructionException {
 		MethodInsnNode methodins = (MethodInsnNode) ins;
 		//ins is the INVOKESTATIC/INVOKEVIRTUAL instruction
-		Object[] args = new Object[parameterTypes.length];
+		Type[] argasmtypes = Type.getArgumentTypes(methodDescriptor);
+		Object[] args = new Object[argasmtypes.length];
 		AsmStackReconstructedValue[] derivedargs = new AsmStackReconstructedValue[args.length];
 		try {
-			if (!context.getInliner().reconstructArguments(context.forArgumentReconstruction(), parameterTypes, ins,
-					args, derivedargs)) {
+			if (!context.getInliner().reconstructArguments(context.forArgumentReconstruction(), argasmtypes,
+					parameterTypes, ins, args, derivedargs)) {
 				return null;
 			}
 		} catch (ReconstructionException e) {
@@ -60,11 +78,23 @@ final class MethodBasedConstantReconstructor implements ConstantReconstructor {
 		Object subject;
 		AsmStackReconstructedValue subjectval;
 		boolean staticfunc = methodins.getOpcode() == Opcodes.INVOKESTATIC;
+		Class<?> declaringclass;
+		try {
+			declaringclass = context.getInliner().findClass(Type.getObjectType(methodOwner));
+		} catch (ClassNotFoundException e) {
+			throw context.newClassNotFoundReconstructionException(e, methodins, methodOwner);
+		}
+		Method method;
 		if (staticfunc) {
 			subjectval = null;
 			subject = null;
+			try {
+				method = Utils.getDeclaredMethodWithDescriptor(declaringclass, methodName, methodDescriptor);
+			} catch (NoSuchMethodException e) {
+				throw context.newMethodNotFoundReconstructionException(e, methodins, methodins.owner, methodins.name,
+						methodins.desc);
+			}
 		} else {
-			Class<?> declaringclass = method.getDeclaringClass();
 			try {
 				subjectval = context.getInliner().reconstructStackValue(context.withReceiverType(declaringclass),
 						firstins.getPrevious());
@@ -80,15 +110,23 @@ final class MethodBasedConstantReconstructor implements ConstantReconstructor {
 
 			if (subject == null) {
 				throw context.newMethodInvocationFailureReconstructionException(
-						new NullPointerException("Method call subject is null: " + method), methodins, methodins.owner,
-						methodins.name, methodins.desc, subject, args);
+						new NullPointerException("Method call subject is null: " + Utils.memberDescriptorToPrettyString(
+								Type.getMethodType(methodDescriptor), Type.getObjectType(methodOwner), methodName)),
+						methodins, methodins.owner, methodins.name, methodins.desc, subject, args);
 			}
-			if (!declaringclass.isInstance(subject)) {
+			if (!Utils.hasSuperTypeInternalName(subject.getClass(), methodOwner)) {
 				//the reconstructed subject is not an instance of the method declaring class
 				//we can't call this method on it
 				//this can happen if this method is called on other method instructions that the one described
 				//by the method  field
 				return null;
+			}
+			try {
+				method = Utils.getMethodForMethodDescriptor(subject.getClass(), methodOwner, methodDescriptor,
+						methodName);
+			} catch (NoSuchMethodException e) {
+				throw context.newMethodNotFoundReconstructionException(e, methodins, methodins.owner, methodins.name,
+						methodins.desc);
 			}
 		}
 
@@ -119,8 +157,14 @@ final class MethodBasedConstantReconstructor implements ConstantReconstructor {
 	@Override
 	public String toString() {
 		StringBuilder builder = new StringBuilder(getClass().getSimpleName());
-		builder.append("[method=");
-		builder.append(method);
+		builder.append("[methodOwner=");
+		builder.append(methodOwner);
+		builder.append(", methodName=");
+		builder.append(methodName);
+		builder.append(", methodDescriptor=");
+		builder.append(methodDescriptor);
+		builder.append(", staticMethod=");
+		builder.append(staticMethod);
 		builder.append(", predicate=");
 		builder.append(predicate);
 		builder.append("]");

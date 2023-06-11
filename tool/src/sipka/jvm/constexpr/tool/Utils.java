@@ -952,6 +952,19 @@ public class Utils {
 				"Method not found on " + type + " with name: " + name + " and descriptor: " + descriptor);
 	}
 
+	public static Method getDeclaredMethodWithDescriptor(Class<?> type, String name, String descriptor)
+			throws NoSuchMethodException {
+		Type[] argasqmtypes = Type.getArgumentTypes(descriptor);
+		for (Method m : type.getDeclaredMethods()) {
+			if (!isMethodMatchesNameAndDescriptor(m, descriptor, name, argasqmtypes)) {
+				continue;
+			}
+			m.setAccessible(true);
+			return m;
+		}
+		throw new NoSuchMethodException();
+	}
+
 	private static Method searchMethodForMethodDescriptor(Class<?> type, Type[] asmparamtypes, String owner,
 			String descriptor, String name, boolean hadowner) {
 		if (!hadowner) {

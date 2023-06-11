@@ -8,7 +8,6 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.AbstractMap;
@@ -65,6 +64,7 @@ import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.RecordComponen
 import sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.tree.TypeInsnNode;
 
 public class ConstantExpressionInliner {
+
 	public static final int ASM_API = Opcodes.ASM9;
 
 	private static final NavigableMap<String, DeconstructionSelector> baseConstantDeconstructors = new TreeMap<>();
@@ -389,7 +389,7 @@ public class ConstantExpressionInliner {
 
 	private void addGeneralInstanceMethodConstantReconstructor(MethodBasedConstantReconstructor reconstructor,
 			MethodKey memberkey) {
-		if (Modifier.isStatic(reconstructor.getMethod().getModifiers())) {
+		if (reconstructor.isStaticMethod()) {
 			//don't add, only for instance methods
 			return;
 		}
@@ -1693,6 +1693,29 @@ public class ConstantExpressionInliner {
 		return any;
 	}
 
+	private static boolean isContantTypeReconstructable(Class<?> type, MethodInsnNode methodins) {
+		if ("()I".equals(methodins.desc)) {
+			if ("hashCode".equals(methodins.name)) {
+				//don't inline hashCode by default on constant types, as that might not be stable
+				return false;
+			}
+			if (Enum.class.isAssignableFrom(type)) {
+				if ("ordinal".equals(methodins.name) && "()I".equals(methodins.desc)) {
+					//ordinal reconstruction disabled for now, as it depends on source compatibility
+					return false;
+				}
+				if ("compareTo".equals(methodins.name) && ("(Ljava/lang/Enum;)I".equals(methodins.desc)
+						|| ("(L" + methodins.owner + ";)I").equals(methodins.desc))) {
+					//calling compareTo on an enum constant
+					//it depends on the ordinal value, so depends on source compatibility
+					//don't allow this for now
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+
 	private AsmStackReconstructedValue reconstructValueImpl(ReconstructionContext context, AbstractInsnNode ins,
 			MemberKey memberkey) throws ReconstructionException {
 		ConstantReconstructor reconstructor = constantReconstructors.get(memberkey);
@@ -1708,48 +1731,9 @@ public class ConstantExpressionInliner {
 				if (Utils.isNeverOptimizableObjectMethod(methodins.name, methodins.desc)) {
 					return null;
 				}
-				if ("toString".equals(methodins.name) && "()Ljava/lang/String;".equals(methodins.desc)) {
-					//handle toString specially
-					//if the reconstruction succeeds, then we can call toString on it and inline that result
-					return ToStringConstantReconstructor.INSTANCE.reconstructValue(context, methodins);
-				}
 
-				InlinerTypeReference typeref = constantTypes.get(methodins.owner);
-				if (typeref != null) {
-					Class<?> type = typeref.getType(this);
-					if (type != null) {
-						if ("()I".equals(methodins.desc)) {
-							if ("hashCode".equals(methodins.name)) {
-								//don't inline hashCode by default on constant types, as that might not be stable
-								break;
-							}
-							if (Enum.class.isAssignableFrom(type)) {
-								if ("ordinal".equals(methodins.name) && "()I".equals(methodins.desc)) {
-									//ordinal reconstruction disabled for now, as it depends on source compatibility
-									break;
-								}
-								if ("compareTo".equals(methodins.name) && ("(Ljava/lang/Enum;)I".equals(methodins.desc)
-										|| ("(L" + methodins.owner + ";)I").equals(methodins.desc))) {
-									//calling compareTo on an enum constant
-									//it depends on the ordinal value, so depends on source compatibility
-									//don't allow this for now
-									break;
-								}
-							}
-						}
-						Method m;
-						try {
-							m = Utils.getMethodForInstruction(type, methodins);
-						} catch (NoSuchMethodException e) {
-							throw context.newMethodNotFoundReconstructionException(e, methodins, methodins.owner,
-									methodins.name, methodins.desc);
-						}
-						return new MethodBasedConstantReconstructor(m, ReconstructorPredicate.ALLOW_ALL)
-								.reconstructValue(context, ins);
-					}
-				}
-
-				//try to handle the reconstruction in a generic way, which will invoke the appropriate method if applicable 
+				//try to handle the reconstruction in a generic way, which will invoke the appropriate method 
+				//if applicable given the used predicate 
 				reconstructor = constantReconstructors.get(new MethodKey("", methodins.name, methodins.desc));
 				if (reconstructor != null) {
 					AsmStackReconstructedValue reconstructed = reconstructor.reconstructValue(context, ins);
@@ -1758,6 +1742,25 @@ public class ConstantExpressionInliner {
 					}
 					//if failed, then proceed below with the forced reconstruction if needed
 				}
+				//call this before the constant type based reconstruction
+				if ("toString".equals(methodins.name) && "()Ljava/lang/String;".equals(methodins.desc)) {
+					//handle toString specially
+					//if the reconstruction succeeds, then we can call toString on it and inline that result
+					AsmStackReconstructedValue tsrecon = ToStringConstantReconstructor.INSTANCE
+							.reconstructValue(context, methodins);
+					if (tsrecon != null) {
+						return tsrecon;
+					}
+				}
+
+				//call the method with a predicate that only applies to constant types
+				AsmStackReconstructedValue constantrecon = new MethodBasedConstantReconstructor(methodins.owner,
+						methodins.name, methodins.desc, false, new ConstantTypeReconstructorPredicate(methodins))
+								.reconstructValue(context, ins);
+				if (constantrecon != null) {
+					return constantrecon;
+				}
+
 				break;
 			}
 			case Opcodes.INVOKESPECIAL: {
@@ -2048,5 +2051,26 @@ public class ConstantExpressionInliner {
 
 	void logReconstructionNotAllowed(Object obj, Member member, Object[] args) {
 		//TODO do we need to log this?
+	}
+
+	private final class ConstantTypeReconstructorPredicate implements ReconstructorPredicate {
+		private final MethodInsnNode methodins;
+
+		private ConstantTypeReconstructorPredicate(MethodInsnNode methodins) {
+			this.methodins = methodins;
+		}
+
+		@Override
+		public boolean canReconstruct(Object obj, Member member, Object[] arguments) {
+			if (obj == null) {
+				return false;
+			}
+			Class<?> type = obj.getClass();
+			if (obj instanceof Enum) {
+				//use the declaring class, as enums may be anonymous inner classes
+				type = ((Enum<?>) obj).getDeclaringClass();
+			}
+			return isConstantType(Type.getInternalName(type)) && isContantTypeReconstructable(type, methodins);
+		}
 	}
 }
