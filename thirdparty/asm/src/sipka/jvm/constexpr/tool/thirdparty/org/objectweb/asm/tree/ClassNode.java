@@ -54,19 +54,19 @@ public class ClassNode extends ClassVisitor {
   public int version;
 
   /**
-   * The class's access flags (see {@link org.objectweb.asm.Opcodes}). This field also indicates if
+   * The class's access flags (see {@link sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Opcodes}). This field also indicates if
    * the class is deprecated {@link Opcodes#ACC_DEPRECATED} or a record {@link Opcodes#ACC_RECORD}.
    */
   public int access;
 
-  /** The internal name of this class (see {@link org.objectweb.asm.Type#getInternalName}). */
+  /** The internal name of this class (see {@link sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type#getInternalName}). */
   public String name;
 
   /** The signature of this class. May be {@literal null}. */
   public String signature;
 
   /**
-   * The internal of name of the super class (see {@link org.objectweb.asm.Type#getInternalName}).
+   * The internal of name of the super class (see {@link sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type#getInternalName}).
    * For interfaces, the super class is {@link Object}. May be {@literal null}, but only for the
    * {@link Object} class.
    */
@@ -74,7 +74,7 @@ public class ClassNode extends ClassVisitor {
 
   /**
    * The internal names of the interfaces directly implemented by this class (see {@link
-   * org.objectweb.asm.Type#getInternalName}).
+   * sipka.jvm.constexpr.tool.thirdparty.org.objectweb.asm.Type#getInternalName}).
    */
   public List<String> interfaces;
 
